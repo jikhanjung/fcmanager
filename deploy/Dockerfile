@@ -1,10 +1,10 @@
 # FC Sky — Django 애플리케이션 이미지
-# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.0 .
+# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.1 .
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="FC Sky" \
       org.opencontainers.image.description="FC Sky 동네 축구팀 웹사이트 (Django)" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.1.1" \
       org.opencontainers.image.source="https://github.com/honestjung/fcsky"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

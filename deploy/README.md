@@ -7,7 +7,7 @@ FC Sky 애플리케이션 컨테이너 이미지 빌드/실행 안내.
 프로젝트 **루트**를 빌드 컨텍스트로 사용한다(코드 전체를 COPY 하기 위함):
 
 ```bash
-docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.0 -t honestjung/fcsky:latest .
+docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.1 -t honestjung/fcsky:latest .
 ```
 
 ## 실행
@@ -20,7 +20,7 @@ docker run --rm -p 8000:8000 \
   -e DJANGO_SUPERUSER_USERNAME=admin \
   -e DJANGO_SUPERUSER_PASSWORD=change-me \
   -v fcsky-db:/app/db \
-  honestjung/fcsky:0.1.0
+  honestjung/fcsky:0.1.1
 ```
 
 → http://localhost:8000
