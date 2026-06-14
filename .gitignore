@@ -13,6 +13,9 @@ db.sqlite3-journal
 # Env
 .env
 
+# 원본 소스 자료 (선수 명단 mhtml, 대진표 캡처 등) — 추출 데이터는 seed 명령에 반영됨
+/data/
+
 # OS / editor
 .DS_Store
 .idea/
