@@ -16,7 +16,7 @@
         {% for m in upcoming %}
           <li class="list-group-item">
             <small class="text-muted">{{ m.kickoff|date:"m/d (D) H:i" }} · {{ m.competition }}</small><br>
-            <strong>{{ m.our_team }}</strong> vs {{ m.opponent }}
+            <a href="{{ m.get_absolute_url }}" class="text-decoration-none"><strong>{{ m.our_team }}</strong> vs {{ m.opponent }}</a>
             {% if m.venue %}<span class="text-muted">@ {{ m.venue }}</span>{% endif %}
           </li>
         {% empty %}
@@ -34,7 +34,7 @@
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <span>
               <small class="text-muted">{{ m.kickoff|date:"m/d" }} · {{ m.competition }}</small><br>
-              {{ m.our_team }} vs {{ m.opponent }}
+              <a href="{{ m.get_absolute_url }}" class="text-decoration-none">{{ m.our_team }} vs {{ m.opponent }}</a>
             </span>
             <span class="fs-5 fw-bold">
               {{ m.our_score }} : {{ m.opponent_score }}

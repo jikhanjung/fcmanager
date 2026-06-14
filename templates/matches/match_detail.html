@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ match.our_team }} vs {{ match.opponent }} — FC Sky{% endblock %}
+{% block content %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body text-center">
+    <div class="text-muted small mb-2">
+      {{ match.kickoff|date:"Y년 m월 d일 (D) H:i" }} · {{ match.competition }}
+      {% if match.season %} · {{ match.season }}{% endif %}
+      {% if match.venue %} · {{ match.venue }}{% endif %}
+    </div>
+    <div class="row align-items-center">
+      <div class="col text-end">
+        <h2 class="h4 mb-0">{{ match.our_team }}</h2>
+        <small class="text-muted">{% if match.is_home %}홈{% else %}원정{% endif %}</small>
+      </div>
+      <div class="col-auto">
+        {% if match.our_score is not None and match.opponent_score is not None %}
+          <span class="display-5 fw-bold">{{ match.our_score }} : {{ match.opponent_score }}</span>
+        {% else %}
+          <span class="display-6 text-muted">VS</span>
+        {% endif %}
+      </div>
+      <div class="col text-start">
+        <h2 class="h4 mb-0">{{ match.opponent }}</h2>
+      </div>
+    </div>
+    <div class="mt-3">
+      <span class="badge bg-secondary">{{ match.get_status_display }}</span>
+      {% if match.result == "W" %}<span class="badge bg-success">승리</span>
+      {% elif match.result == "L" %}<span class="badge bg-danger">패배</span>
+      {% elif match.result == "D" %}<span class="badge bg-secondary">무승부</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<h2 class="h5 mb-3">타임라인</h2>
+<div class="list-group shadow-sm mb-4">
+  {% for e in events %}
+    <div class="list-group-item d-flex align-items-center
+      {% if e.side == 'OPPONENT' %}flex-row-reverse text-end{% endif %}">
+      <span class="badge bg-light text-dark me-2 ms-2">{% if e.minute is not None %}{{ e.minute }}'{% else %}-{% endif %}</span>
+      <div>
+        <strong>{{ e.get_event_type_display }}</strong>
+        {% if e.player %}<span class="ms-1">{{ e.player.name }}</span>
+        {% else %}<span class="ms-1 text-muted">{{ e.get_side_display }}</span>{% endif %}
+        {% if e.description %}<div class="small text-muted">{{ e.description }}</div>{% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="list-group-item text-muted">기록된 이벤트가 없습니다.</div>
+  {% endfor %}
+</div>
+
+{% if match.note %}<p class="text-muted"><strong>비고:</strong> {{ match.note|linebreaksbr }}</p>{% endif %}
+
+<a href="{% url 'matches:list' %}" class="btn btn-outline-secondary btn-sm">← 일정·결과로</a>
+{% endblock %}

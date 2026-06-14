@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}명예의 전당 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">명예의 전당</h1>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-12 col-md-4">
+    <select name="season" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 시즌</option>
+      {% for s in seasons %}
+        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% regroup awards by season as season_groups %}
+{% for group in season_groups %}
+  <h2 class="h5 mt-4 mb-3">{{ group.grouper|default:"시즌 미지정" }}</h2>
+  <div class="row g-3">
+    {% for a in group.list %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <h3 class="h6 mb-1">{{ a.title }}</h3>
+              {% if a.rank %}<span class="badge bg-warning text-dark">{{ a.rank }}위</span>{% endif %}
+            </div>
+            <div class="text-muted small mb-2">{{ a.competition }}</div>
+            <div>
+              {% if a.team %}🏆 {{ a.team }}{% endif %}
+              {% if a.player %}<a href="{{ a.player.get_absolute_url }}">👤 {{ a.player.name }}</a>{% endif %}
+            </div>
+            {% if a.description %}<p class="small text-muted mt-2 mb-0">{{ a.description }}</p>{% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% empty %}
+  <p class="text-muted">등록된 입상 내역이 없습니다.</p>
+{% endfor %}
+{% endblock %}

@@ -62,6 +62,9 @@ class Player(models.Model):
     def __str__(self):
         return self.name
 
+    def get_absolute_url(self):
+        return reverse("teams:player", kwargs={"pk": self.pk})
+
 
 class TeamMembership(models.Model):
     """선수의 팀 소속 (시즌별 등번호 포함)."""

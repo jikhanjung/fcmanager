@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 
 
 class Opponent(models.Model):
@@ -64,6 +65,9 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.our_team} vs {self.opponent} ({self.kickoff:%Y-%m-%d})"
+
+    def get_absolute_url(self):
+        return reverse("matches:detail", kwargs={"pk": self.pk})
 
     @property
     def result(self):

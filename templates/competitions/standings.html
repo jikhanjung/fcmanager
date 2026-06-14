@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}리그 순위표 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">리그 순위표</h1>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-12 col-md-6">
+    <select name="competition" class="form-select" onchange="this.form.submit()">
+      {% for c in leagues %}
+        <option value="{{ c.slug }}" {% if competition and competition.slug == c.slug %}selected{% endif %}>{{ c.name }}</option>
+      {% empty %}
+        <option value="">등록된 리그가 없습니다</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12 col-md-6">
+    <select name="season" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 시즌</option>
+      {% for s in seasons %}
+        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if competition %}
+  <h2 class="h5 mb-3">{{ competition.name }}</h2>
+{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle text-center bg-white shadow-sm">
+    <thead class="table-light">
+      <tr>
+        <th>순위</th><th class="text-start">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th>
+        <th>득점</th><th>실점</th><th>득실</th><th>승점</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="fw-bold">{{ forloop.counter }}</td>
+          <td class="text-start"><a href="{{ r.team.get_absolute_url }}">{{ r.team.name }}</a></td>
+          <td>{{ r.p }}</td><td>{{ r.w }}</td><td>{{ r.d }}</td><td>{{ r.l }}</td>
+          <td>{{ r.gf }}</td><td>{{ r.ga }}</td>
+          <td>{% if r.gd > 0 %}+{% endif %}{{ r.gd }}</td>
+          <td class="fw-bold">{{ r.pts }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-muted">종료된 경기 기록이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="text-muted small">승점 = 승×3 + 무×1. 상대팀 간 경기는 집계하지 않으며, FC Sky 팀들의 리그 전적만 표시합니다.</p>
+{% endblock %}

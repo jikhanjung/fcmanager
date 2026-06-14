@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}일정 & 결과 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">일정 &amp; 결과</h1>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-6 col-md-3">
+    <select name="team" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 팀</option>
+      {% for t in teams %}
+        <option value="{{ t.slug }}" {% if selected.team == t.slug %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-3">
+    <select name="competition" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 대회</option>
+      {% for c in competitions %}
+        <option value="{{ c.slug }}" {% if selected.competition == c.slug %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-3">
+    <select name="season" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 시즌</option>
+      {% for s in seasons %}
+        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-3">
+    <select name="show" class="form-select" onchange="this.form.submit()">
+      <option value="">예정+종료 전체</option>
+      <option value="upcoming" {% if selected.show == "upcoming" %}selected{% endif %}>예정 경기</option>
+      <option value="finished" {% if selected.show == "finished" %}selected{% endif %}>종료 경기</option>
+    </select>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle bg-white shadow-sm">
+    <thead class="table-light">
+      <tr>
+        <th>일시</th><th>대회</th><th>우리 팀</th><th class="text-center">스코어</th>
+        <th>상대</th><th class="text-center">상태</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in matches %}
+        <tr>
+          <td class="text-nowrap small">{{ m.kickoff|date:"Y.m.d (D) H:i" }}</td>
+          <td class="small">{{ m.competition }}</td>
+          <td>{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</td>
+          <td class="text-center fw-bold">
+            {% if m.our_score is not None and m.opponent_score is not None %}
+              {{ m.our_score }} : {{ m.opponent_score }}
+              {% if m.result == "W" %}<span class="badge bg-success">승</span>
+              {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
+              {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}
+            {% else %}<span class="text-muted">-</span>{% endif %}
+          </td>
+          <td>{{ m.opponent }}</td>
+          <td class="text-center"><span class="badge bg-light text-muted">{{ m.get_status_display }}</span></td>
+          <td><a href="{{ m.get_absolute_url }}" class="btn btn-sm btn-outline-primary">상세</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-muted">조건에 맞는 경기가 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

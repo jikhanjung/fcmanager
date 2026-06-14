@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ player.name }} — FC Sky{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+  {% if player.photo %}<img src="{{ player.photo.url }}" alt="" height="80" class="rounded">{% endif %}
+  <div>
+    <h1 class="h3 mb-1">{{ player.name }}</h1>
+    {% if player.position %}<span class="badge bg-primary">{{ player.get_position_display }}</span>{% endif %}
+    {% if player.birth_year %}<span class="text-muted ms-2">{{ player.birth_year }}년생</span>{% endif %}
+  </div>
+</div>
+
+{% if player.bio %}<p class="text-muted">{{ player.bio|linebreaksbr }}</p>{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold">{{ counts.goals }}</div><div class="text-muted small">득점</div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold">{{ counts.assists }}</div><div class="text-muted small">도움</div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold text-warning">{{ counts.yellows }}</div><div class="text-muted small">경고</div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold text-danger">{{ counts.reds }}</div><div class="text-muted small">퇴장</div>
+  </div></div></div>
+</div>
+
+<h2 class="h5 mt-4 mb-3">소속 이력</h2>
+<div class="table-responsive">
+  <table class="table align-middle bg-white shadow-sm">
+    <thead class="table-light"><tr><th>시즌</th><th>팀</th><th>등번호</th><th></th></tr></thead>
+    <tbody>
+      {% for m in memberships %}
+        <tr>
+          <td>{{ m.season|default:"-" }}</td>
+          <td><a href="{{ m.team.get_absolute_url }}">{{ m.team.name }}</a></td>
+          <td>{{ m.jersey_number|default:"-" }}</td>
+          <td>{% if m.is_captain %}<span class="badge bg-warning text-dark">주장</span>{% endif %}
+              {% if not m.is_active %}<span class="badge bg-light text-muted">과거</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="text-muted">소속 이력이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="h5 mt-4 mb-3">득점 기록</h2>
+<ul class="list-group shadow-sm mb-4">
+  {% for e in goal_events %}
+    <li class="list-group-item d-flex justify-content-between">
+      <span>
+        <small class="text-muted">{{ e.match.kickoff|date:"Y.m.d" }} · {{ e.match.competition }}</small><br>
+        vs {{ e.match.opponent }}{% if e.minute is not None %} <span class="text-muted">({{ e.minute }}')</span>{% endif %}
+      </span>
+      <a href="{{ e.match.get_absolute_url }}" class="btn btn-sm btn-outline-primary align-self-center">경기</a>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted">득점 기록이 없습니다.</li>
+  {% endfor %}
+</ul>
+
+{% if awards %}
+<h2 class="h5 mt-4 mb-3">수상</h2>
+<ul class="list-group shadow-sm">
+  {% for a in awards %}
+    <li class="list-group-item">{{ a.season|default:"" }} {{ a.competition }} — <strong>{{ a.title }}</strong></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}득점 순위 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">득점 순위</h1>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-12 col-md-4">
+    <select name="team" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 팀</option>
+      {% for t in teams %}
+        <option value="{{ t.slug }}" {% if selected.team == t.slug %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-4">
+    <select name="competition" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 대회</option>
+      {% for c in competitions %}
+        <option value="{{ c.slug }}" {% if selected.competition == c.slug %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-4">
+    <select name="season" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 시즌</option>
+      {% for s in seasons %}
+        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle bg-white shadow-sm">
+    <thead class="table-light">
+      <tr><th style="width:4rem">순위</th><th>선수</th><th class="text-end">골</th></tr>
+    </thead>
+    <tbody>
+      {% for r in ranking %}
+        <tr>
+          <td class="fw-bold">{{ forloop.counter }}</td>
+          <td><a href="{% url 'teams:player' r.player_id %}">{{ r.player__name }}</a></td>
+          <td class="text-end fw-bold">{{ r.goals }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" class="text-muted">집계된 득점 기록이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
