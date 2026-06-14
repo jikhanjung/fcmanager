@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}팀 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">팀</h1>
+<div class="row g-3">
+  {% for team in teams %}
+    <div class="col-md-4">
+      <a href="{{ team.get_absolute_url }}" class="text-decoration-none">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">{{ team.name }}</h5>
+            <span class="badge bg-primary">{{ team.get_age_group_display }}</span>
+            {% if team.description %}<p class="card-text text-muted mt-2 small">{{ team.description|truncatewords:20 }}</p>{% endif %}
+          </div>
+        </div>
+      </a>
+    </div>
+  {% empty %}
+    <p class="text-muted">아직 등록된 팀이 없습니다.</p>
+  {% endfor %}
+</div>
+{% endblock %}

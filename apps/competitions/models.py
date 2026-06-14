@@ -1,0 +1,103 @@
+from django.db import models
+
+
+class Season(models.Model):
+    """시즌 (연도 단위 집계용)."""
+
+    name = models.CharField("시즌명", max_length=50, help_text="예: 2026")
+    year = models.PositiveIntegerField("연도")
+    start_date = models.DateField("시작일", null=True, blank=True)
+    end_date = models.DateField("종료일", null=True, blank=True)
+    is_current = models.BooleanField("현재 시즌", default=False)
+
+    class Meta:
+        verbose_name = "시즌"
+        verbose_name_plural = "시즌"
+        ordering = ["-year"]
+
+    def __str__(self):
+        return self.name
+
+
+class Competition(models.Model):
+    """대회/리그 (구청장기·협회장기·K7리그·시민리그 등)."""
+
+    class Kind(models.TextChoices):
+        LEAGUE = "LEAGUE", "리그"
+        TOURNAMENT = "TOURNAMENT", "토너먼트"
+        CUP = "CUP", "컵 대회"
+
+    name = models.CharField("대회명", max_length=120)
+    slug = models.SlugField("URL 슬러그", max_length=140, unique=True)
+    kind = models.CharField("종류", max_length=12, choices=Kind.choices)
+    organizer = models.CharField("주최", max_length=120, blank=True)
+    description = models.TextField("설명", blank=True)
+
+    class Meta:
+        verbose_name = "대회"
+        verbose_name_plural = "대회"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class CompetitionEntry(models.Model):
+    """팀의 대회 출전 (시즌별)."""
+
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="entries",
+        verbose_name="팀",
+    )
+    competition = models.ForeignKey(
+        Competition, on_delete=models.CASCADE, related_name="entries",
+        verbose_name="대회",
+    )
+    season = models.ForeignKey(
+        Season, on_delete=models.CASCADE, related_name="entries",
+        verbose_name="시즌",
+    )
+    note = models.CharField("비고", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "대회 출전"
+        verbose_name_plural = "대회 출전"
+        ordering = ["-season__year", "competition"]
+        unique_together = [("team", "competition", "season")]
+
+    def __str__(self):
+        return f"{self.team} - {self.competition} ({self.season})"
+
+
+class Award(models.Model):
+    """입상/수상 내역 (팀 또는 선수 단위)."""
+
+    title = models.CharField("수상명", max_length=120, help_text="예: 우승, 준우승, 득점왕")
+    competition = models.ForeignKey(
+        Competition, on_delete=models.CASCADE, related_name="awards",
+        verbose_name="대회",
+    )
+    season = models.ForeignKey(
+        Season, on_delete=models.SET_NULL, related_name="awards",
+        verbose_name="시즌", null=True, blank=True,
+    )
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="awards",
+        verbose_name="팀", null=True, blank=True,
+    )
+    player = models.ForeignKey(
+        "teams.Player", on_delete=models.CASCADE, related_name="awards",
+        verbose_name="선수", null=True, blank=True,
+    )
+    rank = models.PositiveIntegerField("순위", null=True, blank=True)
+    date_awarded = models.DateField("수상일", null=True, blank=True)
+    description = models.TextField("설명", blank=True)
+
+    class Meta:
+        verbose_name = "입상 내역"
+        verbose_name_plural = "입상 내역"
+        ordering = ["-date_awarded", "-season__year"]
+
+    def __str__(self):
+        who = self.team or self.player or "?"
+        return f"{who} - {self.competition} {self.title}"
