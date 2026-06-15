@@ -4,7 +4,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.competitions.models import Competition, Season
-from apps.teams.models import Team
+from apps.teams.models import Player, Team
 
 from .forms import MatchEventFormSet, MatchResultForm
 from .models import Match, MatchEvent
@@ -69,9 +69,15 @@ def match_edit(request, pk):
     match = get_object_or_404(
         Match.objects.select_related("our_team", "opponent", "competition"), pk=pk
     )
+    # 득점·도움 선수 선택지는 해당 경기 팀에 등록된 선수로 제한.
+    team_players = (
+        Player.objects.filter(memberships__team=match.our_team)
+        .distinct().order_by("name")
+    )
+    fs_kwargs = {"form_kwargs": {"team_players": team_players}}
     if request.method == "POST":
         form = MatchResultForm(request.POST, instance=match)
-        formset = MatchEventFormSet(request.POST, instance=match)
+        formset = MatchEventFormSet(request.POST, instance=match, **fs_kwargs)
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
@@ -79,7 +85,7 @@ def match_edit(request, pk):
             return redirect("matches:detail", pk=match.pk)
     else:
         form = MatchResultForm(instance=match)
-        formset = MatchEventFormSet(instance=match)
+        formset = MatchEventFormSet(instance=match, **fs_kwargs)
     return render(
         request,
         "matches/match_edit.html",

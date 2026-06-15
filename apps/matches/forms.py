@@ -20,7 +20,15 @@ class MatchResultForm(forms.ModelForm):
 
 
 class MatchEventForm(forms.ModelForm):
-    """득점·도움·카드 등 이벤트 한 줄."""
+    """득점·도움·카드 등 이벤트 한 줄.
+
+    team_players 가 주어지면 선수 선택지를 해당 팀 등록 선수로 제한한다.
+    """
+
+    def __init__(self, *args, team_players=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if team_players is not None:
+            self.fields["player"].queryset = team_players
 
     class Meta:
         model = MatchEvent
