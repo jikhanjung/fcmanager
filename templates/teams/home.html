@@ -2,22 +2,30 @@
 {% load static %}
 {% block title %}FC Sky — 홈{% endblock %}
 {% block content %}
-<div class="p-5 mb-4 bg-white rounded-3 shadow-sm text-center">
-  <img src="{% static 'img/fcskylogo.png' %}" alt="FC Sky 엠블럼" height="140" class="mb-3">
-  <h1 class="display-5 fw-bold">FC Sky</h1>
-  <p class="lead text-muted">FC Sky의 모든 기록</p>
-</div>
+
+<section class="hero mb-5 reveal reveal-1">
+  <div class="d-flex flex-column align-items-start">
+    <img src="{% static 'img/fcskylogo.png' %}" alt="FC Sky 엠블럼" class="hero-logo mb-2">
+    <div class="eyebrow" style="color:var(--sky-2)">SEOCHO · FOOTBALL CLUB</div>
+    <h1 class="hero-title">FC <span class="sky">SKY</span></h1>
+    <p class="hero-tag mb-4">선수단부터 대회·일정·결과·명예의 전당까지 — FC Sky의 모든 기록.</p>
+    <div class="hero-cta d-flex flex-wrap gap-2">
+      <a href="{% url 'matches:list' %}" class="btn btn-primary">일정 · 결과</a>
+      <a href="{% url 'competitions:standings' %}" class="btn btn-ghost">순위표 보기</a>
+    </div>
+  </div>
+</section>
 
 {% if notices %}
-<div class="card shadow-sm mb-4">
-  <div class="card-header fw-bold d-flex justify-content-between">
-    <span>공지사항</span>
-    <a href="{% url 'notices:list' %}" class="text-decoration-none small">전체보기</a>
+<div class="card mb-5 reveal reveal-2">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="section-title">공지사항</span>
+    <a href="{% url 'notices:list' %}" class="small">전체보기 →</a>
   </div>
   <ul class="list-group list-group-flush">
     {% for n in notices %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
-        <a href="{{ n.get_absolute_url }}" class="text-decoration-none">
+        <a href="{{ n.get_absolute_url }}">
           {% if n.is_pinned %}<span class="badge bg-danger me-1">고정</span>{% endif %}{{ n.title }}
         </a>
         <small class="text-muted">{{ n.created_at|date:"m/d" }}</small>
@@ -27,15 +35,15 @@
 </div>
 {% endif %}
 
-<div class="row g-4">
+<div class="row g-4 mb-2 reveal reveal-3">
   <div class="col-md-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header fw-bold">다가오는 경기</div>
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title">다가오는 경기</span></div>
       <ul class="list-group list-group-flush">
         {% for m in upcoming %}
           <li class="list-group-item">
             <small class="text-muted">{{ m.kickoff|date:"m/d (D) H:i" }} · {{ m.competition }}</small><br>
-            <a href="{{ m.get_absolute_url }}" class="text-decoration-none"><strong>{{ m.our_team }}</strong> vs {{ m.opponent }}</a>
+            <a href="{{ m.get_absolute_url }}"><strong>{{ m.our_team }}</strong> vs {{ m.opponent }}</a>
             {% if m.venue %}<span class="text-muted">@ {{ m.venue }}</span>{% endif %}
           </li>
         {% empty %}
@@ -46,17 +54,17 @@
   </div>
 
   <div class="col-md-6">
-    <div class="card shadow-sm h-100">
-      <div class="card-header fw-bold">최근 결과</div>
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title">최근 결과</span></div>
       <ul class="list-group list-group-flush">
         {% for m in recent %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <span>
               <small class="text-muted">{{ m.kickoff|date:"m/d" }} · {{ m.competition }}</small><br>
-              <a href="{{ m.get_absolute_url }}" class="text-decoration-none">{{ m.our_team }} vs {{ m.opponent }}</a>
+              <a href="{{ m.get_absolute_url }}">{{ m.our_team }} vs {{ m.opponent }}</a>
             </span>
-            <span class="fs-5 fw-bold">
-              {{ m.our_score }} : {{ m.opponent_score }}
+            <span class="d-flex align-items-center gap-2">
+              <span class="score-num">{{ m.our_score }} : {{ m.opponent_score }}</span>
               {% if m.result == "W" %}<span class="badge bg-success">승</span>
               {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
               {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}
@@ -70,21 +78,24 @@
   </div>
 </div>
 
-<h2 class="h4 mt-5 mb-3">팀</h2>
-<div class="row g-3">
+<div class="d-flex align-items-center justify-content-between mt-5 mb-3 reveal reveal-4">
+  <h2 class="section-title">팀</h2>
+  <a href="{% url 'teams:list' %}" class="small">전체 팀 →</a>
+</div>
+<div class="row g-3 reveal reveal-4">
   {% for team in teams %}
     <div class="col-md-4">
-      <a href="{{ team.get_absolute_url }}" class="text-decoration-none">
-        <div class="card shadow-sm h-100">
+      <a href="{{ team.get_absolute_url }}">
+        <div class="card h-100">
           <div class="card-body">
-            <h5 class="card-title">{{ team.name }}</h5>
-            <span class="badge bg-primary">{{ team.get_age_group_display }}</span>
+            <div class="eyebrow mb-1">{{ team.get_age_group_display }}</div>
+            <h5 class="card-title mb-0">{{ team.name }}</h5>
           </div>
         </div>
       </a>
     </div>
   {% empty %}
-    <p class="text-muted">아직 등록된 팀이 없습니다. <a href="/admin/">관리자에서 추가</a>하세요.</p>
+    <p class="text-muted">아직 등록된 팀이 없습니다.</p>
   {% endfor %}
 </div>
 {% endblock %}

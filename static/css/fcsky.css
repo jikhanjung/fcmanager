@@ -1,0 +1,290 @@
+/* ============================================================
+   FC Sky — "Stadium Night" 테마
+   Pretendard(한글 본문) + Bebas Neue(스코어보드 숫자/워드마크)
+   네이비 베이스 · 일렉트릭 스카이블루 · 골드 포인트
+   ============================================================ */
+
+:root {
+  --navy:    #0a1633;
+  --navy-2:  #0e2150;
+  --navy-3:  #163a86;
+  --sky:     #2f80ff;
+  --sky-2:   #5aa0ff;
+  --sky-soft:#e4eeff;
+  --gold:    #ffce4d;
+  --win:     #1bbf83;
+  --lose:    #ff5d6c;
+
+  --bg:      #eef1f8;
+  --surface: #ffffff;
+  --ink:     #0c1a3a;
+  --muted:   #61708f;
+  --line:    #e4e9f3;
+
+  --radius:  18px;
+  --radius-sm: 12px;
+  --shadow:   0 10px 30px -12px rgba(12,26,58,.22);
+  --shadow-lg:0 22px 48px -16px rgba(12,26,58,.32);
+
+  --font-sans: 'Pretendard', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bebas Neue', 'Pretendard', sans-serif;
+
+  /* Bootstrap 색 토큰 */
+  --bs-primary-rgb: 47,128,255;
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--ink);
+  --bs-body-font-family: var(--font-sans);
+  --bs-link-color: var(--sky);
+  --bs-link-color-rgb: 47,128,255;
+  --bs-link-hover-color: #1f5fd8;
+  --bs-border-color: var(--line);
+}
+
+/* ── 기본 ─────────────────────────────────────────────── */
+body {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(47,128,255,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(22,58,134,.08), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -.01em;
+}
+
+h1,h2,h3,h4,h5,h6 { font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+a { text-decoration: none; }
+::selection { background: rgba(47,128,255,.22); }
+
+.text-muted { color: var(--muted) !important; }
+
+/* Bebas 숫자/라벨용 유틸 */
+.num, .display-num {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: .04em;
+  font-feature-settings: "tnum";
+}
+.eyebrow {
+  font-family: var(--font-display);
+  letter-spacing: .18em;
+  font-size: .8rem;
+  color: var(--sky);
+  text-transform: uppercase;
+}
+
+/* 섹션 타이틀: 왼쪽 액센트 바 */
+.section-title {
+  position: relative;
+  font-size: 1.25rem;
+  padding-left: .85rem;
+  margin: 0;
+}
+.section-title::before {
+  content: ""; position: absolute; left: 0; top: .12em; bottom: .12em;
+  width: 5px; border-radius: 3px;
+  background: linear-gradient(var(--sky), var(--navy-3));
+}
+
+/* ── 네비게이션 ───────────────────────────────────────── */
+.site-nav {
+  background: linear-gradient(100deg, var(--navy), var(--navy-2)) !important;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 6px 24px -14px rgba(0,0,0,.6);
+  position: sticky; top: 0; z-index: 1030;
+  backdrop-filter: saturate(140%);
+}
+.site-nav .brand-mark {
+  height: 34px; width: 34px; object-fit: contain;
+  background: #fff; border-radius: 9px; padding: 3px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.15), 0 4px 12px rgba(47,128,255,.4);
+}
+.brand-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.6rem; line-height: 1; letter-spacing: .06em;
+  color: #fff;
+}
+.brand-wordmark .sky { color: var(--sky-2); }
+.brand-ver {
+  font-family: var(--font-display); letter-spacing: .08em;
+  font-size: .72rem; color: rgba(255,255,255,.55);
+  align-self: flex-end; padding-bottom: .15rem;
+}
+.site-nav .nav-link {
+  color: rgba(255,255,255,.78) !important;
+  font-weight: 600; font-size: .95rem;
+  position: relative; margin: 0 .15rem;
+}
+.site-nav .nav-link::after {
+  content: ""; position: absolute; left: .7rem; right: .7rem; bottom: .35rem;
+  height: 2px; background: var(--sky-2); border-radius: 2px;
+  transform: scaleX(0); transform-origin: left; transition: transform .22s ease;
+}
+.site-nav .nav-link:hover::after,
+.site-nav .nav-link:focus::after { transform: scaleX(1); }
+.site-nav .nav-link:hover { color: #fff !important; }
+.site-nav .dropdown-menu {
+  background: var(--navy-2); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px; box-shadow: var(--shadow-lg); padding: .4rem;
+}
+.site-nav .dropdown-item {
+  color: rgba(255,255,255,.82); border-radius: 9px; font-weight: 500;
+  padding: .5rem .8rem;
+}
+.site-nav .dropdown-item:hover { background: rgba(47,128,255,.22); color: #fff; }
+
+/* ── 카드 ─────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+  padding: .9rem 1.1rem;
+}
+a > .card, .card-link, .hover-lift {
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+a:hover > .card, .hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(47,128,255,.4);
+}
+
+/* ── 버튼 ─────────────────────────────────────────────── */
+.btn { border-radius: 999px; font-weight: 600; letter-spacing: -.01em; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--sky), #1f63ec);
+  border: 0; box-shadow: 0 8px 18px -8px rgba(47,128,255,.7);
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(135deg, #3b8bff, #1a57d8);
+  transform: translateY(-1px);
+}
+.btn-outline-secondary { border-color: var(--line); color: var(--ink); }
+.btn-outline-secondary:hover { background: var(--ink); border-color: var(--ink); }
+.btn-sm { font-size: .82rem; }
+
+/* ── 배지 ─────────────────────────────────────────────── */
+.badge { font-weight: 700; letter-spacing: .01em; border-radius: 999px; padding: .38em .7em; }
+.badge.bg-primary { background: linear-gradient(135deg, var(--sky), var(--navy-3)) !important; }
+.badge.bg-warning { color: #5a4300 !important; }
+.badge.bg-success { background: var(--win) !important; }
+.badge.bg-danger  { background: var(--lose) !important; }
+
+/* ── 리스트 그룹 ──────────────────────────────────────── */
+.list-group-item { border-color: var(--line); padding: .85rem 1.1rem; }
+.list-group-item a { color: var(--ink); font-weight: 600; }
+.list-group-item a:hover { color: var(--sky); }
+
+/* ── 테이블 ───────────────────────────────────────────── */
+.table { --bs-table-bg: transparent; border-color: var(--line); }
+.table > thead {
+  background: var(--navy); color: #fff;
+}
+.table > thead th {
+  border: 0; font-weight: 600; font-size: .82rem; letter-spacing: .03em;
+  text-transform: uppercase; padding: .8rem 1rem;
+}
+.table > tbody td { padding: .8rem 1rem; vertical-align: middle; }
+.table.table-hover > tbody > tr:hover > * { background: rgba(47,128,255,.06); }
+.table-light, .table > thead.table-light { background: #f3f6fc; color: var(--ink); }
+
+/* ── 폼 ───────────────────────────────────────────────── */
+.form-control, .form-select {
+  border-radius: 12px; border-color: var(--line); padding: .6rem .85rem;
+  background: #fff;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--sky); box-shadow: 0 0 0 .22rem rgba(47,128,255,.18);
+}
+.form-control-sm, .form-select-sm { border-radius: 9px; }
+.form-label { font-weight: 600; font-size: .9rem; color: var(--ink); }
+
+/* ── 알림 ─────────────────────────────────────────────── */
+.alert { border: 0; border-radius: 14px; box-shadow: var(--shadow); font-weight: 500; }
+.alert-success { background: #e6faf2; color: #0b6b49; }
+
+/* ── 히어로 (홈) ──────────────────────────────────────── */
+.hero {
+  position: relative; overflow: hidden;
+  border-radius: 26px;
+  background:
+    radial-gradient(900px 420px at 78% -30%, rgba(47,128,255,.55), transparent 60%),
+    radial-gradient(700px 380px at 10% 120%, rgba(255,206,77,.18), transparent 55%),
+    linear-gradient(120deg, var(--navy), var(--navy-2) 60%, #0b1c44);
+  color: #fff;
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 5vw, 3.5rem);
+  box-shadow: var(--shadow-lg);
+}
+/* 잔디 라인(피치) 패턴 */
+.hero::before {
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 88px);
+  mask-image: linear-gradient(to bottom, transparent, #000 40%, #000);
+}
+/* 코너 광 */
+.hero::after {
+  content: ""; position: absolute; width: 380px; height: 380px;
+  right: -90px; top: -140px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(90,160,255,.7), transparent 65%);
+  filter: blur(8px);
+}
+.hero > * { position: relative; z-index: 1; }
+.hero-logo {
+  height: 96px; filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(3.2rem, 11vw, 6.5rem);
+  line-height: .9; letter-spacing: .04em; color: #fff;
+  margin: .4rem 0 .2rem;
+}
+.hero-title .sky {
+  color: transparent;
+  background: linear-gradient(120deg, var(--sky-2), #bcd6ff);
+  -webkit-background-clip: text; background-clip: text;
+}
+.hero-tag { color: rgba(255,255,255,.82); font-size: 1.05rem; font-weight: 500; letter-spacing: .02em; }
+.hero-cta .btn { padding: .6rem 1.4rem; }
+.hero-cta .btn-ghost {
+  color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+  background: rgba(255,255,255,.06); font-weight: 600; padding: .6rem 1.4rem;
+}
+.hero-cta .btn-ghost:hover { background: rgba(255,255,255,.16); }
+
+/* 스코어(최근 결과) */
+.score-num {
+  font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .06em;
+  line-height: 1; color: var(--ink);
+}
+
+/* ── 푸터 ─────────────────────────────────────────────── */
+.site-footer {
+  margin-top: 4rem;
+  background: linear-gradient(100deg, var(--navy), var(--navy-2));
+  color: rgba(255,255,255,.7);
+  border-top: 3px solid var(--sky);
+}
+.site-footer .brand-wordmark { font-size: 1.3rem; }
+
+/* ── 등장 애니메이션 ──────────────────────────────────── */
+@keyframes fcsky-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal { animation: fcsky-rise .6s cubic-bezier(.2,.7,.3,1) both; }
+.reveal-1 { animation-delay: .05s; }
+.reveal-2 { animation-delay: .15s; }
+.reveal-3 { animation-delay: .28s; }
+.reveal-4 { animation-delay: .4s; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-1, .reveal-2, .reveal-3, .reveal-4 { animation: none; }
+}
