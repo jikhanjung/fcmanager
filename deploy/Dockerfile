@@ -1,10 +1,10 @@
 # FC Sky — Django 애플리케이션 이미지
-# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.1 .
+# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcsky:0.1.2 .
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="FC Sky" \
       org.opencontainers.image.description="FC Sky 동네 축구팀 웹사이트 (Django)" \
-      org.opencontainers.image.version="0.1.1" \
+      org.opencontainers.image.version="0.1.2" \
       org.opencontainers.image.source="https://github.com/honestjung/fcsky"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -24,6 +24,12 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # 애플리케이션 코드
 COPY . .
+
+# 서브패스 배포 시 정적 파일 내부 url() 참조도 접두사에 맞춰 수집해야 하므로
+# collectstatic 전에 동일 접두사를 적용한다(런타임 DJANGO_URL_PREFIX와 일치시킬 것).
+#   docker build --build-arg DJANGO_URL_PREFIX=FcSky ...
+ARG DJANGO_URL_PREFIX=""
+ENV DJANGO_URL_PREFIX=${DJANGO_URL_PREFIX}
 
 # 정적 파일 수집 (WhiteNoise manifest 생성). 빌드 시 SECRET_KEY 기본값 사용.
 RUN python manage.py collectstatic --noinput

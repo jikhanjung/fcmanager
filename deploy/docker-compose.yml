@@ -5,12 +5,21 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: honestjung/fcsky:0.1.1
+      args:
+        # 정적 파일을 서브패스(/FcSky/)에 맞춰 수집. 아래 environment와 동일해야 함.
+        DJANGO_URL_PREFIX: "FcSky"
+    image: honestjung/fcsky:0.1.2
     ports:
-      - "8000:8000"
+      # 호스트 8000은 portainer가 점유 → 8003으로 노출.
+      - "8003:8000"
     environment:
       DJANGO_DEBUG: "false"
+      # 사이트를 /FcSky/ 하위에서 서비스(정적/미디어/링크 모두 접두사 반영).
+      DJANGO_URL_PREFIX: "FcSky"
       DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0"
+      # 운영 도메인 사용 시 도메인과 CSRF 출처를 추가 지정할 것. 예:
+      #   DJANGO_ALLOWED_HOSTS: "example.com,localhost,127.0.0.1"
+      #   DJANGO_CSRF_TRUSTED_ORIGINS: "https://example.com"
       DJANGO_SECRET_KEY: "change-me-in-production"
       DJANGO_SEED: "1"
       DJANGO_SUPERUSER_USERNAME: "admin"

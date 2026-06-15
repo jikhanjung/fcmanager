@@ -39,6 +39,14 @@ CSRF_TRUSTED_ORIGINS = [
     o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o
 ]
 
+# 서브패스 배포용 URL 접두사. 예: DJANGO_URL_PREFIX=FcSky 면 사이트 전체가 /FcSky/
+# 하위에서 동작(정적/미디어 포함). 비우면(기본) 루트에서 동작. nginx는 경로를 자르지
+# 않고 그대로 전달하면 되고, 접두사 라우팅은 Django가 처리한다.
+URL_PREFIX = os.environ.get('DJANGO_URL_PREFIX', '').strip('/')
+
+# 리버스 프록시(nginx) 뒤에서 HTTPS 종단 시 원본 스킴 인식(보안 쿠키·CSRF용).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 
@@ -135,7 +143,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+_URL_PREFIX = f'{URL_PREFIX}/' if URL_PREFIX else ''
+
+STATIC_URL = f'/{_URL_PREFIX}static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
@@ -156,7 +166,7 @@ if 'test' not in sys.argv:
     )
 
 # Media files (uploaded photos: player/team images)
-MEDIA_URL = 'media/'
+MEDIA_URL = f'/{_URL_PREFIX}media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # 인증 (운영진 로그인)
