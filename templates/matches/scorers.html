@@ -39,6 +39,24 @@
   #rank-table th.sortable .ind::after { content: "↕"; opacity: .35; font-size: .85em; margin-left: .25em; }
   #rank-table th.sortable.asc  .ind::after { content: "▲"; opacity: 1; }
   #rank-table th.sortable.desc .ind::after { content: "▼"; opacity: 1; }
+
+  /* 숫자를 또렷하게: 콘덴스트 폰트 대신 두꺼운 Pretendard + 탭ular */
+  #rank-table .stat {
+    font-family: 'Pretendard', system-ui, sans-serif;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+  #rank-table td.col-goals   { color: #0c1a3a; }
+  #rank-table td.col-assists { color: #61708f; }
+  #rank-table td.col-points  { color: #2f80ff; font-size: 1.5rem; }
+  #rank-table td.rank {
+    font-family: 'Pretendard', system-ui, sans-serif;
+    font-weight: 800; font-size: 1.1rem; color: #8a99b6;
+  }
+  #rank-table thead th { font-size: .92rem; }
 </style>
 
 <div class="text-muted small mb-2">컬럼 헤더(골·어시스트·공격P)를 누르면 정렬됩니다. 공격P = 골 + 어시스트.</div>
@@ -48,19 +66,19 @@
       <tr>
         <th style="width:4rem">순위</th>
         <th>선수</th>
-        <th class="text-end sortable" data-key="goals">골 <span class="ind"></span></th>
+        <th class="text-end sortable desc" data-key="goals">골 <span class="ind"></span></th>
         <th class="text-end sortable" data-key="assists">어시스트 <span class="ind"></span></th>
-        <th class="text-end sortable desc" data-key="points">공격P <span class="ind"></span></th>
+        <th class="text-end sortable" data-key="points">공격P <span class="ind"></span></th>
       </tr>
     </thead>
     <tbody>
       {% for r in ranking %}
         <tr data-goals="{{ r.goals }}" data-assists="{{ r.assists }}" data-points="{{ r.points }}">
-          <td class="rank fw-bold num"></td>
+          <td class="rank"></td>
           <td><a href="{% url 'teams:player' r.player_id %}">{{ r.player__name }}</a></td>
-          <td class="text-end fw-bold num">{{ r.goals }}</td>
-          <td class="text-end num">{{ r.assists }}</td>
-          <td class="text-end fw-bold num">{{ r.points }}</td>
+          <td class="text-end stat col-goals">{{ r.goals }}</td>
+          <td class="text-end stat col-assists">{{ r.assists }}</td>
+          <td class="text-end stat col-points">{{ r.points }}</td>
         </tr>
       {% empty %}
         <tr><td colspan="5" class="text-muted">집계된 기록이 없습니다.</td></tr>

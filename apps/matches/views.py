@@ -194,7 +194,7 @@ def scorers(request):
             assists=Count("id", filter=Q(event_type=ET.ASSIST)),
             points=Count("id"),
         )
-        .order_by("-points", "-goals", "player__name")
+        .order_by("-goals", "-points", "player__name")
     )
 
     context = {
