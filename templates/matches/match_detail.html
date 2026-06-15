@@ -36,15 +36,16 @@
 
 <h2 class="h5 mb-3">타임라인</h2>
 <div class="list-group shadow-sm mb-4">
-  {% for e in events %}
+  {% for item in timeline %}
     <div class="list-group-item d-flex align-items-center
-      {% if e.side == 'OPPONENT' %}flex-row-reverse text-end{% endif %}">
-      <span class="badge bg-light text-dark me-2 ms-2">{% if e.minute is not None %}{{ e.minute }}'{% else %}-{% endif %}</span>
+      {% if item.event.side == 'OPPONENT' %}flex-row-reverse text-end{% endif %}">
+      <span class="badge bg-light text-dark me-2 ms-2">{% if item.event.minute is not None %}{{ item.event.minute }}'{% else %}-{% endif %}</span>
       <div>
-        <strong>{{ e.get_event_type_display }}</strong>
-        {% if e.player %}<span class="ms-1">{{ e.player.name }}</span>
-        {% else %}<span class="ms-1 text-muted">{{ e.get_side_display }}</span>{% endif %}
-        {% if e.description %}<div class="small text-muted">{{ e.description }}</div>{% endif %}
+        <strong>{{ item.event.get_event_type_display }}</strong>
+        {% if item.event.player %}<span class="ms-1">{{ item.event.player.name }}</span>
+        {% else %}<span class="ms-1 text-muted">{{ item.event.get_side_display }}</span>{% endif %}
+        {% if item.assist %}<span class="ms-1 text-muted">(도움: {% if item.assist.player %}{{ item.assist.player.name }}{% else %}{{ item.assist.get_side_display }}{% endif %})</span>{% endif %}
+        {% if item.event.description %}<div class="small text-muted">{{ item.event.description }}</div>{% endif %}
       </div>
     </div>
   {% empty %}

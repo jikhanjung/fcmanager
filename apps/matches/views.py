@@ -95,12 +95,47 @@ def match_detail(request, pk):
         ),
         pk=pk,
     )
-    events = match.events.select_related("player").order_by("minute", "id")
+    events = list(match.events.select_related("player").order_by("minute", "id"))
+    timeline = _build_timeline(events)
     return render(
         request,
         "matches/match_detail.html",
-        {"match": match, "events": events},
+        {"match": match, "timeline": timeline},
     )
+
+
+def _build_timeline(events):
+    """타임라인 항목 구성. 같은 팀·같은 분의 득점-도움을 한 줄로 묶는다.
+
+    각 항목은 {"event": 주 이벤트, "assist": 도움 이벤트 또는 None}.
+    득점에는 짝이 되는 도움을, 짝 없는 도움/그 외 이벤트는 단독으로 둔다.
+    """
+    GOAL = MatchEvent.EventType.GOAL
+    ASSIST = MatchEvent.EventType.ASSIST
+    used = set()
+    timeline = []
+    for e in events:
+        if e.id in used:
+            continue
+        if e.event_type in (GOAL, ASSIST):
+            want = ASSIST if e.event_type == GOAL else GOAL
+            mate = next(
+                (m for m in events
+                 if m.id not in used and m.id != e.id
+                 and m.event_type == want and m.side == e.side
+                 and m.minute == e.minute),
+                None,
+            )
+            if mate:
+                used.add(mate.id)
+            goal = e if e.event_type == GOAL else mate
+            assist = mate if e.event_type == GOAL else e
+            # 짝이 없으면 e 단독(득점이든 도움이든)
+            timeline.append({"event": goal or e, "assist": assist if goal else None})
+        else:
+            timeline.append({"event": e, "assist": None})
+        used.add(e.id)
+    return timeline
 
 
 def scorers(request):
