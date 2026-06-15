@@ -23,15 +23,30 @@
           <li class="nav-item"><a class="nav-link" href="{% url 'teams:home' %}">홈</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'notices:list' %}">공지</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'teams:list' %}">팀</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'matches:list' %}">일정·결과</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'competitions:standings' %}">순위표</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'matches:scorers' %}">득점 순위</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'matches:stats' %}">통계</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'competitions:awards' %}">명예의 전당</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'competitions:season_index' %}">아카이브</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'gallery:list' %}">갤러리</a></li>
+
+          {# 대회: 경기 관련 메뉴 묶음 #}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">대회</a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{% url 'matches:list' %}">일정·결과</a></li>
+              <li><a class="dropdown-item" href="{% url 'competitions:standings' %}">순위표</a></li>
+              <li><a class="dropdown-item" href="{% url 'matches:scorers' %}">득점 순위</a></li>
+              <li><a class="dropdown-item" href="{% url 'matches:stats' %}">통계</a></li>
+            </ul>
+          </li>
+
+          {# 아카이브: 지난 기록 묶음 #}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">아카이브</a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{% url 'competitions:season_index' %}">시즌 아카이브</a></li>
+              <li><a class="dropdown-item" href="{% url 'competitions:awards' %}">명예의 전당</a></li>
+              <li><a class="dropdown-item" href="{% url 'gallery:list' %}">갤러리</a></li>
+            </ul>
+          </li>
+
           {% if user.is_authenticated %}
-            {% if user.is_staff %}<li class="nav-item"><a class="nav-link" href="/admin/">관리</a></li>{% endif %}
+            {% if user.is_staff %}<li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">관리</a></li>{% endif %}
             <li class="nav-item">
               <form method="post" action="{% url 'logout' %}" class="d-inline">
                 {% csrf_token %}
@@ -47,6 +62,14 @@
   </nav>
 
   <main class="container py-4">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="닫기"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 
