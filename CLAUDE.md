@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-FC Sky 동네 축구팀 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·입상 내역을
+FC Sky 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·입상 내역을
 관리/공개하고, 장기적으로 실시간 중계까지 확장하는 것이 목표.
 
 ## 환경 / 실행
