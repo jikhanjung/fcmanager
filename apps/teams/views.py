@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from apps.matches.models import Match, MatchEvent
+from apps.notices.models import Notice
 
 from .models import Player, Team
 
@@ -22,10 +23,12 @@ def home(request):
         .order_by("-kickoff")[:5]
     )
     teams = Team.objects.all()
+    notices = Notice.objects.filter(is_published=True)[:5]
     return render(
         request,
         "teams/home.html",
-        {"upcoming": upcoming, "recent": recent, "teams": teams},
+        {"upcoming": upcoming, "recent": recent, "teams": teams,
+         "notices": notices},
     )
 
 

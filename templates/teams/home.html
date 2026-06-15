@@ -8,6 +8,25 @@
   <p class="lead text-muted">우리 동네 축구팀의 모든 기록</p>
 </div>
 
+{% if notices %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-bold d-flex justify-content-between">
+    <span>공지사항</span>
+    <a href="{% url 'notices:list' %}" class="text-decoration-none small">전체보기</a>
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for n in notices %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{{ n.get_absolute_url }}" class="text-decoration-none">
+          {% if n.is_pinned %}<span class="badge bg-danger me-1">고정</span>{% endif %}{{ n.title }}
+        </a>
+        <small class="text-muted">{{ n.created_at|date:"m/d" }}</small>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <div class="row g-4">
   <div class="col-md-6">
     <div class="card shadow-sm h-100">

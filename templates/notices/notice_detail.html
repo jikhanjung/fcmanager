@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ notice.title }} — FC Sky{% endblock %}
+{% block content %}
+<article class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4">
+      {% if notice.is_pinned %}<span class="badge bg-danger">고정</span>{% endif %}
+      {{ notice.title }}
+    </h1>
+    <div class="text-muted small mb-3">{{ notice.created_at|date:"Y년 m월 d일 H:i" }}</div>
+    <div>{{ notice.body|linebreaksbr }}</div>
+  </div>
+</article>
+
+<a href="{% url 'notices:list' %}" class="btn btn-outline-secondary btn-sm mt-3">← 목록으로</a>
+{% endblock %}
