@@ -20,8 +20,8 @@ class TeamAdmin(admin.ModelAdmin):
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ["name", "position", "birth_year"]
-    list_filter = ["position"]
+    list_display = ["name", "squad", "position", "birth_year"]
+    list_filter = ["squad", "position"]
     search_fields = ["name"]
     inlines = [TeamMembershipInline]
 

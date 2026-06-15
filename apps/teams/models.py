@@ -48,6 +48,11 @@ class Player(models.Model):
     position = models.CharField(
         "주 포지션", max_length=2, choices=Position.choices, blank=True
     )
+    squad = models.CharField(
+        "구분(임시)", max_length=20, blank=True,
+        help_text="대회 구분용 임시 필드 (예: 50대초, 50대말). "
+                  "추후 대회별·팀별 로스터 모델로 분리 예정.",
+    )
     photo = models.ImageField("사진", upload_to="players/", blank=True)
     bio = models.TextField("프로필", blank=True)
 
