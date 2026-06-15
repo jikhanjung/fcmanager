@@ -167,11 +167,12 @@ def _build_timeline(events):
 
 
 def scorers(request):
-    """득점 순위: 우리 팀 GOAL 이벤트 집계 + 팀·대회·시즌 필터."""
+    """선수 순위: 우리 팀 골·도움·공격포인트 집계 + 팀·대회·시즌 필터."""
+    ET = MatchEvent.EventType
     events = MatchEvent.objects.filter(
-        event_type=MatchEvent.EventType.GOAL,
         side=MatchEvent.Side.OUR,
         player__isnull=False,
+        event_type__in=[ET.GOAL, ET.ASSIST],
     )
 
     team = request.GET.get("team") or ""
@@ -185,10 +186,15 @@ def scorers(request):
     if season.isdigit():
         events = events.filter(match__season_id=season)
 
+    # points = goals + assists (events 가 GOAL/ASSIST 만이므로 전체 개수)
     ranking = (
         events.values("player_id", "player__name")
-        .annotate(goals=Count("id"))
-        .order_by("-goals", "player__name")
+        .annotate(
+            goals=Count("id", filter=Q(event_type=ET.GOAL)),
+            assists=Count("id", filter=Q(event_type=ET.ASSIST)),
+            points=Count("id"),
+        )
+        .order_by("-points", "-goals", "player__name")
     )
 
     context = {

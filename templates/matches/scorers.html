@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}득점 순위 — FC Sky{% endblock %}
+{% block title %}선수 순위 — FC Sky{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">득점 순위</h1>
+<h1 class="h3 mb-4">선수 순위</h1>
 
 <form class="row g-2 mb-4" method="get">
   <div class="col-12 col-md-4">
@@ -30,22 +30,72 @@
   </div>
 </form>
 
+<style>
+  #rank-table tbody { counter-reset: rank; }
+  #rank-table tbody tr { counter-increment: rank; }
+  #rank-table .rank::before { content: counter(rank); }
+  #rank-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  #rank-table th.sortable:hover { color: #2f80ff; }
+  #rank-table th.sortable .ind::after { content: "↕"; opacity: .35; font-size: .85em; margin-left: .25em; }
+  #rank-table th.sortable.asc  .ind::after { content: "▲"; opacity: 1; }
+  #rank-table th.sortable.desc .ind::after { content: "▼"; opacity: 1; }
+</style>
+
+<div class="text-muted small mb-2">컬럼 헤더(골·어시스트·공격P)를 누르면 정렬됩니다. 공격P = 골 + 어시스트.</div>
 <div class="table-responsive">
-  <table class="table table-hover align-middle bg-white shadow-sm">
+  <table class="table table-hover align-middle bg-white shadow-sm" id="rank-table">
     <thead class="table-light">
-      <tr><th style="width:4rem">순위</th><th>선수</th><th class="text-end">골</th></tr>
+      <tr>
+        <th style="width:4rem">순위</th>
+        <th>선수</th>
+        <th class="text-end sortable" data-key="goals">골 <span class="ind"></span></th>
+        <th class="text-end sortable" data-key="assists">어시스트 <span class="ind"></span></th>
+        <th class="text-end sortable desc" data-key="points">공격P <span class="ind"></span></th>
+      </tr>
     </thead>
     <tbody>
       {% for r in ranking %}
-        <tr>
-          <td class="fw-bold">{{ forloop.counter }}</td>
+        <tr data-goals="{{ r.goals }}" data-assists="{{ r.assists }}" data-points="{{ r.points }}">
+          <td class="rank fw-bold num"></td>
           <td><a href="{% url 'teams:player' r.player_id %}">{{ r.player__name }}</a></td>
-          <td class="text-end fw-bold">{{ r.goals }}</td>
+          <td class="text-end fw-bold num">{{ r.goals }}</td>
+          <td class="text-end num">{{ r.assists }}</td>
+          <td class="text-end fw-bold num">{{ r.points }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="3" class="text-muted">집계된 득점 기록이 없습니다.</td></tr>
+        <tr><td colspan="5" class="text-muted">집계된 기록이 없습니다.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<script>
+(function () {
+  var table = document.getElementById('rank-table');
+  if (!table) return;
+  var tbody = table.querySelector('tbody');
+  var ths = table.querySelectorAll('th.sortable');
+  function sortBy(key, dir) {
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-' + key + ']'));
+    rows.sort(function (a, b) {
+      var av = +a.getAttribute('data-' + key), bv = +b.getAttribute('data-' + key);
+      if (av === bv) {  // 동점은 공격P로 안정 정렬
+        var ap = +a.getAttribute('data-points'), bp = +b.getAttribute('data-points');
+        if (ap !== bp) return bp - ap;
+      }
+      return dir === 'asc' ? av - bv : bv - av;
+    });
+    rows.forEach(function (r) { tbody.appendChild(r); });
+    ths.forEach(function (t) { t.classList.remove('asc', 'desc'); });
+    table.querySelector('th[data-key="' + key + '"]').classList.add(dir);
+  }
+  ths.forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.getAttribute('data-key');
+      var dir = th.classList.contains('desc') ? 'asc' : 'desc';
+      sortBy(key, dir);
+    });
+  });
+})();
+</script>
 {% endblock %}
