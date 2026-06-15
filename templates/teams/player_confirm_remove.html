@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}선수 제외 — {{ team.name }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h5 mb-3">선수를 팀에서 제외</h1>
+    <p><strong>{{ player.name }}</strong> 선수를 <strong>{{ team.name }}</strong>에서 제외합니다.</p>
+    <p class="text-muted small">
+      소속(등번호·주장)만 삭제되고 선수 레코드와 득점·도움 기록은 보존됩니다.
+    </p>
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">제외</button>
+      <a href="{{ team.get_absolute_url }}" class="btn btn-outline-secondary">취소</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

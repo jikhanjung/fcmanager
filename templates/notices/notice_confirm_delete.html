@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}공지 삭제 — FC Sky{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h5 mb-3">공지사항 삭제</h1>
+    <p><strong>{{ notice.title }}</strong> 공지를 삭제합니다. 되돌릴 수 없습니다.</p>
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">삭제</button>
+      <a href="{{ notice.get_absolute_url }}" class="btn btn-outline-secondary">취소</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -5,6 +5,7 @@
   <div class="card-body">
     <h1 class="h4">
       {% if notice.is_pinned %}<span class="badge bg-danger">고정</span>{% endif %}
+      {% if not notice.is_published %}<span class="badge bg-secondary">미게시</span>{% endif %}
       {{ notice.title }}
     </h1>
     <div class="text-muted small mb-3">{{ notice.created_at|date:"Y년 m월 d일 H:i" }}</div>
@@ -12,5 +13,13 @@
   </div>
 </article>
 
-<a href="{% url 'notices:list' %}" class="btn btn-outline-secondary btn-sm mt-3">← 목록으로</a>
+<div class="d-flex justify-content-between mt-3">
+  <a href="{% url 'notices:list' %}" class="btn btn-outline-secondary btn-sm">← 목록으로</a>
+  {% if user.is_staff %}
+    <span class="d-flex gap-2">
+      <a href="{% url 'notices:edit' notice.pk %}" class="btn btn-outline-secondary btn-sm">수정</a>
+      <a href="{% url 'notices:delete' notice.pk %}" class="btn btn-outline-danger btn-sm">삭제</a>
+    </span>
+  {% endif %}
+</div>
 {% endblock %}

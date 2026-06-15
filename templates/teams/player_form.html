@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{% if is_create %}선수 추가{% else %}{{ player.name }} 수정{% endif %} — {{ team.name }}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-1">{% if is_create %}선수 추가{% else %}선수 수정 — {{ player.name }}{% endif %}</h1>
+<p class="text-muted small mb-4">{{ team.name }}</p>
+
+<form method="post" enctype="multipart/form-data" class="card shadow-sm">
+  {% csrf_token %}
+  <div class="card-body">
+    {% for field in pform %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+
+    <hr>
+    <h2 class="h6 text-muted">팀 소속 ({{ team.name }})</h2>
+    {% for field in mform %}
+      {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-check mb-3">
+          {{ field }}
+          <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        </div>
+      {% else %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="card-footer bg-transparent">
+    <button class="btn btn-primary" type="submit">저장</button>
+    <a href="{{ team.get_absolute_url }}" class="btn btn-outline-secondary">취소</a>
+  </div>
+</form>
+{% endblock %}
