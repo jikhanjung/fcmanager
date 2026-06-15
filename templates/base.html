@@ -14,6 +14,7 @@
       <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'teams:home' %}">
         <img src="{% static 'img/fcskylogo.png' %}" alt="FC Sky" height="32" class="bg-white rounded p-1">
         FC Sky
+        {% if app_version %}<small class="fw-normal opacity-75" style="font-size:.7rem">v{{ app_version }}</small>{% endif %}
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
         <span class="navbar-toggler-icon"></span>

@@ -44,6 +44,9 @@ CSRF_TRUSTED_ORIGINS = [
 # 않고 그대로 전달하면 되고, 접두사 라우팅은 Django가 처리한다.
 URL_PREFIX = os.environ.get('DJANGO_URL_PREFIX', '').strip('/')
 
+# 배포된 Docker 이미지 버전(예: 0.1.11). navbar 등에 표시. Dockerfile에서 ENV로 주입.
+APP_VERSION = os.environ.get('APP_VERSION', '')
+
 # 리버스 프록시(nginx) 뒤에서 HTTPS 종단 시 원본 스킴 인식(보안 쿠키·CSRF용).
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -90,6 +93,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'config.context_processors.app_version',
             ],
         },
     },
