@@ -14,7 +14,8 @@ class PublicPagesSmokeTest(TestCase):
 
     def test_list_pages_ok(self):
         for url in ["/", "/teams/", "/matches/", "/matches/scorers/",
-                    "/stats/", "/standings/", "/awards/", "/notices/"]:
+                    "/stats/", "/standings/", "/awards/", "/notices/",
+                    "/gallery/"]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
 

@@ -10,6 +10,7 @@ urlpatterns = [
     path("", include("apps.matches.urls")),
     path("", include("apps.competitions.urls")),
     path("", include("apps.notices.urls")),
+    path("", include("apps.gallery.urls")),
 ]
 
 if settings.DEBUG:

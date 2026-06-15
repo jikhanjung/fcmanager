@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}갤러리 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">갤러리</h1>
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+  {% for item in items %}
+    <div class="col">
+      <div class="card shadow-sm h-100">
+        {% if item.image %}
+          <a href="{{ item.image.url }}" target="_blank">
+            <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.title }}" style="aspect-ratio:4/3;object-fit:cover;">
+          </a>
+        {% elif item.video_url %}
+          <a href="{{ item.video_url }}" target="_blank" class="d-flex align-items-center justify-content-center bg-dark text-white text-decoration-none" style="aspect-ratio:4/3;">
+            <span class="fs-1">▶</span>
+          </a>
+        {% endif %}
+        {% if item.title or item.caption or item.event_date %}
+          <div class="card-body">
+            {% if item.title %}<h2 class="h6 mb-1">{{ item.title }}</h2>{% endif %}
+            {% if item.caption %}<p class="small text-muted mb-1">{{ item.caption }}</p>{% endif %}
+            {% if item.event_date %}<small class="text-muted">{{ item.event_date|date:"Y.m.d" }}</small>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12"><p class="text-muted">등록된 갤러리가 없습니다.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
