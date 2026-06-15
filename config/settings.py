@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -141,9 +142,16 @@ STORAGES = {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
+
+# 테스트가 아닐 때만 WhiteNoise manifest 스토리지 사용(테스트는 collectstatic
+# 산출물이 없어 manifest 조회가 실패하므로 기본 스토리지로).
+if 'test' not in sys.argv:
+    STORAGES['staticfiles']['BACKEND'] = (
+        'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    )
 
 # Media files (uploaded photos: player/team images)
 MEDIA_URL = 'media/'
