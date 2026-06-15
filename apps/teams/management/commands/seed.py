@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from apps.teams.models import Team, Player, TeamMembership
 from apps.competitions.models import Season, Competition, CompetitionEntry, Award
-from apps.matches.models import Opponent, Match, MatchEvent
+from apps.matches.models import Opponent, Match, MatchEvent, OpponentMatch
 
 
 # ── 시드 정의 ───────────────────────────────────────────────────────────
@@ -166,6 +166,13 @@ MATCHES = [
     },
 ]
 
+# 상대팀 간 경기(우리 팀이 끼지 않은 경기) — 조 순위 보정용.
+OPPONENT_MATCHES = [
+    # 서초구청장기 50대 A조 (신반포·스카이·방현) 중 우리 미참여 경기.
+    {"comp": "seocho-cup-35", "age": Team.AgeGroup.FIFTIES,
+     "home": "신반포", "away": "방현", "home_score": 4, "away_score": 2},
+]
+
 
 class Command(BaseCommand):
     help = "FC Sky 초기 데이터(실데이터)를 생성한다."
@@ -180,7 +187,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["flush"]:
             self.stdout.write("기존 데이터 삭제 중...")
-            for model in (MatchEvent, Match, Opponent, Award, CompetitionEntry,
+            for model in (MatchEvent, Match, OpponentMatch, Opponent, Award,
+                          CompetitionEntry,
                           TeamMembership, Player, Competition, Team, Season):
                 model.objects.all().delete()
 
@@ -245,8 +253,18 @@ class Command(BaseCommand):
                         description=ev.get("desc", ""),
                     )
 
+        # 7-1) 상대팀 간 경기
+        for om in OPPONENT_MATCHES:
+            OpponentMatch.objects.get_or_create(
+                competition=comps[om["comp"]], season=season,
+                age_group=om["age"], home=opponents[om["home"]],
+                away=opponents[om["away"]],
+                defaults={"home_score": om["home_score"],
+                          "away_score": om["away_score"]},
+            )
+
         self.stdout.write(self.style.SUCCESS(
             f"시드 완료: 팀 {Team.objects.count()} · 선수 {Player.objects.count()} · "
             f"대회 {Competition.objects.count()} · 상대팀 {Opponent.objects.count()} · "
             f"경기 {Match.objects.count()} · 이벤트 {MatchEvent.objects.count()} · "
-            f"입상 {Award.objects.count()}"))
+            f"상대간 {OpponentMatch.objects.count()} · 입상 {Award.objects.count()}"))

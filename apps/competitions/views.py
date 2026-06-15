@@ -1,6 +1,6 @@
 from django.shortcuts import render
 
-from apps.matches.models import Match
+from apps.matches.models import Match, OpponentMatch
 
 from .models import Award, Competition, Season
 
@@ -71,6 +71,38 @@ def standings(request):
             else:
                 ours["d"] += 1
                 opp["d"] += 1
+
+        # 상대팀 간 경기(있으면) 같은 부문 조에 반영해 순위 보정.
+        group_by_age = {g["team"].age_group: g for g in by_group.values()}
+        om_qs = OpponentMatch.objects.filter(
+            competition=competition,
+            home_score__isnull=False,
+            away_score__isnull=False,
+        ).select_related("home", "away")
+        if season.isdigit():
+            om_qs = om_qs.filter(season_id=season)
+        for om in om_qs:
+            g = group_by_age.get(om.age_group)
+            if g is None:
+                continue
+            rows = g["rows"]
+            h = rows.setdefault(("O", om.home_id), _blank(om.home.name, None, False))
+            a = rows.setdefault(("O", om.away_id), _blank(om.away.name, None, False))
+            h["p"] += 1
+            h["gf"] += om.home_score
+            h["ga"] += om.away_score
+            a["p"] += 1
+            a["gf"] += om.away_score
+            a["ga"] += om.home_score
+            if om.home_score > om.away_score:
+                h["w"] += 1
+                a["l"] += 1
+            elif om.home_score < om.away_score:
+                h["l"] += 1
+                a["w"] += 1
+            else:
+                h["d"] += 1
+                a["d"] += 1
 
         for g in by_group.values():
             table = list(g["rows"].values())

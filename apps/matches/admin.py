@@ -1,12 +1,22 @@
 from django.contrib import admin
 
-from .models import Opponent, Match, MatchEvent
+from .models import Opponent, Match, MatchEvent, OpponentMatch
 
 
 @admin.register(Opponent)
 class OpponentAdmin(admin.ModelAdmin):
     list_display = ["name", "short_name"]
     search_fields = ["name", "short_name"]
+
+
+@admin.register(OpponentMatch)
+class OpponentMatchAdmin(admin.ModelAdmin):
+    list_display = [
+        "competition", "age_group", "home", "home_score",
+        "away_score", "away",
+    ]
+    list_filter = ["competition", "age_group", "season"]
+    autocomplete_fields = ["competition", "season", "home", "away"]
 
 
 class MatchEventInline(admin.TabularInline):

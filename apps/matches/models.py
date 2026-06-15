@@ -1,6 +1,8 @@
 from django.db import models
 from django.urls import reverse
 
+from apps.teams.models import Team
+
 
 class Opponent(models.Model):
     """상대팀 (외부 팀)."""
@@ -79,6 +81,50 @@ class Match(models.Model):
         if self.our_score < self.opponent_score:
             return "L"
         return "D"
+
+
+class OpponentMatch(models.Model):
+    """상대팀 간 경기 (우리 팀이 끼지 않은 경기).
+
+    조 순위표를 완성하기 위한 보정용. 부문(age_group)으로 어느 조에 속하는지 구분한다.
+    """
+
+    competition = models.ForeignKey(
+        "competitions.Competition", on_delete=models.CASCADE,
+        related_name="opponent_matches", verbose_name="대회",
+    )
+    season = models.ForeignKey(
+        "competitions.Season", on_delete=models.PROTECT,
+        related_name="opponent_matches", verbose_name="시즌",
+        null=True, blank=True,
+    )
+    age_group = models.CharField(
+        "부문", max_length=4, choices=Team.AgeGroup.choices,
+        help_text="어느 부문(조)의 경기인지",
+    )
+    home = models.ForeignKey(
+        Opponent, on_delete=models.PROTECT, related_name="home_opponent_matches",
+        verbose_name="홈팀",
+    )
+    away = models.ForeignKey(
+        Opponent, on_delete=models.PROTECT, related_name="away_opponent_matches",
+        verbose_name="원정팀",
+    )
+    home_score = models.PositiveIntegerField("홈 득점", null=True, blank=True)
+    away_score = models.PositiveIntegerField("원정 득점", null=True, blank=True)
+    kickoff = models.DateTimeField("경기 일시", null=True, blank=True)
+    note = models.CharField("비고", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "상대팀 간 경기"
+        verbose_name_plural = "상대팀 간 경기"
+        ordering = ["competition", "age_group", "id"]
+
+    def __str__(self):
+        s = ""
+        if self.home_score is not None and self.away_score is not None:
+            s = f" {self.home_score}:{self.away_score}"
+        return f"[{self.get_age_group_display()}] {self.home} vs {self.away}{s}"
 
 
 class MatchEvent(models.Model):
