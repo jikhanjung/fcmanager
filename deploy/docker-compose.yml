@@ -8,7 +8,7 @@ services:
       args:
         # 정적 파일을 서브패스(/FcSky/)에 맞춰 수집. 아래 environment와 동일해야 함.
         DJANGO_URL_PREFIX: "FcSky"
-    image: honestjung/fcsky:0.2.2
+    image: honestjung/fcsky:0.2.3
     # 운영 SECRET_KEY 등 비밀값은 git 비추적인 deploy/.env 에서 주입(경로는 compose 파일 기준).
     env_file:
       - .env

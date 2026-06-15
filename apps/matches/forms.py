@@ -2,6 +2,8 @@
 from django import forms
 from django.forms import inlineformset_factory
 
+from apps.teams.models import Player
+
 from .models import Match, MatchEvent
 
 
@@ -20,15 +22,32 @@ class MatchResultForm(forms.ModelForm):
 
 
 class MatchEventForm(forms.ModelForm):
-    """득점·도움·카드 등 이벤트 한 줄.
+    """득점·카드·교체 등 이벤트 한 줄.
 
+    득점(GOAL) 행에서는 '도움' 선수를 함께 입력할 수 있다(저장 시 ASSIST 이벤트로 동기화).
+    도움은 별도 행으로 표시하지 않고 득점 행에서만 관리한다.
     team_players 가 주어지면 선수 선택지를 해당 팀 등록 선수로 제한한다.
     """
+
+    assist_player = forms.ModelChoiceField(
+        queryset=Player.objects.all(), required=False, label="도움(득점 시)",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
 
     def __init__(self, *args, team_players=None, **kwargs):
         super().__init__(*args, **kwargs)
         if team_players is not None:
             self.fields["player"].queryset = team_players
+            self.fields["assist_player"].queryset = team_players
+        # 편집 시: 득점 행에 짝지어진 기존 도움 선수를 초기값으로.
+        inst = getattr(self, "instance", None)
+        if inst and inst.pk and inst.event_type == MatchEvent.EventType.GOAL:
+            assist = inst.match.events.filter(
+                event_type=MatchEvent.EventType.ASSIST,
+                side=inst.side, minute=inst.minute,
+            ).first()
+            if assist:
+                self.fields["assist_player"].initial = assist.player_id
 
     class Meta:
         model = MatchEvent

@@ -49,6 +49,7 @@
               <th style="min-width:7rem">이벤트</th>
               <th style="min-width:7rem">팀</th>
               <th style="min-width:9rem">선수</th>
+              <th style="min-width:9rem">도움 <span class="text-muted fw-normal">(득점 시)</span></th>
               <th style="width:5rem">분</th>
               <th style="min-width:8rem">설명</th>
               <th class="text-center" style="width:3.5rem">삭제</th>
@@ -61,6 +62,7 @@
                 <td>{{ f.event_type }}{% if f.event_type.errors %}<div class="text-danger small">{{ f.event_type.errors }}</div>{% endif %}</td>
                 <td>{{ f.side }}</td>
                 <td>{{ f.player }}</td>
+                <td>{{ f.assist_player }}</td>
                 <td>{{ f.minute }}</td>
                 <td>{{ f.description }}</td>
                 <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
@@ -71,8 +73,8 @@
       </div>
       <button type="button" class="btn btn-outline-secondary btn-sm" id="add-row">+ 행 추가</button>
       <div class="form-text mt-2">
-        득점은 ‘득점’, 어시스트는 ‘도움’으로 각각 한 줄씩 추가하고 분(시간)을 적으세요.
-        상대팀 득점은 ‘팀’을 상대팀으로 두고 선수는 비웁니다.
+        득점은 ‘득점’ 한 줄로 추가하고, 같은 줄의 <b>도움</b> 칸에 어시스트 선수를 함께 고르세요(도움은 자동 기록).
+        분(시간)도 입력해두면 타임라인에 정확히 표시됩니다. 상대팀 득점은 ‘팀’을 상대팀으로 두고 선수는 비웁니다.
       </div>
     </div>
   </div>
@@ -88,6 +90,7 @@
     <td>{{ formset.empty_form.event_type }}</td>
     <td>{{ formset.empty_form.side }}</td>
     <td>{{ formset.empty_form.player }}</td>
+    <td>{{ formset.empty_form.assist_player }}</td>
     <td>{{ formset.empty_form.minute }}</td>
     <td>{{ formset.empty_form.description }}</td>
     <td></td>

@@ -74,13 +74,31 @@ def match_edit(request, pk):
         Player.objects.filter(memberships__team=match.our_team)
         .distinct().order_by("name")
     )
-    fs_kwargs = {"form_kwargs": {"team_players": team_players}}
+    ASSIST = MatchEvent.EventType.ASSIST
+    GOAL = MatchEvent.EventType.GOAL
+    # 도움(ASSIST)은 득점 행에서 함께 관리하므로 별도 행으로는 표시하지 않는다.
+    fs_kwargs = {
+        "form_kwargs": {"team_players": team_players},
+        "queryset": MatchEvent.objects.exclude(event_type=ASSIST),
+    }
     if request.method == "POST":
         form = MatchResultForm(request.POST, instance=match)
         formset = MatchEventFormSet(request.POST, instance=match, **fs_kwargs)
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
+            # 도움 재동기화: 기존 도움 전부 제거 후 득점 행의 '도움 선수'로 재생성.
+            match.events.filter(event_type=ASSIST).delete()
+            for f in formset.forms:
+                cd = getattr(f, "cleaned_data", None)
+                if not cd or cd.get("DELETE"):
+                    continue
+                goal, assist_player = f.instance, cd.get("assist_player")
+                if goal.pk and goal.event_type == GOAL and assist_player:
+                    MatchEvent.objects.create(
+                        match=match, event_type=ASSIST, side=goal.side,
+                        player=assist_player, minute=goal.minute,
+                    )
             messages.success(request, "경기 결과를 저장했습니다.")
             return redirect("matches:detail", pk=match.pk)
     else:
