@@ -1,10 +1,12 @@
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
 
 from apps.competitions.models import Competition, Season
 from apps.teams.models import Team
 
 from .models import Match, MatchEvent
+
+_AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 
 
 def _common_filters():
@@ -97,3 +99,85 @@ def scorers(request):
         **_common_filters(),
     }
     return render(request, "matches/scorers.html", context)
+
+
+def stats(request):
+    """통계 대시보드: 클럽/팀별 전적 요약 + 득점·도움 TOP + 경고·퇴장."""
+    season = request.GET.get("season") or ""
+
+    fin = Match.objects.filter(
+        status=Match.Status.FINISHED,
+        our_score__isnull=False,
+        opponent_score__isnull=False,
+    )
+    if season.isdigit():
+        fin = fin.filter(season_id=season)
+
+    # 팀별 전적 + 클럽 합계
+    team_rows = {}
+    for m in fin.select_related("our_team"):
+        r = team_rows.setdefault(
+            m.our_team_id,
+            {"team": m.our_team, "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0},
+        )
+        r["p"] += 1
+        r["gf"] += m.our_score
+        r["ga"] += m.opponent_score
+        result = m.result
+        if result == "W":
+            r["w"] += 1
+        elif result == "L":
+            r["l"] += 1
+        else:
+            r["d"] += 1
+
+    club = {"p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0}
+    teams = []
+    for r in team_rows.values():
+        r["gd"] = r["gf"] - r["ga"]
+        r["pts"] = r["w"] * 3 + r["d"]
+        r["winrate"] = round(r["w"] / r["p"] * 100) if r["p"] else 0
+        for k in ("p", "w", "d", "l", "gf", "ga"):
+            club[k] += r[k]
+        teams.append(r)
+    teams.sort(key=lambda x: _AGE_ORDER.get(x["team"].age_group, 9))
+    club["gd"] = club["gf"] - club["ga"]
+    club["winrate"] = round(club["w"] / club["p"] * 100) if club["p"] else 0
+
+    # 득점/도움/카드 (우리 팀 이벤트)
+    ev = MatchEvent.objects.filter(side=MatchEvent.Side.OUR, player__isnull=False)
+    if season.isdigit():
+        ev = ev.filter(match__season_id=season)
+
+    def _rank(event_type):
+        return list(
+            ev.filter(event_type=event_type)
+            .values("player_id", "player__name")
+            .annotate(n=Count("id"))
+            .order_by("-n", "player__name")[:10]
+        )
+
+    scorers = _rank(MatchEvent.EventType.GOAL)
+    assisters = _rank(MatchEvent.EventType.ASSIST)
+
+    cards = list(
+        ev.filter(event_type__in=[MatchEvent.EventType.YELLOW,
+                                  MatchEvent.EventType.RED])
+        .values("player_id", "player__name")
+        .annotate(
+            yellow=Count("id", filter=Q(event_type=MatchEvent.EventType.YELLOW)),
+            red=Count("id", filter=Q(event_type=MatchEvent.EventType.RED)),
+        )
+        .order_by("-red", "-yellow", "player__name")
+    )
+
+    context = {
+        "season": season,
+        "seasons": Season.objects.all(),
+        "teams": teams,
+        "club": club,
+        "scorers": scorers,
+        "assisters": assisters,
+        "cards": cards,
+    }
+    return render(request, "matches/stats.html", context)

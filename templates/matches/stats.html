@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}통계 — FC Sky{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <h1 class="h3 mb-0">통계</h1>
+  <form method="get">
+    <select name="season" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 시즌</option>
+      {% for s in seasons %}
+        <option value="{{ s.id }}" {% if season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- 클럽 요약 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold">{{ club.p }}</div><div class="text-muted small">경기</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold">{{ club.w }}<span class="fs-6 text-muted">승</span> {{ club.d }}<span class="fs-6 text-muted">무</span> {{ club.l }}<span class="fs-6 text-muted">패</span></div>
+    <div class="text-muted small">전적</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold text-success">{{ club.winrate }}%</div><div class="text-muted small">승률</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="display-6 fw-bold">{{ club.gf }}<span class="fs-6 text-muted">:</span>{{ club.ga }}</div><div class="text-muted small">득점 : 실점</div></div></div></div>
+</div>
+
+<!-- 팀별 전적 -->
+<h2 class="h5 mb-3">팀별 전적</h2>
+<div class="table-responsive mb-4">
+  <table class="table table-hover align-middle text-center bg-white shadow-sm">
+    <thead class="table-light">
+      <tr><th class="text-start">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th>
+        <th>득점</th><th>실점</th><th>득실</th><th>승점</th><th>승률</th></tr>
+    </thead>
+    <tbody>
+      {% for r in teams %}
+        <tr>
+          <td class="text-start"><a href="{{ r.team.get_absolute_url }}">{{ r.team.name }}</a></td>
+          <td>{{ r.p }}</td><td>{{ r.w }}</td><td>{{ r.d }}</td><td>{{ r.l }}</td>
+          <td>{{ r.gf }}</td><td>{{ r.ga }}</td>
+          <td>{% if r.gd > 0 %}+{% endif %}{{ r.gd }}</td>
+          <td class="fw-bold">{{ r.pts }}</td><td>{{ r.winrate }}%</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-muted">종료된 경기가 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="row g-4">
+  <!-- 득점 순위 -->
+  <div class="col-md-6">
+    <h2 class="h5 mb-3">득점 순위</h2>
+    <div class="list-group shadow-sm">
+      {% for s in scorers %}
+        <div class="list-group-item d-flex justify-content-between">
+          <span><span class="text-muted me-2">{{ forloop.counter }}</span><a href="{% url 'teams:player' s.player_id %}">{{ s.player__name }}</a></span>
+          <span class="fw-bold">{{ s.n }}골</span>
+        </div>
+      {% empty %}
+        <div class="list-group-item text-muted">기록 없음</div>
+      {% endfor %}
+    </div>
+  </div>
+  <!-- 도움 순위 -->
+  <div class="col-md-6">
+    <h2 class="h5 mb-3">도움 순위</h2>
+    <div class="list-group shadow-sm">
+      {% for a in assisters %}
+        <div class="list-group-item d-flex justify-content-between">
+          <span><span class="text-muted me-2">{{ forloop.counter }}</span><a href="{% url 'teams:player' a.player_id %}">{{ a.player__name }}</a></span>
+          <span class="fw-bold">{{ a.n }}도움</span>
+        </div>
+      {% empty %}
+        <div class="list-group-item text-muted">기록 없음</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- 경고/퇴장 -->
+{% if cards %}
+<h2 class="h5 mt-4 mb-3">경고 · 퇴장</h2>
+<div class="table-responsive">
+  <table class="table align-middle bg-white shadow-sm">
+    <thead class="table-light"><tr><th>선수</th><th class="text-center">경고</th><th class="text-center">퇴장</th></tr></thead>
+    <tbody>
+      {% for c in cards %}
+        <tr>
+          <td><a href="{% url 'teams:player' c.player_id %}">{{ c.player__name }}</a></td>
+          <td class="text-center text-warning fw-bold">{{ c.yellow }}</td>
+          <td class="text-center text-danger fw-bold">{{ c.red }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
