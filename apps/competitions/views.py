@@ -5,66 +5,88 @@ from apps.matches.models import Match
 from .models import Award, Competition, Season
 
 
-def standings(request):
-    """리그 순위표: 선택한 리그의 우리 팀 전적(승점/득실) 자동 집계.
+_AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 
-    상대팀 간 경기는 기록하지 않으므로, 우리 FC Sky 팀들의 리그 전적만 산출한다.
-    승점 = 승*3 + 무*1.
+
+def standings(request):
+    """대회 조별(부문별) 순위표.
+
+    우리 팀(FC Sky) 경기 기록만 보유하므로, 각 부문(= 우리 팀)별로 우리 팀과 그
+    상대팀들의 전적을 '우리 경기 기준'으로 집계한다(상대팀 간 경기는 미반영).
+    리그·토너먼트 모두 동일하게 동작. 승점 = 승*3 + 무*1.
     """
-    leagues = Competition.objects.filter(kind=Competition.Kind.LEAGUE)
+    comps = Competition.objects.filter(matches__isnull=False).distinct()
 
     comp_slug = request.GET.get("competition") or ""
     season = request.GET.get("season") or ""
 
     competition = None
     if comp_slug:
-        competition = leagues.filter(slug=comp_slug).first()
+        competition = comps.filter(slug=comp_slug).first()
     if competition is None:
-        competition = leagues.first()
+        competition = (
+            comps.filter(matches__status=Match.Status.FINISHED).distinct().first()
+            or comps.first()
+        )
 
-    rows = []
+    groups = []
     if competition is not None:
         matches = Match.objects.filter(
             competition=competition,
             status=Match.Status.FINISHED,
             our_score__isnull=False,
             opponent_score__isnull=False,
-        ).select_related("our_team")
+        ).select_related("our_team", "opponent")
         if season.isdigit():
             matches = matches.filter(season_id=season)
 
-        table = {}
+        def _blank(name, url, is_ours):
+            return {"name": name, "url": url, "is_ours": is_ours,
+                    "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0}
+
+        by_group = {}
         for m in matches:
-            row = table.setdefault(
-                m.our_team_id,
-                {"team": m.our_team, "p": 0, "w": 0, "d": 0, "l": 0,
-                 "gf": 0, "ga": 0},
-            )
-            row["p"] += 1
-            row["gf"] += m.our_score
-            row["ga"] += m.opponent_score
+            g = by_group.setdefault(m.our_team_id, {"team": m.our_team, "rows": {}})
+            rows = g["rows"]
+            ours = rows.setdefault(
+                ("T", m.our_team_id),
+                _blank(m.our_team.name, m.our_team.get_absolute_url(), True))
+            opp = rows.setdefault(
+                ("O", m.opponent_id), _blank(m.opponent.name, None, False))
+
+            ours["p"] += 1
+            ours["gf"] += m.our_score
+            ours["ga"] += m.opponent_score
+            opp["p"] += 1
+            opp["gf"] += m.opponent_score
+            opp["ga"] += m.our_score
+
             result = m.result
             if result == "W":
-                row["w"] += 1
-            elif result == "D":
-                row["d"] += 1
+                ours["w"] += 1
+                opp["l"] += 1
+            elif result == "L":
+                ours["l"] += 1
+                opp["w"] += 1
             else:
-                row["l"] += 1
+                ours["d"] += 1
+                opp["d"] += 1
 
-        for row in table.values():
-            row["gd"] = row["gf"] - row["ga"]
-            row["pts"] = row["w"] * 3 + row["d"]
+        for g in by_group.values():
+            table = list(g["rows"].values())
+            for row in table:
+                row["gd"] = row["gf"] - row["ga"]
+                row["pts"] = row["w"] * 3 + row["d"]
+            table.sort(key=lambda r: (-r["pts"], -r["gd"], -r["gf"], r["name"]))
+            groups.append({"team": g["team"], "table": table})
 
-        rows = sorted(
-            table.values(),
-            key=lambda r: (-r["pts"], -r["gd"], -r["gf"], r["team"].name),
-        )
+        groups.sort(key=lambda x: _AGE_ORDER.get(x["team"].age_group, 9))
 
     context = {
         "competition": competition,
-        "leagues": leagues,
+        "competitions": comps,
         "seasons": Season.objects.all(),
-        "rows": rows,
+        "groups": groups,
         "selected": {"competition": comp_slug, "season": season},
     }
     return render(request, "competitions/standings.html", context)

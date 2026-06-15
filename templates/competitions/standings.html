@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}리그 순위표 — FC Sky{% endblock %}
+{% block title %}순위표 — FC Sky{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">리그 순위표</h1>
+<h1 class="h3 mb-4">순위표</h1>
 
 <form class="row g-2 mb-4" method="get">
   <div class="col-12 col-md-6">
     <select name="competition" class="form-select" onchange="this.form.submit()">
-      {% for c in leagues %}
+      {% for c in competitions %}
         <option value="{{ c.slug }}" {% if competition and competition.slug == c.slug %}selected{% endif %}>{{ c.name }}</option>
       {% empty %}
-        <option value="">등록된 리그가 없습니다</option>
+        <option value="">경기 기록이 있는 대회가 없습니다</option>
       {% endfor %}
     </select>
   </div>
@@ -23,33 +23,45 @@
   </div>
 </form>
 
-{% if competition %}
-  <h2 class="h5 mb-3">{{ competition.name }}</h2>
-{% endif %}
+{% if competition %}<h2 class="h5 mb-3">{{ competition.name }}</h2>{% endif %}
 
-<div class="table-responsive">
-  <table class="table table-hover align-middle text-center bg-white shadow-sm">
-    <thead class="table-light">
-      <tr>
-        <th>순위</th><th class="text-start">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th>
-        <th>득점</th><th>실점</th><th>득실</th><th>승점</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-        <tr>
-          <td class="fw-bold">{{ forloop.counter }}</td>
-          <td class="text-start"><a href="{{ r.team.get_absolute_url }}">{{ r.team.name }}</a></td>
-          <td>{{ r.p }}</td><td>{{ r.w }}</td><td>{{ r.d }}</td><td>{{ r.l }}</td>
-          <td>{{ r.gf }}</td><td>{{ r.ga }}</td>
-          <td>{% if r.gd > 0 %}+{% endif %}{{ r.gd }}</td>
-          <td class="fw-bold">{{ r.pts }}</td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="10" class="text-muted">종료된 경기 기록이 없습니다.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-<p class="text-muted small">승점 = 승×3 + 무×1. 상대팀 간 경기는 집계하지 않으며, FC Sky 팀들의 리그 전적만 표시합니다.</p>
+{% for group in groups %}
+  <div class="mb-4">
+    <div class="fw-bold mb-2">
+      <span class="badge bg-primary">{{ group.team.get_age_group_display }}</span>
+      {{ group.team.name }} 부문
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle text-center bg-white shadow-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>순위</th><th class="text-start">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th>
+            <th>득점</th><th>실점</th><th>득실</th><th>승점</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in group.table %}
+            <tr {% if r.is_ours %}class="table-primary fw-semibold"{% endif %}>
+              <td class="fw-bold">{{ forloop.counter }}</td>
+              <td class="text-start">
+                {% if r.url %}<a href="{{ r.url }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}
+              </td>
+              <td>{{ r.p }}</td><td>{{ r.w }}</td><td>{{ r.d }}</td><td>{{ r.l }}</td>
+              <td>{{ r.gf }}</td><td>{{ r.ga }}</td>
+              <td>{% if r.gd > 0 %}+{% endif %}{{ r.gd }}</td>
+              <td class="fw-bold">{{ r.pts }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% empty %}
+  <p class="text-muted">종료된 경기 기록이 없습니다.</p>
+{% endfor %}
+
+<p class="text-muted small">
+  승점 = 승×3 + 무×1. 순위는 <strong>우리 팀(FC Sky) 경기 기준</strong>으로 집계하며,
+  상대팀 간 경기는 미반영이라 조 전체 순위와 다를 수 있습니다.
+</p>
 {% endblock %}
