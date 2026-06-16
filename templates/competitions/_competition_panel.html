@@ -13,6 +13,7 @@
 <div class="ko mb-4 {% if p.bracket.semis|length == 2 and p.bracket.final %}ko--bracket{% endif %}">
   <div class="ko-col ko-col--semis">
     <div class="ko-col-title">준결승</div>
+    <div class="ko-pair">
     {% for s in p.bracket.semis %}
       <div class="ko-cell">
         {% if s.kind == "match" %}
@@ -47,6 +48,7 @@
         {% endif %}
       </div>
     {% endfor %}
+    </div>
   </div>
   {% if p.bracket.final %}
     <div class="ko-col ko-col--final">

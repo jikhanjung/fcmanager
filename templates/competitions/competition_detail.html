@@ -3,16 +3,17 @@
 {% block extra_head %}
 <style>
   .ko { display:flex; align-items:stretch; overflow-x:auto; padding:.25rem 0 .75rem;
-        --ko-gap:1.5rem; --ko-line:#9aa6b2; }
+        --ko-gap:1.6rem; --ko-line:#9aa6b2; }
   .ko-col { display:flex; flex-direction:column; justify-content:center; flex:0 0 auto;
-            position:relative; padding-top:1.5rem; }
+            position:relative; padding-top:1.6rem; }
   .ko-col--final { margin-left: calc(2 * var(--ko-gap)); }
+  .ko-pair { display:flex; flex-direction:column; flex:1 1 auto; position:relative; }
   .ko-cell { flex:1; display:flex; align-items:center; position:relative;
              min-width:13rem; padding:.55rem 0; }
-  .ko-card { display:block; width:100%; border:1px solid var(--bs-border-color);
+  .ko-card { display:block; width:100%; border:1.5px solid #8c98a6;
              border-radius:.6rem; padding:.5rem .6rem; background:var(--bs-body-bg);
              text-decoration:none; color:inherit; }
-  .ko-card--final { border-color:#f0c36d; box-shadow:0 0 0 1px #f0c36d33; }
+  .ko-card--final { border-color:#e0a800; box-shadow:0 0 0 1px #e0a80033; }
   .ko-row { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
   .ko-row .nm { font-size:.9rem; }
   .ko-row .sc { font-weight:800; font-variant-numeric:tabular-nums; }
@@ -20,19 +21,20 @@
              margin-top:.3rem; }
 
   /* 연결선: 준결승 2칸 → 결승. 결승은 두 준결승 사이(세로 중앙)에 위치. */
-  .ko--bracket .ko-col--semis .ko-cell::after {
-    content:""; position:absolute; right: calc(-1 * var(--ko-gap));
-    width: var(--ko-gap); height:50%; border-right:2px solid var(--ko-line);
+  /* 각 준결승 카드에서 오른쪽으로 가로선 */
+  .ko--bracket .ko-pair .ko-cell::after {
+    content:""; position:absolute; left:100%; top:50%; width:var(--ko-gap);
+    border-top:2px solid var(--ko-line);
   }
-  .ko--bracket .ko-col--semis .ko-cell:first-child::after {
-    top:50%; border-top:2px solid var(--ko-line);
+  /* 두 가로선 끝을 잇는 하나의 세로선(25%~75% = 두 카드 중앙) */
+  .ko--bracket .ko-pair::after {
+    content:""; position:absolute; left:calc(100% + var(--ko-gap)); top:25%; height:50%;
+    border-left:2px solid var(--ko-line);
   }
-  .ko--bracket .ko-col--semis .ko-cell:last-child::after {
-    bottom:50%; border-bottom:2px solid var(--ko-line);
-  }
+  /* 세로선 중앙에서 결승으로 가로선 */
   .ko--bracket .ko-col--final .ko-cell::before {
-    content:""; position:absolute; left: calc(-1 * var(--ko-gap));
-    width: var(--ko-gap); top:50%; border-top:2px solid var(--ko-line);
+    content:""; position:absolute; right:100%; top:50%; width:var(--ko-gap);
+    border-top:2px solid var(--ko-line);
   }
   .ko-col-title { position:absolute; top:0; left:0; right:0; text-align:center;
                   font-size:.75rem; font-weight:700; color:var(--bs-secondary);
