@@ -138,6 +138,18 @@ def match_detail(request, pk):
     )
 
 
+def _elapsed_seconds(match):
+    """콘솔 자동 타이머의 경과 초.
+
+    기준은 'LIVE 시작'을 누른 실제 시각(``live_started_at``) — 예정 킥오프와 무관.
+    아직 시작 전이면 예정 킥오프로 폴백(시작 전 카운트다운 표시용), 둘 다 없으면 None.
+    """
+    base = match.live_started_at or match.kickoff
+    if not base:
+        return None
+    return int((timezone.now() - base).total_seconds())
+
+
 def _live_payload(match):
     """공개 폴링·콘솔 AJAX 응답이 공유하는 경기 상태 dict."""
     return {
@@ -148,6 +160,7 @@ def _live_payload(match):
         "opponent_score": match.opponent_score,
         "result": match.result,
         "timeline": serialize_timeline(match),
+        "elapsed_seconds": _elapsed_seconds(match),
         "updated_at": match.updated_at.isoformat(),
     }
 
@@ -274,18 +287,12 @@ def match_live_console(request, pk):
             return JsonResponse(_live_payload(match))
         return redirect("matches:live_console", pk=match.pk)
 
-    # 분 자동 채움 제안: LIVE면 킥오프 이후 경과(분), 아니면 0.
-    suggested_minute = 0
-    if match.status == Match.Status.LIVE and match.kickoff:
-        elapsed = (timezone.now() - match.kickoff).total_seconds() / 60
-        if 0 <= elapsed <= 130:
-            suggested_minute = int(elapsed)
-
     return render(request, "matches/match_live.html", {
         "match": match,
         "roster": _build_roster(match),
         "timeline": serialize_timeline(match),
-        "suggested_minute": suggested_minute,
+        # 자동 타이머 기준: 킥오프 이후 경과 초(킥오프 미설정 시 None).
+        "elapsed_seconds": _elapsed_seconds(match),
     })
 
 
@@ -304,7 +311,13 @@ def _handle_live_action(request, match, team_players):
 
     if action == "start":
         match.status = Match.Status.LIVE
-        match.save(update_fields=["status", "updated_at"])
+        # 'LIVE 시작'을 누른 시각을 자동 시계 기준으로 고정(킥오프와 무관).
+        # 이미 기록돼 있으면 보존(종료 후 재개 시 시계 연속성 유지).
+        fields = ["status", "updated_at"]
+        if match.live_started_at is None:
+            match.live_started_at = timezone.now()
+            fields.append("live_started_at")
+        match.save(update_fields=fields)
         messages.success(request, "경기를 LIVE로 시작했습니다.")
     elif action == "finish":
         match.status = Match.Status.FINISHED

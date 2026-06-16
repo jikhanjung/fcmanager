@@ -5,7 +5,10 @@
 <style>
   .live-bar { position: sticky; top: 0; z-index: 1020; }
   .score-num { font-size: 2.4rem; font-weight: 800; line-height: 1; }
-  .clock-input { width: 4.5rem; font-weight: 700; text-align: center; }
+  .clock-display {
+    font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.15rem;
+    min-width: 5rem; letter-spacing: .04em;
+  }
   .act-primary { min-height: 5.2rem; font-size: 1.15rem; font-weight: 700; }
   .act-secondary { min-height: 3.2rem; font-weight: 600; }
   /* 선수 타일 그리드 */
@@ -43,11 +46,9 @@
   <div class="live-bar bg-body border-bottom py-2 mb-2">
     <div class="d-flex align-items-center justify-content-between">
       <span id="status-badge"></span>
-      <div class="d-flex align-items-center gap-1">
-        <span class="text-muted small">분</span>
-        <input type="number" min="0" max="130" value="{{ suggested_minute }}"
-               id="clock" class="form-control form-control-sm clock-input" inputmode="numeric">
-      </div>
+      <button type="button" id="clock"
+              class="btn btn-sm btn-outline-secondary clock-display"
+              title="탭하여 경기 시간 보정">--:--</button>
       <button id="toggle-btn" class="btn btn-sm"></button>
     </div>
   </div>
@@ -130,7 +131,71 @@
                SUB_IN:'🔄 IN', SUB_OUT:'🔄 OUT', ASSIST:'👟' };
 
   function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
-  function minute(){ var v = document.getElementById('clock').value; return v === '' ? '' : v; }
+
+  // ── 자동 경기 시계 (mm:ss) ──
+  // 기준은 킥오프 이후 경과 초(서버 제공). LIVE 동안만 흐르고, 매 액션 응답마다
+  // 서버 값으로 재동기화되어 시계 드리프트가 누적되지 않는다.
+  var clockEl = document.getElementById('clock');
+  var ELAPSED0 = {{ elapsed_seconds|default_if_none:"null" }};  // 서버 경과 초(킥오프 없으면 null)
+  var hasBase = (ELAPSED0 !== null);
+  var anchorSec = hasBase ? ELAPSED0 : 0;   // 마지막 서버 동기화 경과(초)
+  var manualOffset = 0;                      // 운영자 수동 보정 누적(초)
+  function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
+  var anchorPerf = nowMs();
+  function running(){ return root.dataset.status === 'LIVE'; }
+
+  // 현재 경과 초(킥오프 기준). LIVE일 때만 흐른다.
+  function elapsedSec(){
+    var s = anchorSec + manualOffset;
+    if (running()) s += (nowMs() - anchorPerf) / 1000;
+    return s;
+  }
+
+  // 이벤트에 기록할 분: 00:00~00:59 → 1' (1-based). 킥오프 전이면 빈 값.
+  function minute(){
+    var s = elapsedSec();
+    return s < 0 ? '' : String(Math.floor(s / 60) + 1);
+  }
+
+  function fmtClock(s){
+    if (s < 0) s = 0;
+    s = Math.floor(s);
+    var m = Math.floor(s / 60), ss = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+
+  function renderClock(){
+    if (!hasBase && !running()) { clockEl.textContent = '--:--'; return; }
+    clockEl.textContent = fmtClock(elapsedSec());
+    clockEl.classList.toggle('btn-outline-danger', running());
+    clockEl.classList.toggle('btn-outline-secondary', !running());
+  }
+
+  // 서버 응답의 경과 초로 재동기화(드리프트 제거).
+  function syncClock(serverElapsed){
+    if (serverElapsed === undefined || serverElapsed === null) return;
+    anchorSec = serverElapsed; anchorPerf = nowMs(); hasBase = true;
+  }
+
+  // 탭하여 경기 시간 수동 보정(분:초 또는 분).
+  clockEl.addEventListener('click', function () {
+    var cur = Math.max(0, Math.floor(elapsedSec()));
+    var def = Math.floor(cur / 60) + ':' + ('0' + (cur % 60)).slice(-2);
+    var input = prompt('경기 시간 보정 (분:초 또는 분)', def);
+    if (input === null) return;
+    input = input.trim();
+    var sec;
+    if (input.indexOf(':') >= 0) {
+      var p = input.split(':');
+      sec = (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+    } else {
+      sec = (parseInt(input, 10) || 0) * 60;
+    }
+    manualOffset += sec - elapsedSec();   // 표시 경과가 sec가 되도록 보정(이후 계속 흐름)
+    renderClock();
+  });
+
+  setInterval(renderClock, 250);
 
   // 선수 타일 그리드 렌더 (onPick(playerId) 콜백)
   function renderTiles(onPick) {
@@ -272,12 +337,15 @@
     root.dataset.status = data.status;
     document.getElementById('our-score').textContent = data.our_score == null ? 0 : data.our_score;
     document.getElementById('opp-score').textContent = data.opponent_score == null ? 0 : data.opponent_score;
+    syncClock(data.elapsed_seconds);
     renderStatusBar();
     renderRecent(data.timeline);
+    renderClock();
   }
 
   // 초기 렌더
   renderStatusBar();
+  renderClock();
   document.getElementById('our-score').textContent = root.dataset.our;
   document.getElementById('opp-score').textContent = root.dataset.opp;
   renderRecent(JSON.parse(document.getElementById('timeline-data').textContent));

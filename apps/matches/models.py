@@ -75,6 +75,10 @@ class Match(models.Model):
     opponent_score = models.PositiveIntegerField("상대 득점", null=True, blank=True)
     note = models.TextField("비고", blank=True)
 
+    # 중계 콘솔 자동 시계의 기준점. 'LIVE 시작'을 누른 실제 시각으로,
+    # 예정 킥오프와 무관하게 이 시각부터 경기 시계가 0:00에서 흐른다.
+    live_started_at = models.DateTimeField("중계 시작 시각", null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
