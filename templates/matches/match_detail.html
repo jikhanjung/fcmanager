@@ -16,26 +16,33 @@
       </div>
       <div class="col-auto">
         {% if match.our_score is not None and match.opponent_score is not None %}
-          <span class="display-5 fw-bold">{{ match.our_score }} : {{ match.opponent_score }}</span>
+          <span id="live-score" class="display-5 fw-bold">{{ match.our_score }} : {{ match.opponent_score }}</span>
         {% else %}
-          <span class="display-6 text-muted">VS</span>
+          <span id="live-score" class="display-6 text-muted">VS</span>
         {% endif %}
       </div>
       <div class="col text-start">
         <h2 class="h4 mb-0">{{ match.opponent }}</h2>
       </div>
     </div>
-    <div class="mt-3">
-      <span class="badge bg-secondary">{{ match.get_status_display }}</span>
+    <div class="mt-3" id="live-status">
+      {% if match.status == 'LIVE' %}
+        <span class="badge bg-danger">🔴 LIVE</span>
+      {% else %}
+        <span class="badge bg-secondary">{{ match.get_status_display }}</span>
+      {% endif %}
       {% if match.result == "W" %}<span class="badge bg-success">승리</span>
       {% elif match.result == "L" %}<span class="badge bg-danger">패배</span>
       {% elif match.result == "D" %}<span class="badge bg-secondary">무승부</span>{% endif %}
     </div>
+    {% if match.status == 'LIVE' %}
+      <div class="small text-muted mt-2" id="live-hint">실시간 자동 갱신 중…</div>
+    {% endif %}
   </div>
 </div>
 
 <h2 class="h5 mb-3">타임라인</h2>
-<div class="list-group shadow-sm mb-4">
+<div class="list-group shadow-sm mb-4" id="live-timeline">
   {% for item in timeline %}
     <div class="list-group-item d-flex align-items-center
       {% if item.event.side == 'OPPONENT' %}flex-row-reverse text-end{% endif %}">
@@ -79,6 +86,76 @@
 
 <a href="{% url 'matches:list' %}" class="btn btn-outline-secondary btn-sm">← 일정·결과로</a>
 {% if user.is_staff %}
+  <a href="{% url 'matches:live_console' match.pk %}" class="btn btn-danger btn-sm">🔴 중계 콘솔</a>
   <a href="{% url 'matches:edit' match.pk %}" class="btn btn-primary btn-sm">결과 편집</a>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var statusEl = document.getElementById('live-status');
+  // LIVE 상태일 때만 폴링 시작(서버 렌더 시 배지로 판단).
+  var isLive = statusEl && statusEl.querySelector('.bg-danger');
+  if (!isLive) return;
+
+  var url = "{% url 'matches:live_json' match.pk %}";
+  var scoreEl = document.getElementById('live-score');
+  var timelineEl = document.getElementById('live-timeline');
+  var hintEl = document.getElementById('live-hint');
+  var timer = null;
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  function renderRow(it) {
+    var opp = it.side === 'OPPONENT';
+    var min = (it.minute === null || it.minute === undefined) ? '-' : (it.minute + "'");
+    var who = it.player ? '<span class="ms-1">' + esc(it.player) + '</span>'
+                        : '<span class="ms-1 text-muted">' + esc(it.side_display) + '</span>';
+    var assist = it.assist ? '<span class="ms-1 text-muted">(도움: ' + esc(it.assist) + ')</span>' : '';
+    var desc = it.description ? '<div class="small text-muted">' + esc(it.description) + '</div>' : '';
+    return '<div class="list-group-item d-flex align-items-center' +
+           (opp ? ' flex-row-reverse text-end' : '') + '">' +
+           '<span class="badge bg-light text-dark me-2 ms-2">' + min + '</span>' +
+           '<div><strong>' + esc(it.type_display) + '</strong>' + who + assist + desc + '</div></div>';
+  }
+
+  function apply(data) {
+    if (scoreEl) {
+      if (data.our_score === null || data.opponent_score === null) {
+        scoreEl.textContent = 'VS';
+      } else {
+        scoreEl.textContent = data.our_score + ' : ' + data.opponent_score;
+      }
+    }
+    if (timelineEl) {
+      if (data.timeline && data.timeline.length) {
+        timelineEl.innerHTML = data.timeline.map(renderRow).join('');
+      } else {
+        timelineEl.innerHTML = '<div class="list-group-item text-muted">기록된 이벤트가 없습니다.</div>';
+      }
+    }
+    if (!data.is_live) {
+      // 경기 종료 → 폴링 중지 후 새로고침으로 최종 결과(승/무/패 배지 등) 반영.
+      if (timer) clearInterval(timer);
+      if (hintEl) hintEl.textContent = '경기가 종료되었습니다. 새로고침합니다…';
+      setTimeout(function () { location.reload(); }, 1500);
+    }
+  }
+
+  function poll() {
+    fetch(url, { headers: { 'X-Requested-With': 'fetch' }, cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(apply)
+      .catch(function () { /* 일시적 실패는 다음 주기에 재시도 */ });
+  }
+
+  timer = setInterval(poll, 7000);
+  poll();
+})();
+</script>
 {% endblock %}

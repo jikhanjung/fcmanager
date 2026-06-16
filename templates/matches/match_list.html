@@ -60,7 +60,10 @@
             {% else %}<span class="text-muted">-</span>{% endif %}
           </td>
           <td>{{ m.opponent }}</td>
-          <td class="text-center"><span class="badge bg-light text-muted">{{ m.get_status_display }}</span></td>
+          <td class="text-center">
+            {% if m.status == 'LIVE' %}<span class="badge bg-danger">🔴 LIVE</span>
+            {% else %}<span class="badge bg-light text-muted">{{ m.get_status_display }}</span>{% endif %}
+          </td>
           <td><a href="{{ m.get_absolute_url }}" class="btn btn-sm btn-outline-primary">상세</a></td>
         </tr>
       {% empty %}

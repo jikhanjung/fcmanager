@@ -33,9 +33,11 @@
 
 ## 📡 Phase 4 — 실시간 중계
 
-- [ ] Django Channels + Redis 도입
-- [ ] 경기 LIVE 상태 + MatchEvent 실시간 입력(운영진 모바일)
-- [ ] 라이브 스코어보드 / 타임라인 자동 갱신(WebSocket)
+- [x] **경기 LIVE 상태 + MatchEvent 실시간 입력(운영진 모바일 콘솔 `/matches/<pk>/live/`)**
+- [x] **라이브 스코어보드 / 타임라인 자동 갱신 — 폴링(`live.json`, 7초 주기)**
+  - WebSocket/Redis 미도입(단일 컨테이너·WSGI 유지). 데이터 계약은 추후 WS 교체 가능.
+- [ ] (확장) Django Channels + Redis → WebSocket 푸시 전환
+- [ ] (확장) 교체 IN/OUT 라인업 연동, 중계 콘솔 무새로고침(fetch)
 
 ## 🚀 Phase 5 — 배포 & 운영
 

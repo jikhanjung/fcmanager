@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}중계 콘솔 — {{ match.our_team }} vs {{ match.opponent }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h5 mb-0">중계 콘솔</h1>
+  <div>
+    {% if match.status == 'LIVE' %}
+      <span class="badge bg-danger">🔴 LIVE</span>
+    {% else %}
+      <span class="badge bg-secondary">{{ match.get_status_display }}</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 스코어 -->
+<div class="card shadow-sm mb-3">
+  <div class="card-body text-center py-3">
+    <div class="row align-items-center">
+      <div class="col text-end"><strong>{{ match.our_team }}</strong></div>
+      <div class="col-auto">
+        <span class="display-6 fw-bold">{{ match.our_score|default:0 }} : {{ match.opponent_score|default:0 }}</span>
+      </div>
+      <div class="col text-start"><strong>{{ match.opponent }}</strong></div>
+    </div>
+    <div class="text-muted small mt-1">{{ match.kickoff|date:"m월 d일 H:i" }} · {{ match.competition }}</div>
+  </div>
+</div>
+
+<!-- LIVE 토글 -->
+<form method="post" class="mb-3 d-grid gap-2">
+  {% csrf_token %}
+  {% if match.status == 'LIVE' %}
+    <button name="action" value="finish" class="btn btn-outline-danger">⏹ 경기 종료</button>
+  {% else %}
+    <button name="action" value="start" class="btn btn-danger btn-lg">🔴 LIVE 시작</button>
+  {% endif %}
+</form>
+
+<!-- 득점 입력 -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header py-2 fw-semibold">⚽ 득점</div>
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="goal">
+      <input type="hidden" name="side" value="OUR">
+      <div class="col-4 col-sm-2">
+        <label class="form-label small mb-1">분</label>
+        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
+               class="form-control" inputmode="numeric">
+      </div>
+      <div class="col-8 col-sm-4">
+        <label class="form-label small mb-1">득점 선수</label>
+        <select name="player" class="form-select">
+          <option value="">— 선택 —</option>
+          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-8 col-sm-4">
+        <label class="form-label small mb-1">도움(선택)</label>
+        <select name="assist" class="form-select">
+          <option value="">— 없음 —</option>
+          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-4 col-sm-2 d-grid">
+        <button class="btn btn-primary">기록</button>
+      </div>
+    </form>
+    <hr class="my-3">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="goal">
+      <input type="hidden" name="side" value="OPPONENT">
+      <div class="col-4 col-sm-2">
+        <label class="form-label small mb-1">분</label>
+        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
+               class="form-control" inputmode="numeric">
+      </div>
+      <div class="col-8 col-sm-7 d-flex align-items-end">
+        <span class="text-muted small">상대팀 득점</span>
+      </div>
+      <div class="col-12 col-sm-3 d-grid">
+        <button class="btn btn-outline-primary">상대 득점 +1</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 카드 · 교체 · 자책골 -->
+<div class="card shadow-sm mb-3">
+  <div class="card-header py-2 fw-semibold">🟨 카드 · ⏱ 교체 · 자책골</div>
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="event">
+      <div class="col-4 col-sm-2">
+        <label class="form-label small mb-1">분</label>
+        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
+               class="form-control" inputmode="numeric">
+      </div>
+      <div class="col-8 col-sm-3">
+        <label class="form-label small mb-1">종류</label>
+        <select name="event_type" class="form-select">
+          <option value="YELLOW">경고</option>
+          <option value="RED">퇴장</option>
+          <option value="SUB_IN">교체 IN</option>
+          <option value="SUB_OUT">교체 OUT</option>
+          <option value="OWN_GOAL">자책골</option>
+        </select>
+      </div>
+      <div class="col-5 col-sm-2">
+        <label class="form-label small mb-1">팀</label>
+        <select name="side" class="form-select">
+          <option value="OUR">우리 팀</option>
+          <option value="OPPONENT">상대팀</option>
+        </select>
+      </div>
+      <div class="col-7 col-sm-3">
+        <label class="form-label small mb-1">선수(우리 팀)</label>
+        <select name="player" class="form-select">
+          <option value="">— 선택 —</option>
+          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-sm-2 d-grid">
+        <button class="btn btn-secondary">기록</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 입력된 이벤트 -->
+<h2 class="h6 mb-2">기록된 이벤트 ({{ events|length }})</h2>
+<div class="list-group shadow-sm mb-4">
+  {% for e in events %}
+    <div class="list-group-item d-flex align-items-center justify-content-between">
+      <div>
+        <span class="badge bg-light text-dark me-2">{% if e.minute is not None %}{{ e.minute }}'{% else %}-{% endif %}</span>
+        <strong>{{ e.get_event_type_display }}</strong>
+        {% if e.player %}<span class="ms-1">{{ e.player.name }}</span>
+        {% else %}<span class="ms-1 text-muted">{{ e.get_side_display }}</span>{% endif %}
+        {% if e.event_type == 'ASSIST' %}<span class="badge bg-light text-muted ms-1">도움</span>{% endif %}
+      </div>
+      <form method="post" onsubmit="return confirm('이 이벤트를 삭제할까요?');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="event_id" value="{{ e.pk }}">
+        <button class="btn btn-sm btn-outline-danger">삭제</button>
+      </form>
+    </div>
+  {% empty %}
+    <div class="list-group-item text-muted">아직 기록된 이벤트가 없습니다.</div>
+  {% endfor %}
+</div>
+
+<div class="d-flex gap-2">
+  <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary btn-sm">경기 페이지 보기</a>
+  <a href="{% url 'matches:edit' match.pk %}" class="btn btn-outline-secondary btn-sm">상세 편집</a>
+</div>
+{% endblock %}

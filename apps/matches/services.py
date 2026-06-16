@@ -84,3 +84,82 @@ def event_ranking(events, event_type, limit=None):
     if limit:
         qs = qs[:limit]
     return list(qs)
+
+
+def build_timeline(events):
+    """타임라인 항목 구성. 득점과 그 도움을 한 줄로 묶는다.
+
+    각 항목은 {"event": 주 이벤트, "assist": 도움 이벤트 또는 None}.
+    도움은 명시적 링크(MatchEvent.goal)로 해당 득점에 정확히 연결한다.
+    링크가 없는 과거 데이터는 같은 팀의 도움을 순서대로 보수적으로 페어링한다.
+    """
+    GOAL = MatchEvent.EventType.GOAL
+    ASSIST = MatchEvent.EventType.ASSIST
+    assist_by_goal = {e.goal_id: e for e in events if e.event_type == ASSIST and e.goal_id}
+    used = set()
+    timeline = []
+    for e in events:
+        if e.id in used:
+            continue
+        if e.event_type == GOAL:
+            assist = assist_by_goal.get(e.id)
+            if assist is None:  # 레거시(링크 없는 과거 데이터) 폴백: 같은 팀 도움을 순서대로 소비
+                assist = next(
+                    (a for a in events
+                     if a.event_type == ASSIST and not a.goal_id and a.id not in used
+                     and a.side == e.side),
+                    None,
+                )
+            if assist:
+                used.add(assist.id)
+            timeline.append({"event": e, "assist": assist})
+        elif e.event_type == ASSIST:
+            if e.goal_id:        # 자기 득점과 함께 표시 → 단독으로 내지 않음
+                used.add(e.id)
+                continue
+            timeline.append({"event": e, "assist": None})  # 링크 없는 단독 도움
+        else:
+            timeline.append({"event": e, "assist": None})
+        used.add(e.id)
+    return timeline
+
+
+def recompute_score(match):
+    """이벤트 집계로 경기 점수를 재계산해 저장한다(중계 콘솔 전용).
+
+    우리 점수 = 우리팀 GOAL + 상대팀 OWN_GOAL,
+    상대 점수 = 상대팀 GOAL + 우리팀 OWN_GOAL.
+    """
+    GOAL = MatchEvent.EventType.GOAL
+    OWN_GOAL = MatchEvent.EventType.OWN_GOAL
+    OUR = MatchEvent.Side.OUR
+    OPP = MatchEvent.Side.OPPONENT
+    evs = list(match.events.values("event_type", "side"))
+
+    def count(etype, side):
+        return sum(1 for e in evs if e["event_type"] == etype and e["side"] == side)
+
+    match.our_score = count(GOAL, OUR) + count(OWN_GOAL, OPP)
+    match.opponent_score = count(GOAL, OPP) + count(OWN_GOAL, OUR)
+    match.save(update_fields=["our_score", "opponent_score", "updated_at"])
+
+
+def serialize_timeline(match):
+    """공개 폴링용 타임라인 직렬화. build_timeline 결과를 단순 dict 리스트로."""
+    events = list(match.events.select_related("player").order_by("minute", "id"))
+    items = []
+    for item in build_timeline(events):
+        e = item["event"]
+        assist = item["assist"]
+        items.append({
+            "minute": e.minute,
+            "side": e.side,
+            "type": e.event_type,
+            "type_display": e.get_event_type_display(),
+            "player": e.player.name if e.player else "",
+            "side_display": e.get_side_display(),
+            "assist": (assist.player.name if assist and assist.player else
+                       (assist.get_side_display() if assist else "")),
+            "description": e.description,
+        })
+    return items

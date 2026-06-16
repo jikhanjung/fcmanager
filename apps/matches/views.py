@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from apps.competitions.models import Competition, Season
 from apps.teams.models import Player, Team
@@ -10,10 +12,13 @@ from .forms import MatchEventFormSet, MatchResultForm, MatchVideoFormSet
 from .models import Match, MatchEvent
 from .services import (
     AGE_ORDER as _AGE_ORDER,
+    build_timeline,
     club_record,
     event_ranking,
     finished_matches,
     our_events,
+    recompute_score,
+    serialize_timeline,
 )
 
 
@@ -124,7 +129,7 @@ def match_detail(request, pk):
         pk=pk,
     )
     events = list(match.events.select_related("player").order_by("minute", "id"))
-    timeline = _build_timeline(events)
+    timeline = build_timeline(events)
     videos = match.videos.all()
     return render(
         request,
@@ -133,42 +138,122 @@ def match_detail(request, pk):
     )
 
 
-def _build_timeline(events):
-    """타임라인 항목 구성. 득점과 그 도움을 한 줄로 묶는다.
+def match_live_json(request, pk):
+    """공개 폴링 엔드포인트: LIVE 경기의 스코어·상태·타임라인을 JSON으로."""
+    match = get_object_or_404(
+        Match.objects.select_related("our_team", "opponent"), pk=pk
+    )
+    return JsonResponse({
+        "status": match.status,
+        "status_display": match.get_status_display(),
+        "is_live": match.status == Match.Status.LIVE,
+        "our_score": match.our_score,
+        "opponent_score": match.opponent_score,
+        "result": match.result,
+        "timeline": serialize_timeline(match),
+        "updated_at": match.updated_at.isoformat(),
+    })
 
-    각 항목은 {"event": 주 이벤트, "assist": 도움 이벤트 또는 None}.
-    도움은 명시적 링크(MatchEvent.goal)로 해당 득점에 정확히 연결한다.
-    링크가 없는 과거 데이터는 같은 팀·같은 '분(분이 있을 때만)'으로만 보수적으로 페어링한다.
-    """
+
+# 중계 콘솔에서 빠르게 추가할 수 있는 이벤트 종류(득점·도움은 별도 처리).
+_LIVE_SIMPLE_EVENTS = {
+    MatchEvent.EventType.OWN_GOAL,
+    MatchEvent.EventType.YELLOW,
+    MatchEvent.EventType.RED,
+    MatchEvent.EventType.SUB_IN,
+    MatchEvent.EventType.SUB_OUT,
+}
+
+
+@staff_required
+def match_live_console(request, pk):
+    """운영진용 실시간 중계 콘솔(모바일): LIVE 토글 + 빠른 이벤트 입력/삭제."""
+    match = get_object_or_404(
+        Match.objects.select_related("our_team", "opponent"), pk=pk
+    )
+    team_players = (
+        Player.objects.filter(memberships__team=match.our_team)
+        .distinct().order_by("name")
+    )
+
+    if request.method == "POST":
+        _handle_live_action(request, match, team_players)
+        return redirect("matches:live_console", pk=match.pk)
+
+    events = list(match.events.select_related("player").order_by("minute", "id"))
+    # 분 자동 채움 제안: LIVE면 킥오프 이후 경과(분), 아니면 비움.
+    suggested_minute = ""
+    if match.status == Match.Status.LIVE and match.kickoff:
+        elapsed = (timezone.now() - match.kickoff).total_seconds() / 60
+        if 0 <= elapsed <= 130:
+            suggested_minute = int(elapsed)
+
+    return render(request, "matches/match_live.html", {
+        "match": match,
+        "events": events,
+        "team_players": team_players,
+        "suggested_minute": suggested_minute,
+        "Side": MatchEvent.Side,
+        "EventType": MatchEvent.EventType,
+    })
+
+
+def _parse_minute(raw):
+    raw = (raw or "").strip()
+    return int(raw) if raw.isdigit() else None
+
+
+def _handle_live_action(request, match, team_players):
+    """중계 콘솔의 POST 액션 처리. 득점 시 점수를 재집계한다."""
+    action = request.POST.get("action") or ""
     GOAL = MatchEvent.EventType.GOAL
     ASSIST = MatchEvent.EventType.ASSIST
-    assist_by_goal = {e.goal_id: e for e in events if e.event_type == ASSIST and e.goal_id}
-    used = set()
-    timeline = []
-    for e in events:
-        if e.id in used:
-            continue
-        if e.event_type == GOAL:
-            assist = assist_by_goal.get(e.id)
-            if assist is None:  # 레거시(링크 없는 과거 데이터) 폴백: 같은 팀 도움을 순서대로 소비
-                assist = next(
-                    (a for a in events
-                     if a.event_type == ASSIST and not a.goal_id and a.id not in used
-                     and a.side == e.side),
-                    None,
-                )
-            if assist:
-                used.add(assist.id)
-            timeline.append({"event": e, "assist": assist})
-        elif e.event_type == ASSIST:
-            if e.goal_id:        # 자기 득점과 함께 표시 → 단독으로 내지 않음
-                used.add(e.id)
-                continue
-            timeline.append({"event": e, "assist": None})  # 링크 없는 단독 도움
-        else:
-            timeline.append({"event": e, "assist": None})
-        used.add(e.id)
-    return timeline
+    minute = _parse_minute(request.POST.get("minute"))
+    score_changed = False
+
+    if action == "start":
+        match.status = Match.Status.LIVE
+        match.save(update_fields=["status", "updated_at"])
+        messages.success(request, "경기를 LIVE로 시작했습니다.")
+    elif action == "finish":
+        match.status = Match.Status.FINISHED
+        match.save(update_fields=["status", "updated_at"])
+        messages.success(request, "경기를 종료했습니다.")
+    elif action == "goal":
+        side = request.POST.get("side") or MatchEvent.Side.OUR
+        player = team_players.filter(pk=request.POST.get("player") or 0).first()
+        goal = MatchEvent.objects.create(
+            match=match, event_type=GOAL, side=side,
+            player=player if side == MatchEvent.Side.OUR else None, minute=minute,
+        )
+        assist = team_players.filter(pk=request.POST.get("assist") or 0).first()
+        if side == MatchEvent.Side.OUR and assist:
+            MatchEvent.objects.create(
+                match=match, event_type=ASSIST, side=side,
+                player=assist, minute=minute, goal=goal,
+            )
+        score_changed = True
+        messages.success(request, "득점을 기록했습니다.")
+    elif action == "event":
+        etype = request.POST.get("event_type") or ""
+        if etype in _LIVE_SIMPLE_EVENTS:
+            side = request.POST.get("side") or MatchEvent.Side.OUR
+            player = team_players.filter(pk=request.POST.get("player") or 0).first()
+            MatchEvent.objects.create(
+                match=match, event_type=etype, side=side,
+                player=player if side == MatchEvent.Side.OUR else None, minute=minute,
+            )
+            score_changed = etype == MatchEvent.EventType.OWN_GOAL
+            messages.success(request, "이벤트를 기록했습니다.")
+    elif action == "delete":
+        ev = match.events.filter(pk=request.POST.get("event_id") or 0).first()
+        if ev:
+            score_changed = ev.event_type in (GOAL, MatchEvent.EventType.OWN_GOAL)
+            ev.delete()  # 연결된 도움(assists)은 CASCADE로 함께 삭제됨
+            messages.success(request, "이벤트를 삭제했습니다.")
+
+    if score_changed:
+        recompute_score(match)
 
 
 def scorers(request):
