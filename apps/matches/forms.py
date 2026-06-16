@@ -4,7 +4,7 @@ from django.forms import inlineformset_factory
 
 from apps.teams.models import Player
 
-from .models import Match, MatchEvent
+from .models import Match, MatchEvent, MatchVideo, extract_youtube_id
 
 
 class MatchResultForm(forms.ModelForm):
@@ -65,4 +65,32 @@ MatchEventFormSet = inlineformset_factory(
     form=MatchEventForm,
     extra=3,
     can_delete=True,
+)
+
+
+class MatchVideoForm(forms.ModelForm):
+    """경기 유튜브 영상 한 줄."""
+
+    class Meta:
+        model = MatchVideo
+        fields = ["url", "title"]
+        widgets = {
+            "url": forms.TextInput(attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "유튜브 링크 (youtu.be/... 또는 watch?v=...)",
+            }),
+            "title": forms.TextInput(attrs={
+                "class": "form-control form-control-sm", "placeholder": "제목(선택)",
+            }),
+        }
+
+    def clean_url(self):
+        url = (self.cleaned_data.get("url") or "").strip()
+        if url and not extract_youtube_id(url):
+            raise forms.ValidationError("유효한 유튜브 링크가 아닙니다.")
+        return url
+
+
+MatchVideoFormSet = inlineformset_factory(
+    Match, MatchVideo, form=MatchVideoForm, extra=2, can_delete=True,
 )

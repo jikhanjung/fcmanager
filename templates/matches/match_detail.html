@@ -53,6 +53,24 @@
   {% endfor %}
 </div>
 
+{% if videos %}
+<h2 class="h5 mt-4 mb-3">경기 영상</h2>
+<div class="row g-3 mb-4">
+  {% for v in videos %}
+    {% if v.embed_url %}
+      <div class="col-12 col-lg-6">
+        {% if v.title %}<div class="fw-semibold mb-1">{{ v.title }}</div>{% endif %}
+        <div class="ratio ratio-16x9 rounded shadow-sm overflow-hidden">
+          <iframe src="{{ v.embed_url }}" title="{{ v.title|default:'경기 영상' }}"
+                  loading="lazy" allowfullscreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if match.note %}<p class="text-muted"><strong>비고:</strong> {{ match.note|linebreaksbr }}</p>{% endif %}
 
 <a href="{% url 'matches:list' %}" class="btn btn-outline-secondary btn-sm">← 일정·결과로</a>

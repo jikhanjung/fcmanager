@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.competitions.models import Competition, Season
 from apps.teams.models import Player, Team
 
-from .forms import MatchEventFormSet, MatchResultForm
+from .forms import MatchEventFormSet, MatchResultForm, MatchVideoFormSet
 from .models import Match, MatchEvent
 from .services import (
     AGE_ORDER as _AGE_ORDER,
@@ -84,7 +84,8 @@ def match_edit(request, pk):
     if request.method == "POST":
         form = MatchResultForm(request.POST, instance=match)
         formset = MatchEventFormSet(request.POST, instance=match, **fs_kwargs)
-        if form.is_valid() and formset.is_valid():
+        video_formset = MatchVideoFormSet(request.POST, instance=match)
+        if form.is_valid() and formset.is_valid() and video_formset.is_valid():
             form.save()
             formset.save()
             # 도움 재동기화: 기존 도움 전부 제거 후 득점 행의 '도움 선수'로 재생성.
@@ -99,15 +100,18 @@ def match_edit(request, pk):
                         match=match, event_type=ASSIST, side=goal.side,
                         player=assist_player, minute=goal.minute, goal=goal,
                     )
+            video_formset.save()
             messages.success(request, "경기 결과를 저장했습니다.")
             return redirect("matches:detail", pk=match.pk)
     else:
         form = MatchResultForm(instance=match)
         formset = MatchEventFormSet(instance=match, **fs_kwargs)
+        video_formset = MatchVideoFormSet(instance=match)
     return render(
         request,
         "matches/match_edit.html",
-        {"match": match, "form": form, "formset": formset},
+        {"match": match, "form": form, "formset": formset,
+         "video_formset": video_formset},
     )
 
 
@@ -121,10 +125,11 @@ def match_detail(request, pk):
     )
     events = list(match.events.select_related("player").order_by("minute", "id"))
     timeline = _build_timeline(events)
+    videos = match.videos.all()
     return render(
         request,
         "matches/match_detail.html",
-        {"match": match, "timeline": timeline},
+        {"match": match, "timeline": timeline, "videos": videos},
     )
 
 

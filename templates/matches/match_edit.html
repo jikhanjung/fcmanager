@@ -79,9 +79,50 @@
     </div>
   </div>
 
+  {# ── 경기 영상 (유튜브) ── #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">경기 영상 (유튜브)</div>
+    <div class="card-body">
+      {{ video_formset.management_form }}
+      {% if video_formset.non_form_errors %}<div class="text-danger small mb-2">{{ video_formset.non_form_errors }}</div>{% endif %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-2" id="video-table">
+          <thead class="table-light">
+            <tr>
+              <th>유튜브 링크</th>
+              <th style="min-width:10rem">제목(선택)</th>
+              <th class="text-center" style="width:3.5rem">삭제</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vf in video_formset %}
+              <tr>
+                {{ vf.id }}
+                <td>{{ vf.url }}{% if vf.url.errors %}<div class="text-danger small">{{ vf.url.errors }}</div>{% endif %}</td>
+                <td>{{ vf.title }}</td>
+                <td class="text-center">{% if vf.instance.pk %}{{ vf.DELETE }}{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="add-video">+ 영상 추가</button>
+      <div class="form-text mt-2">유튜브 링크(youtu.be/… 또는 watch?v=…)를 붙여넣으면 경기 페이지에 임베드됩니다. 여러 개 추가 가능.</div>
+    </div>
+  </div>
+
   <button type="submit" class="btn btn-primary">저장</button>
   <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary">취소</a>
 </form>
+
+<template id="empty-video">
+  <tr>
+    {{ video_formset.empty_form.id }}
+    <td>{{ video_formset.empty_form.url }}</td>
+    <td>{{ video_formset.empty_form.title }}</td>
+    <td></td>
+  </tr>
+</template>
 
 {# JS로 행을 복제하기 위한 빈 폼 템플릿 #}
 <template id="empty-row">
@@ -99,19 +140,22 @@
 
 <script>
 (function () {
-  var addBtn = document.getElementById('add-row');
-  var tbody = document.querySelector('#event-table tbody');
-  var tmpl = document.getElementById('empty-row').innerHTML;
-  var total = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
-  if (!addBtn || !tbody || !total) return;
-  addBtn.addEventListener('click', function () {
-    var idx = parseInt(total.value, 10);
-    var html = tmpl.replace(/__prefix__/g, idx);
-    var holder = document.createElement('tbody');
-    holder.innerHTML = html;
-    tbody.appendChild(holder.firstElementChild);
-    total.value = idx + 1;
-  });
+  function wire(btnId, tableSel, tmplId, prefix) {
+    var addBtn = document.getElementById(btnId);
+    var tbody = document.querySelector(tableSel + ' tbody');
+    var tmplEl = document.getElementById(tmplId);
+    var total = document.getElementById('id_' + prefix + '-TOTAL_FORMS');
+    if (!addBtn || !tbody || !tmplEl || !total) return;
+    addBtn.addEventListener('click', function () {
+      var idx = parseInt(total.value, 10);
+      var holder = document.createElement('tbody');
+      holder.innerHTML = tmplEl.innerHTML.replace(/__prefix__/g, idx);
+      tbody.appendChild(holder.firstElementChild);
+      total.value = idx + 1;
+    });
+  }
+  wire('add-row', '#event-table', 'empty-row', '{{ formset.prefix }}');
+  wire('add-video', '#video-table', 'empty-video', '{{ video_formset.prefix }}');
 })();
 </script>
 {% endblock %}

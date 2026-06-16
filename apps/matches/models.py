@@ -1,7 +1,25 @@
+import re
+
 from django.db import models
 from django.urls import reverse
 
 from apps.teams.models import Team
+
+# 다양한 유튜브 링크 형식에서 11자 영상 ID 추출.
+_YOUTUBE_RE = re.compile(
+    r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/|v/|live/))([\w-]{11})"
+)
+
+
+def extract_youtube_id(url):
+    """유튜브 URL(또는 ID)에서 영상 ID를 뽑는다. 없으면 빈 문자열."""
+    s = (url or "").strip()
+    m = _YOUTUBE_RE.search(s)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[\w-]{11}", s):  # 순수 ID
+        return s
+    return ""
 
 
 class Opponent(models.Model):
@@ -175,3 +193,35 @@ class MatchEvent(models.Model):
     def __str__(self):
         m = f"{self.minute}'" if self.minute is not None else ""
         return f"{m} {self.get_event_type_display()} - {self.player or self.get_side_display()}"
+
+
+class MatchVideo(models.Model):
+    """경기 영상 (유튜브 임베드). 경기당 여러 개 가능."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name="videos", verbose_name="경기",
+    )
+    url = models.CharField(
+        "유튜브 링크", max_length=300,
+        help_text="유튜브 영상 URL (watch/youtu.be/shorts/embed 모두 가능)",
+    )
+    title = models.CharField("제목", max_length=200, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "경기 영상"
+        verbose_name_plural = "경기 영상"
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.title or self.url
+
+    @property
+    def youtube_id(self):
+        return extract_youtube_id(self.url)
+
+    @property
+    def embed_url(self):
+        vid = self.youtube_id
+        return f"https://www.youtube.com/embed/{vid}" if vid else ""
