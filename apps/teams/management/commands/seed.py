@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from apps.teams.models import Team, Player, TeamMembership
 from apps.competitions.models import (
-    Season, Competition, Division, CompetitionEntry, Award,
+    Competition, Division, CompetitionEntry, Award,
 )
 
 # Team.AgeGroup -> Division.AgeGroup
@@ -194,20 +194,16 @@ class Command(BaseCommand):
             self.stdout.write("기존 데이터 삭제 중...")
             for model in (MatchEvent, Match, OpponentMatch, Opponent, Award,
                           CompetitionEntry,
-                          TeamMembership, Player, Competition, Team, Season):
+                          TeamMembership, Player, Competition, Team):
                 model.objects.all().delete()
 
-        # 1) 시즌
-        season, _ = Season.objects.get_or_create(
-            year=SEASON["year"], defaults=SEASON)
-
-        # 2) 팀
+        # 1) 팀
         teams = {}
         for t in TEAMS:
             team, _ = Team.objects.get_or_create(slug=t["slug"], defaults=t)
             teams[t["slug"]] = team
 
-        # 3) 선수 + 소속
+        # 2) 선수 + 소속(대회 귀속은 아래 8단계 부문 백필에서 설정)
         players = {}
         for slug, roster in ROSTERS.items():
             team = teams[slug]
@@ -216,33 +212,34 @@ class Command(BaseCommand):
                     name=name, defaults={"position": pos})
                 players[name] = player
                 TeamMembership.objects.get_or_create(
-                    player=player, team=team, season=season,
+                    player=player, team=team,
                     defaults={"jersey_number": number, "is_active": True})
 
-        # 4) 대회
+        # 3) 대회
         comps = {}
         for c in COMPETITIONS:
-            comp, _ = Competition.objects.get_or_create(slug=c["slug"], defaults=c)
+            comp, _ = Competition.objects.get_or_create(
+                slug=c["slug"], defaults={"year": SEASON["year"], **c})
             comps[c["slug"]] = comp
 
-        # 5) 대회 출전
+        # 4) 대회 출전
         for slug, comp_slugs in ENTRIES.items():
             for cslug in comp_slugs:
                 CompetitionEntry.objects.get_or_create(
-                    team=teams[slug], competition=comps[cslug], season=season)
+                    team=teams[slug], competition=comps[cslug])
 
-        # 6) 상대팀
+        # 5) 상대팀
         opponents = {}
         for name in OPPONENTS:
             opp, _ = Opponent.objects.get_or_create(name=name)
             opponents[name] = opp
 
-        # 7) 경기 + 이벤트
+        # 6) 경기 + 이벤트
         for m in MATCHES:
             kickoff = timezone.make_aware(m["kickoff"])
             match, created = Match.objects.get_or_create(
                 our_team=teams[m["our"]], opponent=opponents[m["opp"]],
-                competition=comps[m["comp"]], season=season, kickoff=kickoff,
+                competition=comps[m["comp"]], kickoff=kickoff,
                 defaults={
                     "is_home": m["is_home"], "venue": m["venue"],
                     "status": Match.Status.FINISHED,
@@ -258,10 +255,10 @@ class Command(BaseCommand):
                         description=ev.get("desc", ""),
                     )
 
-        # 7-1) 상대팀 간 경기
+        # 6-1) 상대팀 간 경기
         for om in OPPONENT_MATCHES:
             OpponentMatch.objects.get_or_create(
-                competition=comps[om["comp"]], season=season,
+                competition=comps[om["comp"]],
                 age_group=om["age"], home=opponents[om["home"]],
                 away=opponents[om["away"]],
                 defaults={"home_score": om["home_score"],

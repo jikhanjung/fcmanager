@@ -17,8 +17,8 @@ class OpponentMatchAdmin(admin.ModelAdmin):
         "competition", "age_group", "home", "home_score",
         "away_score", "away",
     ]
-    list_filter = ["competition", "age_group", "season"]
-    autocomplete_fields = ["competition", "season", "home", "away"]
+    list_filter = ["competition", "age_group"]
+    autocomplete_fields = ["competition", "home", "away"]
 
 
 class MatchVideoInline(admin.TabularInline):
@@ -66,10 +66,10 @@ class MatchAdmin(admin.ModelAdmin):
         "kickoff", "our_team", "opponent", "competition", "division",
         "status", "score_display", "result_badge",
     ]
-    list_filter = ["status", "competition", "division", "season", "our_team", "is_home"]
+    list_filter = ["status", "competition", "division", "our_team", "is_home"]
     search_fields = ["opponent__name", "venue"]
     date_hierarchy = "kickoff"
-    autocomplete_fields = ["our_team", "opponent", "competition", "division", "season"]
+    autocomplete_fields = ["our_team", "opponent", "competition", "division"]
     inlines = [MatchLineupInline, MatchEventInline, MatchVideoInline]
     fieldsets = (
         ("경기 정보", {

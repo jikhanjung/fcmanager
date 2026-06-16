@@ -4,7 +4,7 @@ from django.utils import timezone
 from apps.matches.models import Match, Opponent, OpponentMatch
 from apps.teams.models import Team
 
-from .models import Competition, Season
+from .models import Competition
 
 
 class StandingsTest(TestCase):
@@ -12,9 +12,8 @@ class StandingsTest(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.season = Season.objects.create(name="2026", year=2026)
         cls.comp = Competition.objects.create(
-            name="컵", slug="cup", kind=Competition.Kind.TOURNAMENT)
+            name="컵", slug="cup", kind=Competition.Kind.TOURNAMENT, year=2026)
         cls.team = Team.objects.create(name="우리", slug="us", age_group="50")
         cls.a = Opponent.objects.create(name="A")
         cls.b = Opponent.objects.create(name="B")
@@ -22,14 +21,14 @@ class StandingsTest(TestCase):
         def m(opp, gf, ga):
             Match.objects.create(
                 our_team=cls.team, opponent=opp, competition=cls.comp,
-                season=cls.season, kickoff=timezone.now(),
+                kickoff=timezone.now(),
                 status=Match.Status.FINISHED, our_score=gf, opponent_score=ga)
 
         m(cls.a, 3, 0)   # 우리 3:0 A (승)
         m(cls.b, 1, 1)   # 우리 1:1 B (무)
         # 상대팀 간: A 2:0 B
         OpponentMatch.objects.create(
-            competition=cls.comp, season=cls.season, age_group="50",
+            competition=cls.comp, age_group="50",
             home=cls.a, away=cls.b, home_score=2, away_score=0)
 
     def test_group_ordering_and_points(self):

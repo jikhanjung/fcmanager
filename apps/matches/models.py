@@ -65,11 +65,6 @@ class Match(models.Model):
         related_name="matches", verbose_name="부문",
         null=True, blank=True,
     )
-    season = models.ForeignKey(
-        "competitions.Season", on_delete=models.PROTECT,
-        related_name="matches", verbose_name="시즌",
-        null=True, blank=True,
-    )
     is_home = models.BooleanField("홈 경기", default=True)
     kickoff = models.DateTimeField("경기 일시")
     venue = models.CharField("장소", max_length=200, blank=True)
@@ -119,11 +114,6 @@ class OpponentMatch(models.Model):
     competition = models.ForeignKey(
         "competitions.Competition", on_delete=models.CASCADE,
         related_name="opponent_matches", verbose_name="대회",
-    )
-    season = models.ForeignKey(
-        "competitions.Season", on_delete=models.PROTECT,
-        related_name="opponent_matches", verbose_name="시즌",
-        null=True, blank=True,
     )
     age_group = models.CharField(
         "부문", max_length=4, choices=Team.AgeGroup.choices,

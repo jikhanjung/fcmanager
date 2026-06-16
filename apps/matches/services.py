@@ -1,7 +1,7 @@
 """경기 집계 헬퍼.
 
-통계 대시보드(stats)와 시즌 아카이브(season_detail)가 공유하는 집계 로직을 모은다.
-시즌 단위 필터를 인자로 받아 동일한 결과 구조를 반환한다.
+통계 대시보드(stats)와 연도 아카이브(year_detail)가 공유하는 집계 로직을 모은다.
+연도(Competition.year) 필터를 인자로 받아 동일한 결과 구조를 반환한다.
 """
 
 from django.db.models import Count
@@ -12,15 +12,15 @@ from .models import Match, MatchEvent
 AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 
 
-def finished_matches(season=None):
-    """점수가 입력된 종료 경기 쿼리셋. season(id)이 주어지면 해당 시즌으로 한정."""
+def finished_matches(year=None):
+    """점수가 입력된 종료 경기 쿼리셋. year(연도)가 주어지면 해당 연도 대회로 한정."""
     qs = Match.objects.filter(
         status=Match.Status.FINISHED,
         our_score__isnull=False,
         opponent_score__isnull=False,
     )
-    if season and str(season).isdigit():
-        qs = qs.filter(season_id=season)
+    if year and str(year).isdigit():
+        qs = qs.filter(competition__year=year)
     return qs
 
 
@@ -63,13 +63,13 @@ def club_record(matches):
     return teams, club
 
 
-def our_events(season=None):
-    """우리 팀(선수 지정) 이벤트 쿼리셋. season(id)이 주어지면 해당 시즌으로 한정."""
+def our_events(year=None):
+    """우리 팀(선수 지정) 이벤트 쿼리셋. year(연도)가 주어지면 해당 연도 대회로 한정."""
     ev = MatchEvent.objects.filter(
         side=MatchEvent.Side.OUR, player__isnull=False
     )
-    if season and str(season).isdigit():
-        ev = ev.filter(match__season_id=season)
+    if year and str(year).isdigit():
+        ev = ev.filter(match__competition__year=year)
     return ev
 
 

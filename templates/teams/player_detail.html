@@ -31,18 +31,19 @@
 <h2 class="h5 mt-4 mb-3">소속 이력</h2>
 <div class="table-responsive">
   <table class="table align-middle bg-white shadow-sm">
-    <thead class="table-light"><tr><th>시즌</th><th>팀</th><th>등번호</th><th></th></tr></thead>
+    <thead class="table-light"><tr><th>대회</th><th>팀</th><th>부문</th><th>등번호</th><th></th></tr></thead>
     <tbody>
       {% for m in memberships %}
         <tr>
-          <td>{{ m.season|default:"-" }}</td>
+          <td>{{ m.competition|default:"-" }}</td>
           <td><a href="{{ m.team.get_absolute_url }}">{{ m.team.name }}</a></td>
+          <td>{% if m.division %}{{ m.division.label }}{% else %}-{% endif %}</td>
           <td>{{ m.jersey_number|default:"-" }}</td>
           <td>{% if m.is_captain %}<span class="badge bg-warning text-dark">주장</span>{% endif %}
               {% if not m.is_active %}<span class="badge bg-light text-muted">과거</span>{% endif %}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="4" class="text-muted">소속 이력이 없습니다.</td></tr>
+        <tr><td colspan="5" class="text-muted">소속 이력이 없습니다.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -67,7 +68,7 @@
 <h2 class="h5 mt-4 mb-3">수상</h2>
 <ul class="list-group shadow-sm">
   {% for a in awards %}
-    <li class="list-group-item">{{ a.season|default:"" }} {{ a.competition }} — <strong>{{ a.title }}</strong></li>
+    <li class="list-group-item">{{ a.competition }} — <strong>{{ a.title }}</strong></li>
   {% endfor %}
 </ul>
 {% endif %}

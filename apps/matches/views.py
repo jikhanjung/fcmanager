@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.competitions.models import Competition, Season
+from apps.competitions.models import Competition
 from apps.teams.models import Player, Team
 
 from .forms import MatchEventFormSet, MatchResultForm, MatchVideoFormSet
@@ -26,27 +26,28 @@ def _common_filters():
     return {
         "teams": Team.objects.all(),
         "competitions": Competition.objects.all(),
-        "seasons": Season.objects.all(),
+        "years": list(Competition.objects.values_list("year", flat=True)
+                       .distinct().order_by("-year")),
     }
 
 
 def schedule(request):
-    """일정 & 결과: 전체 경기 목록 + 대회·팀·시즌·상태 필터."""
+    """일정 & 결과: 전체 경기 목록 + 대회·팀·연도·상태 필터."""
     matches = Match.objects.select_related(
-        "our_team", "opponent", "competition", "season"
+        "our_team", "opponent", "competition", "division"
     )
 
     team = request.GET.get("team") or ""
     competition = request.GET.get("competition") or ""
-    season = request.GET.get("season") or ""
+    year = request.GET.get("year") or ""
     show = request.GET.get("show") or ""
 
     if team:
         matches = matches.filter(our_team__slug=team)
     if competition:
         matches = matches.filter(competition__slug=competition)
-    if season.isdigit():
-        matches = matches.filter(season_id=season)
+    if year.isdigit():
+        matches = matches.filter(competition__year=year)
     if show == "upcoming":
         matches = matches.filter(status=Match.Status.SCHEDULED)
     elif show == "finished":
@@ -57,7 +58,7 @@ def schedule(request):
         "selected": {
             "team": team,
             "competition": competition,
-            "season": season,
+            "year": year,
             "show": show,
         },
         **_common_filters(),
@@ -124,7 +125,7 @@ def match_detail(request, pk):
     """경기 상세: 스코어 + 득점·카드·교체 타임라인."""
     match = get_object_or_404(
         Match.objects.select_related(
-            "our_team", "opponent", "competition", "season"
+            "our_team", "opponent", "competition", "division"
         ),
         pk=pk,
     )
@@ -384,14 +385,14 @@ def scorers(request):
 
     team = request.GET.get("team") or ""
     competition = request.GET.get("competition") or ""
-    season = request.GET.get("season") or ""
+    year = request.GET.get("year") or ""
 
     if team:
         events = events.filter(match__our_team__slug=team)
     if competition:
         events = events.filter(match__competition__slug=competition)
-    if season.isdigit():
-        events = events.filter(match__season_id=season)
+    if year.isdigit():
+        events = events.filter(match__competition__year=year)
 
     # points = goals + assists (events 가 GOAL/ASSIST 만이므로 전체 개수)
     ranking = (
@@ -406,7 +407,7 @@ def scorers(request):
 
     context = {
         "ranking": ranking,
-        "selected": {"team": team, "competition": competition, "season": season},
+        "selected": {"team": team, "competition": competition, "year": year},
         **_common_filters(),
     }
     return render(request, "matches/scorers.html", context)
@@ -414,13 +415,13 @@ def scorers(request):
 
 def stats(request):
     """통계 대시보드: 클럽/팀별 전적 요약 + 득점·도움 TOP + 경고·퇴장."""
-    season = request.GET.get("season") or ""
+    year = request.GET.get("year") or ""
 
     # 팀별 전적 + 클럽 합계
-    teams, club = club_record(finished_matches(season))
+    teams, club = club_record(finished_matches(year))
 
     # 득점/도움/카드 (우리 팀 이벤트)
-    ev = our_events(season)
+    ev = our_events(year)
     scorers = event_ranking(ev, MatchEvent.EventType.GOAL, limit=10)
     assisters = event_ranking(ev, MatchEvent.EventType.ASSIST, limit=10)
 
@@ -436,8 +437,9 @@ def stats(request):
     )
 
     context = {
-        "season": season,
-        "seasons": Season.objects.all(),
+        "year": year,
+        "years": list(Competition.objects.values_list("year", flat=True)
+                      .distinct().order_by("-year")),
         "teams": teams,
         "club": club,
         "scorers": scorers,

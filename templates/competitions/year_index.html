@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}연도 아카이브 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">연도 아카이브</h1>
+
+<div class="row g-3">
+  {% for y in years %}
+    <div class="col-md-6 col-lg-4">
+      <a href="{% url 'competitions:year_detail' y.year %}" class="text-decoration-none">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-2 text-dark">{{ y.year }}년</h2>
+            <div class="d-flex gap-3 text-muted small">
+              <span>대회 <span class="fw-bold text-dark">{{ y.competition_count }}</span></span>
+              <span>종료 경기 <span class="fw-bold text-dark">{{ y.finished }}</span></span>
+              <span>입상 <span class="fw-bold text-dark">{{ y.award_count }}</span></span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+  {% empty %}
+    <div class="col"><p class="text-muted">등록된 대회가 없습니다.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

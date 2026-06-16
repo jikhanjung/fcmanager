@@ -1,24 +1,6 @@
 from django.db import models
 
 
-class Season(models.Model):
-    """시즌 (연도 단위 집계용)."""
-
-    name = models.CharField("시즌명", max_length=50, help_text="예: 2026")
-    year = models.PositiveIntegerField("연도")
-    start_date = models.DateField("시작일", null=True, blank=True)
-    end_date = models.DateField("종료일", null=True, blank=True)
-    is_current = models.BooleanField("현재 시즌", default=False)
-
-    class Meta:
-        verbose_name = "시즌"
-        verbose_name_plural = "시즌"
-        ordering = ["-year"]
-
-    def __str__(self):
-        return self.name
-
-
 class Competition(models.Model):
     """대회/리그 (구청장기·협회장기·K7리그·시민리그 등)."""
 
@@ -109,10 +91,6 @@ class CompetitionEntry(models.Model):
         "Division", on_delete=models.SET_NULL, related_name="entries",
         verbose_name="부문", null=True, blank=True,
     )
-    season = models.ForeignKey(
-        Season, on_delete=models.CASCADE, related_name="entries",
-        verbose_name="시즌", null=True, blank=True,
-    )
     note = models.CharField("비고", max_length=200, blank=True)
 
     class Meta:
@@ -133,10 +111,6 @@ class Award(models.Model):
         Competition, on_delete=models.CASCADE, related_name="awards",
         verbose_name="대회",
     )
-    season = models.ForeignKey(
-        Season, on_delete=models.SET_NULL, related_name="awards",
-        verbose_name="시즌", null=True, blank=True,
-    )
     team = models.ForeignKey(
         "teams.Team", on_delete=models.CASCADE, related_name="awards",
         verbose_name="팀", null=True, blank=True,
@@ -152,7 +126,7 @@ class Award(models.Model):
     class Meta:
         verbose_name = "입상 내역"
         verbose_name_plural = "입상 내역"
-        ordering = ["-date_awarded", "-season__year"]
+        ordering = ["-date_awarded", "-competition__year"]
 
     def __str__(self):
         who = self.team or self.player or "?"

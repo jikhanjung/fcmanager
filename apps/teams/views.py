@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.competitions.models import Competition, Division, Season
+from apps.competitions.models import Competition, Division
 
 # Team.AgeGroup -> Division.AgeGroup
 _AGE_TO_DIVISION = {"K7": "2030", "40": "40", "50": "50"}
@@ -85,8 +85,8 @@ def player_detail(request, pk):
     """선수 상세: 프로필 + 소속 이력 + 득점/도움/카드 기록 + 수상."""
     player = get_object_or_404(Player, pk=pk)
     memberships = (
-        player.memberships.select_related("team", "season")
-        .order_by("-season__year", "team")
+        player.memberships.select_related("team", "competition", "division")
+        .order_by("-competition__year", "team")
     )
 
     ET = MatchEvent.EventType
@@ -102,7 +102,7 @@ def player_detail(request, pk):
         .select_related("match", "match__opponent", "match__competition")
         .order_by("-match__kickoff")
     )
-    awards = player.awards.select_related("competition", "season")
+    awards = player.awards.select_related("competition")
 
     return render(
         request,
@@ -148,9 +148,9 @@ def team_edit(request, slug):
 
 
 def _get_membership(team, player_pk):
-    """팀-선수의 소속 레코드(가장 최근 시즌)."""
+    """팀-선수의 소속 레코드(가장 최근 대회)."""
     m = (TeamMembership.objects.filter(team=team, player_id=player_pk)
-         .order_by("-season__year", "-id").first())
+         .order_by("-competition__year", "-id").first())
     if m is None:
         from django.http import Http404
         raise Http404("이 팀에 속한 선수가 아닙니다.")

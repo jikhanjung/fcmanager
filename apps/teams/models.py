@@ -101,11 +101,6 @@ class TeamMembership(models.Model):
         related_name="memberships", verbose_name="부문",
         null=True, blank=True,
     )
-    season = models.ForeignKey(
-        "competitions.Season", on_delete=models.CASCADE,
-        related_name="memberships", verbose_name="시즌",
-        null=True, blank=True,
-    )
     jersey_number = models.PositiveIntegerField("등번호", null=True, blank=True)
     is_captain = models.BooleanField("주장", default=False)
     joined_date = models.DateField("합류일", null=True, blank=True)

@@ -1,13 +1,6 @@
 from django.contrib import admin
 
-from .models import Season, Competition, Division, CompetitionEntry, Award
-
-
-@admin.register(Season)
-class SeasonAdmin(admin.ModelAdmin):
-    list_display = ["name", "year", "is_current", "start_date", "end_date"]
-    list_filter = ["is_current"]
-    search_fields = ["name", "year"]
+from .models import Competition, Division, CompetitionEntry, Award
 
 
 class DivisionInline(admin.TabularInline):
@@ -47,7 +40,7 @@ class CompetitionEntryAdmin(admin.ModelAdmin):
 
 @admin.register(Award)
 class AwardAdmin(admin.ModelAdmin):
-    list_display = ["title", "competition", "season", "team", "player", "rank", "date_awarded"]
-    list_filter = ["competition", "season", "team"]
+    list_display = ["title", "competition", "team", "player", "rank", "date_awarded"]
+    list_filter = ["competition", "team"]
     search_fields = ["title"]
-    autocomplete_fields = ["competition", "season", "team", "player"]
+    autocomplete_fields = ["competition", "team", "player"]

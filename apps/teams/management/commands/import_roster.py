@@ -11,7 +11,7 @@ CSV 컬럼 (헤더 필수):
     note      비고                 (선택)  → Player.bio
 
 사용 예:
-    python manage.py import_roster data/roster_sky50.csv --team sky-50 --season 2026
+    python manage.py import_roster data/roster_sky50.csv --team sky-50 --competition seocho-cup-35
     # 팀이 없으면 생성:
     python manage.py import_roster roster.csv --team sky-50 --create-team \\
         --team-name "스카이 50대" --age-group 50
@@ -21,7 +21,7 @@ import csv
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.competitions.models import Season
+from apps.competitions.models import Competition, Division
 from apps.teams.models import Player, Team, TeamMembership
 
 POSITION_ALIASES = {
@@ -38,7 +38,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("csv_path", help="로스터 CSV 파일 경로")
         parser.add_argument("--team", required=True, help="대상 팀 slug")
-        parser.add_argument("--season", help="시즌 연도(예: 2026). 생략 시 현재 시즌 사용")
+        parser.add_argument("--competition",
+                            help="명단을 귀속할 대회 slug. 생략 시 팀의 가장 최근 대회")
         parser.add_argument("--create-team", action="store_true",
                             help="대상 팀이 없으면 생성")
         parser.add_argument("--team-name", help="--create-team 시 팀 이름")
@@ -49,7 +50,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         team = self._resolve_team(opts)
-        season = self._resolve_season(opts.get("season"))
+        competition, division = self._resolve_competition(team, opts.get("competition"))
         rows = self._read_csv(opts["csv_path"])
 
         created_p = updated_p = created_m = updated_m = 0
@@ -79,12 +80,15 @@ class Command(BaseCommand):
 
                 m, m_created = (
                     TeamMembership.objects.get_or_create(
-                        player=player, team=team, season=season
+                        player=player, team=team, competition=competition
                     )
                     if not opts["dry_run"]
-                    else (TeamMembership(player=player, team=team, season=season), True)
+                    else (TeamMembership(player=player, team=team,
+                                         competition=competition), True)
                 )
                 m_changed = False
+                if m.division_id != (division.id if division else None):
+                    m.division = division; m_changed = True
                 if jersey is not None and m.jersey_number != jersey:
                     m.jersey_number = jersey; m_changed = True
                 if not m.is_active:
@@ -104,8 +108,9 @@ class Command(BaseCommand):
                 transaction.set_rollback(True)
 
         mode = " (DRY-RUN, 저장 안 함)" if opts["dry_run"] else ""
+        comp_label = competition.name if competition else "없음"
         self.stdout.write(self.style.SUCCESS(
-            f"완료{mode}: 팀={team.name}, 시즌={season or '없음'} | "
+            f"완료{mode}: 팀={team.name}, 대회={comp_label} | "
             f"선수 신규 {created_p}·갱신 {updated_p} / 소속 신규 {created_m}·갱신 {updated_m}"
         ))
 
@@ -127,13 +132,22 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"팀 생성: {team.name} ({slug})"))
             return team
 
-    def _resolve_season(self, year):
-        if year:
-            season, _ = Season.objects.get_or_create(
-                year=int(year), defaults={"name": str(year)}
-            )
-            return season
-        return Season.objects.filter(is_current=True).first()
+    def _resolve_competition(self, team, slug):
+        """명단을 귀속할 (대회, 부문). slug 지정 시 그 대회, 아니면 팀의 최근 대회."""
+        if slug:
+            try:
+                comp = Competition.objects.get(slug=slug)
+            except Competition.DoesNotExist:
+                raise CommandError(f"대회 slug='{slug}' 없음.")
+        else:
+            comp = (Competition.objects.filter(entries__team=team)
+                    .order_by("-year", "-id").first())
+            if comp is None:
+                raise CommandError(
+                    f"팀 '{team.name}'의 대회를 찾지 못했습니다. --competition <slug> 로 지정하세요.")
+        ag = {"K7": "2030", "40": "40", "50": "50"}.get(team.age_group, "OPEN")
+        division = Division.objects.filter(competition=comp, age_group=ag).first()
+        return comp, division
 
     def _read_csv(self, path):
         try:

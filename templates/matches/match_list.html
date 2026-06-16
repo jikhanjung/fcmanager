@@ -21,10 +21,10 @@
     </select>
   </div>
   <div class="col-6 col-md-3">
-    <select name="season" class="form-select" onchange="this.form.submit()">
-      <option value="">전체 시즌</option>
-      {% for s in seasons %}
-        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+    <select name="year" class="form-select" onchange="this.form.submit()">
+      <option value="">전체 연도</option>
+      {% for y in years %}
+        <option value="{{ y }}" {% if selected.year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
       {% endfor %}
     </select>
   </div>

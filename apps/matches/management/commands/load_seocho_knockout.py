@@ -18,14 +18,12 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.competitions.models import (
-    Competition, CompetitionEntry, Division, Season,
-)
+from apps.competitions.models import Competition, CompetitionEntry, Division
+from apps.matches.models import Match, Opponent
+from apps.teams.models import Team
 
 # Team.AgeGroup -> Division.AgeGroup
 AGE_TO_DIVISION = {"K7": "2030", "40": "40", "50": "50"}
-from apps.matches.models import Match, Opponent
-from apps.teams.models import Team
 
 
 SEASON = {"name": "2026", "year": 2026, "is_current": True}
@@ -64,10 +62,9 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        season, _ = Season.objects.get_or_create(
-            year=SEASON["year"], defaults=SEASON)
         comp, _ = Competition.objects.get_or_create(
-            slug=COMPETITION["slug"], defaults=COMPETITION)
+            slug=COMPETITION["slug"],
+            defaults={**COMPETITION, "year": SEASON["year"]})
 
         teams = {}
         divisions = {}  # team slug -> Division

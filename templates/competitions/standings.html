@@ -4,20 +4,12 @@
 <h1 class="h3 mb-4">순위표</h1>
 
 <form class="row g-2 mb-4" method="get">
-  <div class="col-12 col-md-6">
+  <div class="col-12">
     <select name="competition" class="form-select" onchange="this.form.submit()">
       {% for c in competitions %}
-        <option value="{{ c.slug }}" {% if competition and competition.slug == c.slug %}selected{% endif %}>{{ c.name }}</option>
+        <option value="{{ c.slug }}" {% if competition and competition.slug == c.slug %}selected{% endif %}>{{ c.name }} ({{ c.year }})</option>
       {% empty %}
         <option value="">경기 기록이 있는 대회가 없습니다</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-12 col-md-6">
-    <select name="season" class="form-select" onchange="this.form.submit()">
-      <option value="">전체 시즌</option>
-      {% for s in seasons %}
-        <option value="{{ s.id }}" {% if selected.season == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
       {% endfor %}
     </select>
   </div>
