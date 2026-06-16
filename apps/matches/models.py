@@ -81,6 +81,18 @@ class Match(models.Model):
         "단계", max_length=6, choices=Stage.choices, default=Stage.GROUP,
         help_text="조별리그 / 녹아웃(8강·준결승·결승 등)",
     )
+    # 대진 자동 진행(feeder): 결승 상대 = opponent_feeder(반대편 준결승) 승자.
+    # advance_feeder(우리 준결승)에서 우리가 지면 이 경기는 '진출 실패' 처리.
+    opponent_feeder = models.ForeignKey(
+        "OpponentMatch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="feeds_opponent_of", verbose_name="상대 진출 경기",
+        help_text="이 경기의 상대 = 선택한 경기의 승자(예: 반대편 준결승).",
+    )
+    advance_feeder = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="advances_to", verbose_name="우리 진출 경기",
+        help_text="우리가 선택한 경기(예: 우리 준결승)에서 이겨야 이 경기에 진출.",
+    )
     is_home = models.BooleanField("홈 경기", default=True)
     kickoff = models.DateTimeField("경기 일시")
     venue = models.CharField("장소", max_length=200, blank=True)
@@ -151,6 +163,10 @@ class OpponentMatch(models.Model):
         Opponent, on_delete=models.PROTECT, related_name="away_opponent_matches",
         verbose_name="원정팀",
     )
+    stage = models.CharField(
+        "단계", max_length=6, choices=Match.Stage.choices, default=Match.Stage.GROUP,
+        help_text="조별리그 / 녹아웃(반대편 준결승 등)",
+    )
     home_score = models.PositiveIntegerField("홈 득점", null=True, blank=True)
     away_score = models.PositiveIntegerField("원정 득점", null=True, blank=True)
     kickoff = models.DateTimeField("경기 일시", null=True, blank=True)
@@ -166,6 +182,17 @@ class OpponentMatch(models.Model):
         if self.home_score is not None and self.away_score is not None:
             s = f" {self.home_score}:{self.away_score}"
         return f"[{self.get_age_group_display()}] {self.home} vs {self.away}{s}"
+
+    @property
+    def winner(self):
+        """승자 Opponent(무승부/미입력 시 None). 녹아웃 진출자 판정용."""
+        if self.home_score is None or self.away_score is None:
+            return None
+        if self.home_score > self.away_score:
+            return self.home
+        if self.away_score > self.home_score:
+            return self.away
+        return None
 
 
 class MatchEvent(models.Model):

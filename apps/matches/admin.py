@@ -14,10 +14,11 @@ class OpponentAdmin(admin.ModelAdmin):
 @admin.register(OpponentMatch)
 class OpponentMatchAdmin(admin.ModelAdmin):
     list_display = [
-        "competition", "age_group", "home", "home_score",
+        "competition", "age_group", "stage", "home", "home_score",
         "away_score", "away",
     ]
-    list_filter = ["competition", "age_group"]
+    list_filter = ["competition", "age_group", "stage"]
+    search_fields = ["home__name", "away__name"]
     autocomplete_fields = ["competition", "home", "away"]
 
 
@@ -69,7 +70,8 @@ class MatchAdmin(admin.ModelAdmin):
     list_filter = ["status", "stage", "competition", "division", "our_team", "is_home"]
     search_fields = ["opponent__name", "venue"]
     date_hierarchy = "kickoff"
-    autocomplete_fields = ["our_team", "opponent", "competition", "division"]
+    autocomplete_fields = ["our_team", "opponent", "competition", "division",
+                           "opponent_feeder", "advance_feeder"]
     inlines = [MatchLineupInline, MatchEventInline, MatchVideoInline]
     fieldsets = (
         ("경기 정보", {
@@ -80,6 +82,12 @@ class MatchAdmin(admin.ModelAdmin):
                 ("venue", "is_home"),
                 ("status",),
             ),
+        }),
+        ("대진 자동 진행(녹아웃)", {
+            "classes": ("collapse",),
+            "fields": ("opponent_feeder", "advance_feeder"),
+            "description": "결승 상대 = 상대 진출 경기(반대편 준결승) 승자. "
+                           "우리 진출 경기(우리 준결승)에서 지면 자동으로 '취소'.",
         }),
         ("결과", {
             "fields": (("our_score", "opponent_score"),),
