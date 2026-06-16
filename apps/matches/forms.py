@@ -53,8 +53,13 @@ class MatchEventForm(forms.ModelForm):
             "event_type": forms.Select(attrs={"class": "form-select form-select-sm"}),
             "side": forms.Select(attrs={"class": "form-select form-select-sm"}),
             "player": forms.Select(attrs={"class": "form-select form-select-sm"}),
-            "minute": forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": 0}),
-            "description": forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+            "minute": forms.NumberInput(attrs={
+                "class": "form-control form-control-sm", "min": 0,
+                "style": "max-width:6rem",
+            }),
+            "description": forms.TextInput(attrs={
+                "class": "form-control form-control-sm", "style": "max-width:24rem",
+            }),
         }
 
 
