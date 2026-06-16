@@ -4,7 +4,30 @@ from django.forms import inlineformset_factory
 
 from apps.teams.models import Player
 
-from .models import Match, MatchEvent, MatchVideo, extract_youtube_id
+from .models import (
+    Match, MatchEvent, MatchVideo, OpponentMatch, extract_youtube_id,
+)
+
+
+class OpponentMatchResultForm(forms.ModelForm):
+    """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신."""
+
+    class Meta:
+        model = OpponentMatch
+        fields = ["home_score", "away_score", "kickoff", "note"]
+        widgets = {
+            "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "away_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "kickoff": forms.DateTimeInput(
+                attrs={"class": "form-control", "type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M"),
+            "note": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kickoff"].required = False
+        self.fields["note"].required = False
 
 
 class MatchResultForm(forms.ModelForm):

@@ -8,8 +8,10 @@ from django.utils import timezone
 from apps.competitions.models import Competition
 from apps.teams.models import Player, Team
 
-from .forms import MatchEventFormSet, MatchResultForm, MatchVideoFormSet
-from .models import Match, MatchEvent, MatchLineup
+from .forms import (
+    MatchEventFormSet, MatchResultForm, MatchVideoFormSet, OpponentMatchResultForm,
+)
+from .models import Match, MatchEvent, MatchLineup, OpponentMatch
 from .services import (
     AGE_ORDER as _AGE_ORDER,
     build_timeline,
@@ -119,6 +121,24 @@ def match_edit(request, pk):
         {"match": match, "form": form, "formset": formset,
          "video_formset": video_formset},
     )
+
+
+@staff_required
+def opponent_match_edit(request, pk):
+    """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신."""
+    om = get_object_or_404(
+        OpponentMatch.objects.select_related("competition", "home", "away"), pk=pk)
+    next_url = request.GET.get("next") or request.POST.get("next") or ""
+    if request.method == "POST":
+        form = OpponentMatchResultForm(request.POST, instance=om)
+        if form.is_valid():
+            form.save()  # post_save 시그널이 연결된 결승 상대를 자동 기입
+            messages.success(request, "경기 결과를 저장했습니다.")
+            return redirect(next_url or om.competition.get_absolute_url())
+    else:
+        form = OpponentMatchResultForm(instance=om)
+    return render(request, "matches/opponent_match_edit.html",
+                  {"om": om, "form": form, "next": next_url})
 
 
 def match_detail(request, pk):

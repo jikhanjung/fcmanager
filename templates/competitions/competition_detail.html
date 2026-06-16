@@ -79,6 +79,24 @@
             <div class="text-muted small mt-1">{{ m.kickoff|date:"m/d H:i" }}{% if m.our_score is None %} · {{ m.get_status_display }}{% endif %}</div>
           </a>
         {% endfor %}
+        {% for o in col.opps %}
+          <div class="bracket-match">
+            <div class="bracket-row">
+              <span class="nm {% if o.winner and o.winner.id == o.home_id %}fw-bold{% endif %}">{{ o.home.name }}</span>
+              <span class="sc">{% if o.home_score is not None %}{{ o.home_score }}{% else %}-{% endif %}</span>
+            </div>
+            <div class="bracket-row">
+              <span class="nm {% if o.winner and o.winner.id == o.away_id %}fw-bold{% endif %}">{{ o.away.name }}</span>
+              <span class="sc">{% if o.away_score is not None %}{{ o.away_score }}{% else %}-{% endif %}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+              <span class="text-muted small">반대편 준결승</span>
+              {% if user.is_staff %}
+                <a href="{% url 'matches:opponent_edit' o.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-primary btn-sm py-0">결과 입력</a>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
       </div>
     {% endfor %}
   </div>

@@ -237,21 +237,36 @@ def competition_detail(request, slug):
     group_matches = [m for m in matches if not m.is_knockout]
     knockout = [m for m in matches if m.is_knockout]
 
-    # 녹아웃 대진표: 부문별 → 단계별(준결승→결승) 열로 묶는다.
+    # 부문(Division.age_group) -> 상대팀 간 경기(OpponentMatch.age_group) 매핑.
+    div_to_team_age = {"2030": "K7", "40": "40", "50": "50"}
+    opp_sfs = list(
+        competition.opponent_matches.filter(stage=Match.Stage.SEMI)
+        .select_related("home", "away")
+    )
+
+    # 녹아웃 대진표: 부문별 → 단계별(준결승→결승) 열. 준결승 열에는 반대편 준결승도 포함.
     brackets = []
     div_order = {d.id: i for i, d in enumerate(divisions)}
     by_div = {}
     for m in knockout:
         by_div.setdefault(m.division_id, []).append(m)
     for div_id, ms in sorted(by_div.items(), key=lambda kv: div_order.get(kv[0], 99)):
+        division = next((d for d in divisions if d.id == div_id), None)
+        team_age = div_to_team_age.get(division.age_group) if division else None
+        rev_sfs = [o for o in opp_sfs if o.age_group == team_age]
         stages = {}
         for m in ms:
             stages.setdefault(m.stage, []).append(m)
-        columns = [
-            {"label": dict(Match.Stage.choices)[st], "matches": stages[st]}
-            for st in sorted(stages, key=lambda s: Match.STAGE_ORDER.get(s, 0))
-        ]
-        division = next((d for d in divisions if d.id == div_id), None)
+        # 반대편 준결승은 준결승(SF) 열에 함께 표시(녹아웃이 있는 부문에 한함).
+        if rev_sfs:
+            stages.setdefault(Match.Stage.SEMI, [])
+        columns = []
+        for st in sorted(stages, key=lambda s: Match.STAGE_ORDER.get(s, 0)):
+            columns.append({
+                "label": dict(Match.Stage.choices)[st],
+                "matches": stages[st],
+                "opps": rev_sfs if st == Match.Stage.SEMI else [],
+            })
         brackets.append({"division": division, "columns": columns})
 
     return render(request, "competitions/competition_detail.html", {
