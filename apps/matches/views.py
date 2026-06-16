@@ -9,7 +9,7 @@ from apps.competitions.models import Competition, Season
 from apps.teams.models import Player, Team
 
 from .forms import MatchEventFormSet, MatchResultForm, MatchVideoFormSet
-from .models import Match, MatchEvent
+from .models import Match, MatchEvent, MatchLineup
 from .services import (
     AGE_ORDER as _AGE_ORDER,
     build_timeline,
@@ -138,12 +138,9 @@ def match_detail(request, pk):
     )
 
 
-def match_live_json(request, pk):
-    """공개 폴링 엔드포인트: LIVE 경기의 스코어·상태·타임라인을 JSON으로."""
-    match = get_object_or_404(
-        Match.objects.select_related("our_team", "opponent"), pk=pk
-    )
-    return JsonResponse({
+def _live_payload(match):
+    """공개 폴링·콘솔 AJAX 응답이 공유하는 경기 상태 dict."""
+    return {
         "status": match.status,
         "status_display": match.get_status_display(),
         "is_live": match.status == Match.Status.LIVE,
@@ -152,7 +149,15 @@ def match_live_json(request, pk):
         "result": match.result,
         "timeline": serialize_timeline(match),
         "updated_at": match.updated_at.isoformat(),
-    })
+    }
+
+
+def match_live_json(request, pk):
+    """공개 폴링 엔드포인트: LIVE 경기의 스코어·상태·타임라인을 JSON으로."""
+    match = get_object_or_404(
+        Match.objects.select_related("our_team", "opponent"), pk=pk
+    )
+    return JsonResponse(_live_payload(match))
 
 
 # 중계 콘솔에서 빠르게 추가할 수 있는 이벤트 종류(득점·도움은 별도 처리).
@@ -163,6 +168,93 @@ _LIVE_SIMPLE_EVENTS = {
     MatchEvent.EventType.SUB_IN,
     MatchEvent.EventType.SUB_OUT,
 }
+
+
+def _build_roster(match):
+    """중계 콘솔 선수 타일용 로스터.
+
+    경기 출전 명단(MatchLineup)이 있으면 그것을 쓰고(선발 먼저·벤치 뒤),
+    없으면 팀 전체 소속 선수로 폴백한다. 각 항목: id·name·number·captain·bench.
+    """
+    lineup = list(match.lineup.select_related("player").all())
+    if lineup:
+        order = {MatchLineup.Role.STARTER: 0, MatchLineup.Role.BENCH: 1}
+        lineup.sort(key=lambda l: (
+            order.get(l.role, 2), l.jersey_number is None,
+            l.jersey_number or 0, l.player.name,
+        ))
+        return [{
+            "id": l.player_id, "name": l.player.name,
+            "number": l.jersey_number, "captain": l.is_captain,
+            "bench": l.role == MatchLineup.Role.BENCH,
+        } for l in lineup]
+
+    # 폴백: 팀 전체 소속(선수 단위로 합치고 등번호 있는 행 우선).
+    from apps.teams.models import TeamMembership
+    seen = {}
+    for mm in (TeamMembership.objects.filter(team=match.our_team)
+               .select_related("player")):
+        p = mm.player
+        cur = seen.get(p.id)
+        if cur is None or (cur["number"] is None and mm.jersey_number is not None):
+            seen[p.id] = {
+                "id": p.id, "name": p.name, "number": mm.jersey_number,
+                "captain": mm.is_captain, "bench": False,
+            }
+    roster = list(seen.values())
+    roster.sort(key=lambda r: (r["number"] is None, r["number"] or 0, r["name"]))
+    return roster
+
+
+@staff_required
+def match_lineup(request, pk):
+    """경기 출전 명단 편집(모바일): 선발/벤치/주장 지정. 우리 팀 한정."""
+    match = get_object_or_404(
+        Match.objects.select_related("our_team", "opponent"), pk=pk
+    )
+    from apps.teams.models import TeamMembership
+    # 팀 등번호(소속에서). 저장 시 라인업 등번호 기본값으로 사용.
+    numbers = {}
+    for mm in TeamMembership.objects.filter(team=match.our_team):
+        if mm.jersey_number is not None:
+            numbers.setdefault(mm.player_id, mm.jersey_number)
+
+    if request.method == "POST":
+        captain_id = request.POST.get("captain") or ""
+        match.lineup.all().delete()
+        team_player_ids = set(
+            Player.objects.filter(memberships__team=match.our_team)
+            .values_list("id", flat=True)
+        )
+        created = 0
+        for pid in team_player_ids:
+            role = request.POST.get(f"role_{pid}") or ""
+            if role in (MatchLineup.Role.STARTER, MatchLineup.Role.BENCH):
+                MatchLineup.objects.create(
+                    match=match, player_id=pid, role=role,
+                    jersey_number=numbers.get(pid),
+                    is_captain=(str(pid) == captain_id),
+                )
+                created += 1
+        messages.success(request, f"출전 명단을 저장했습니다. (선발·벤치 {created}명)")
+        return redirect("matches:live_console", pk=match.pk)
+
+    existing = {l.player_id: l for l in match.lineup.all()}
+    players = (
+        Player.objects.filter(memberships__team=match.our_team)
+        .distinct().order_by("name")
+    )
+    rows = []
+    for p in players:
+        l = existing.get(p.id)
+        rows.append({
+            "id": p.id, "name": p.name,
+            "position": p.get_position_display() if p.position else "",
+            "number": numbers.get(p.id),
+            "role": l.role if l else "",
+            "captain": bool(l and l.is_captain),
+        })
+    return render(request, "matches/match_lineup.html", {"match": match, "rows": rows})
 
 
 @staff_required
@@ -178,11 +270,12 @@ def match_live_console(request, pk):
 
     if request.method == "POST":
         _handle_live_action(request, match, team_players)
+        if request.headers.get("X-Requested-With") == "fetch":
+            return JsonResponse(_live_payload(match))
         return redirect("matches:live_console", pk=match.pk)
 
-    events = list(match.events.select_related("player").order_by("minute", "id"))
-    # 분 자동 채움 제안: LIVE면 킥오프 이후 경과(분), 아니면 비움.
-    suggested_minute = ""
+    # 분 자동 채움 제안: LIVE면 킥오프 이후 경과(분), 아니면 0.
+    suggested_minute = 0
     if match.status == Match.Status.LIVE and match.kickoff:
         elapsed = (timezone.now() - match.kickoff).total_seconds() / 60
         if 0 <= elapsed <= 130:
@@ -190,11 +283,9 @@ def match_live_console(request, pk):
 
     return render(request, "matches/match_live.html", {
         "match": match,
-        "events": events,
-        "team_players": team_players,
+        "roster": _build_roster(match),
+        "timeline": serialize_timeline(match),
         "suggested_minute": suggested_minute,
-        "Side": MatchEvent.Side,
-        "EventType": MatchEvent.EventType,
     })
 
 
@@ -245,6 +336,19 @@ def _handle_live_action(request, match, team_players):
             )
             score_changed = etype == MatchEvent.EventType.OWN_GOAL
             messages.success(request, "이벤트를 기록했습니다.")
+    elif action == "sub":
+        # 교체: 나간 선수(SUB_OUT) + 들어온 선수(SUB_IN)를 함께 기록(우리 팀).
+        out_p = team_players.filter(pk=request.POST.get("player_out") or 0).first()
+        in_p = team_players.filter(pk=request.POST.get("player_in") or 0).first()
+        OUR = MatchEvent.Side.OUR
+        if out_p:
+            MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_OUT,
+                                      side=OUR, player=out_p, minute=minute)
+        if in_p:
+            MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_IN,
+                                      side=OUR, player=in_p, minute=minute)
+        if out_p or in_p:
+            messages.success(request, "교체를 기록했습니다.")
     elif action == "delete":
         ev = match.events.filter(pk=request.POST.get("event_id") or 0).first()
         if ev:

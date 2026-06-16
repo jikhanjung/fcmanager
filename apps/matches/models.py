@@ -195,6 +195,43 @@ class MatchEvent(models.Model):
         return f"{m} {self.get_event_type_display()} - {self.player or self.get_side_display()}"
 
 
+class MatchLineup(models.Model):
+    """경기별 출전 명단 (선발/벤치 + 주장). 우리 팀 한정.
+
+    중계 콘솔의 선수 타일·교체 입력이 이 명단을 기준으로 동작한다.
+    명단이 없으면 콘솔은 팀 전체 소속 선수로 폴백한다.
+    """
+
+    class Role(models.TextChoices):
+        STARTER = "STARTER", "선발"
+        BENCH = "BENCH", "벤치"
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name="lineup", verbose_name="경기",
+    )
+    player = models.ForeignKey(
+        "teams.Player", on_delete=models.CASCADE, related_name="lineups",
+        verbose_name="선수",
+    )
+    role = models.CharField(
+        "역할", max_length=8, choices=Role.choices, default=Role.STARTER,
+    )
+    # 경기 시점 등번호(소속 등번호에서 채워 넣되 경기별로 다를 수 있음).
+    jersey_number = models.PositiveIntegerField("등번호", null=True, blank=True)
+    is_captain = models.BooleanField("주장", default=False)
+
+    class Meta:
+        verbose_name = "출전 명단"
+        verbose_name_plural = "출전 명단"
+        ordering = ["match", "role", "jersey_number", "player__name"]
+        unique_together = [("match", "player")]
+
+    def __str__(self):
+        c = " (C)" if self.is_captain else ""
+        n = f"{self.jersey_number} " if self.jersey_number is not None else ""
+        return f"{n}{self.player}{c} - {self.get_role_display()}"
+
+
 class MatchVideo(models.Model):
     """경기 영상 (유튜브 임베드). 경기당 여러 개 가능."""
 

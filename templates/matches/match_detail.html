@@ -86,6 +86,7 @@
 
 <a href="{% url 'matches:list' %}" class="btn btn-outline-secondary btn-sm">← 일정·결과로</a>
 {% if user.is_staff %}
+  <a href="{% url 'matches:lineup' match.pk %}" class="btn btn-outline-primary btn-sm">🧑‍🤝‍🧑 출전 명단</a>
   <a href="{% url 'matches:live_console' match.pk %}" class="btn btn-danger btn-sm">🔴 중계 콘솔</a>
   <a href="{% url 'matches:edit' match.pk %}" class="btn btn-primary btn-sm">결과 편집</a>
 {% endif %}

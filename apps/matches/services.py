@@ -152,6 +152,7 @@ def serialize_timeline(match):
         e = item["event"]
         assist = item["assist"]
         items.append({
+            "id": e.id,
             "minute": e.minute,
             "side": e.side,
             "type": e.event_type,

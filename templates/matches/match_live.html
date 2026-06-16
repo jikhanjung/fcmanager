@@ -1,162 +1,286 @@
 {% extends "base.html" %}
 {% block title %}중계 콘솔 — {{ match.our_team }} vs {{ match.opponent }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .live-bar { position: sticky; top: 0; z-index: 1020; }
+  .score-num { font-size: 2.4rem; font-weight: 800; line-height: 1; }
+  .clock-input { width: 4.5rem; font-weight: 700; text-align: center; }
+  .act-primary { min-height: 5.2rem; font-size: 1.15rem; font-weight: 700; }
+  .act-secondary { min-height: 3.2rem; font-weight: 600; }
+  /* 선수 타일 그리드 */
+  .roster-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+  @media (max-width: 360px) { .roster-grid { grid-template-columns: repeat(3, 1fr); } }
+  .player-tile {
+    border: 1px solid var(--bs-border-color); border-radius: .75rem;
+    padding: .55rem .25rem; text-align: center; background: var(--bs-body-bg);
+    cursor: pointer; user-select: none; position: relative;
+  }
+  .player-tile:active { transform: scale(.96); }
+  .player-tile .num { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+  .player-tile .nm { font-size: .8rem; }
+  .player-tile .cap {
+    position: absolute; top: .2rem; right: .3rem; font-size: .65rem;
+    font-weight: 800; color: var(--bs-warning);
+  }
+  .player-tile .bench-tag {
+    position: absolute; top: .2rem; left: .3rem; font-size: .6rem;
+    color: var(--bs-secondary);
+  }
+  #event-sheet { max-height: 78vh; }
+  .recent-item { display: flex; align-items: center; justify-content: space-between; }
+</style>
+{% endblock %}
+
 {% block content %}
+<div data-pk="{{ match.pk }}"
+     data-status="{{ match.status }}"
+     data-our="{{ match.our_score|default:0 }}"
+     data-opp="{{ match.opponent_score|default:0 }}"
+     id="live-root">
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h5 mb-0">중계 콘솔</h1>
-  <div>
-    {% if match.status == 'LIVE' %}
-      <span class="badge bg-danger">🔴 LIVE</span>
-    {% else %}
-      <span class="badge bg-secondary">{{ match.get_status_display }}</span>
-    {% endif %}
-  </div>
-</div>
-
-<!-- 스코어 -->
-<div class="card shadow-sm mb-3">
-  <div class="card-body text-center py-3">
-    <div class="row align-items-center">
-      <div class="col text-end"><strong>{{ match.our_team }}</strong></div>
-      <div class="col-auto">
-        <span class="display-6 fw-bold">{{ match.our_score|default:0 }} : {{ match.opponent_score|default:0 }}</span>
+  <!-- 상단 고정 바: 상태 · 시계 · 시작/종료 -->
+  <div class="live-bar bg-body border-bottom py-2 mb-2">
+    <div class="d-flex align-items-center justify-content-between">
+      <span id="status-badge"></span>
+      <div class="d-flex align-items-center gap-1">
+        <span class="text-muted small">분</span>
+        <input type="number" min="0" max="130" value="{{ suggested_minute }}"
+               id="clock" class="form-control form-control-sm clock-input" inputmode="numeric">
       </div>
-      <div class="col text-start"><strong>{{ match.opponent }}</strong></div>
+      <button id="toggle-btn" class="btn btn-sm"></button>
     </div>
-    <div class="text-muted small mt-1">{{ match.kickoff|date:"m월 d일 H:i" }} · {{ match.competition }}</div>
   </div>
-</div>
 
-<!-- LIVE 토글 -->
-<form method="post" class="mb-3 d-grid gap-2">
-  {% csrf_token %}
-  {% if match.status == 'LIVE' %}
-    <button name="action" value="finish" class="btn btn-outline-danger">⏹ 경기 종료</button>
-  {% else %}
-    <button name="action" value="start" class="btn btn-danger btn-lg">🔴 LIVE 시작</button>
-  {% endif %}
-</form>
-
-<!-- 득점 입력 -->
-<div class="card shadow-sm mb-3">
-  <div class="card-header py-2 fw-semibold">⚽ 득점</div>
-  <div class="card-body">
-    <form method="post" class="row g-2 align-items-end">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="goal">
-      <input type="hidden" name="side" value="OUR">
-      <div class="col-4 col-sm-2">
-        <label class="form-label small mb-1">분</label>
-        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
-               class="form-control" inputmode="numeric">
+  <!-- 스코어보드 -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row align-items-center text-center">
+        <div class="col"><div class="fw-semibold text-truncate">{{ match.our_team }}</div></div>
+        <div class="col-auto">
+          <span class="score-num"><span id="our-score">0</span> : <span id="opp-score">0</span></span>
+        </div>
+        <div class="col"><div class="fw-semibold text-truncate">{{ match.opponent }}</div></div>
       </div>
-      <div class="col-8 col-sm-4">
-        <label class="form-label small mb-1">득점 선수</label>
-        <select name="player" class="form-select">
-          <option value="">— 선택 —</option>
-          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-8 col-sm-4">
-        <label class="form-label small mb-1">도움(선택)</label>
-        <select name="assist" class="form-select">
-          <option value="">— 없음 —</option>
-          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-4 col-sm-2 d-grid">
-        <button class="btn btn-primary">기록</button>
-      </div>
-    </form>
-    <hr class="my-3">
-    <form method="post" class="row g-2 align-items-end">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="goal">
-      <input type="hidden" name="side" value="OPPONENT">
-      <div class="col-4 col-sm-2">
-        <label class="form-label small mb-1">분</label>
-        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
-               class="form-control" inputmode="numeric">
-      </div>
-      <div class="col-8 col-sm-7 d-flex align-items-end">
-        <span class="text-muted small">상대팀 득점</span>
-      </div>
-      <div class="col-12 col-sm-3 d-grid">
-        <button class="btn btn-outline-primary">상대 득점 +1</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- 카드 · 교체 · 자책골 -->
-<div class="card shadow-sm mb-3">
-  <div class="card-header py-2 fw-semibold">🟨 카드 · ⏱ 교체 · 자책골</div>
-  <div class="card-body">
-    <form method="post" class="row g-2 align-items-end">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="event">
-      <div class="col-4 col-sm-2">
-        <label class="form-label small mb-1">분</label>
-        <input type="number" name="minute" min="0" value="{{ suggested_minute }}"
-               class="form-control" inputmode="numeric">
-      </div>
-      <div class="col-8 col-sm-3">
-        <label class="form-label small mb-1">종류</label>
-        <select name="event_type" class="form-select">
-          <option value="YELLOW">경고</option>
-          <option value="RED">퇴장</option>
-          <option value="SUB_IN">교체 IN</option>
-          <option value="SUB_OUT">교체 OUT</option>
-          <option value="OWN_GOAL">자책골</option>
-        </select>
-      </div>
-      <div class="col-5 col-sm-2">
-        <label class="form-label small mb-1">팀</label>
-        <select name="side" class="form-select">
-          <option value="OUR">우리 팀</option>
-          <option value="OPPONENT">상대팀</option>
-        </select>
-      </div>
-      <div class="col-7 col-sm-3">
-        <label class="form-label small mb-1">선수(우리 팀)</label>
-        <select name="player" class="form-select">
-          <option value="">— 선택 —</option>
-          {% for p in team_players %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-sm-2 d-grid">
-        <button class="btn btn-secondary">기록</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- 입력된 이벤트 -->
-<h2 class="h6 mb-2">기록된 이벤트 ({{ events|length }})</h2>
-<div class="list-group shadow-sm mb-4">
-  {% for e in events %}
-    <div class="list-group-item d-flex align-items-center justify-content-between">
-      <div>
-        <span class="badge bg-light text-dark me-2">{% if e.minute is not None %}{{ e.minute }}'{% else %}-{% endif %}</span>
-        <strong>{{ e.get_event_type_display }}</strong>
-        {% if e.player %}<span class="ms-1">{{ e.player.name }}</span>
-        {% else %}<span class="ms-1 text-muted">{{ e.get_side_display }}</span>{% endif %}
-        {% if e.event_type == 'ASSIST' %}<span class="badge bg-light text-muted ms-1">도움</span>{% endif %}
-      </div>
-      <form method="post" onsubmit="return confirm('이 이벤트를 삭제할까요?');">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="delete">
-        <input type="hidden" name="event_id" value="{{ e.pk }}">
-        <button class="btn btn-sm btn-outline-danger">삭제</button>
-      </form>
     </div>
-  {% empty %}
-    <div class="list-group-item text-muted">아직 기록된 이벤트가 없습니다.</div>
-  {% endfor %}
+  </div>
+
+  <!-- 주요 동작 -->
+  <div class="row g-2 mb-2">
+    <div class="col-6">
+      <button class="btn btn-primary w-100 act-primary" data-goal="OUR">⚽<br>우리 득점</button>
+    </div>
+    <div class="col-6">
+      <button class="btn btn-outline-primary w-100 act-primary" data-goal="OPPONENT">⚽<br>상대 득점</button>
+    </div>
+  </div>
+  <div class="row g-2 mb-3">
+    <div class="col-4"><button class="btn btn-warning w-100 act-secondary" data-card="YELLOW">🟨 경고</button></div>
+    <div class="col-4"><button class="btn btn-danger w-100 act-secondary" data-card="RED">🟥 퇴장</button></div>
+    <div class="col-4"><button class="btn btn-secondary w-100 act-secondary" data-sub="1">🔄 교체</button></div>
+  </div>
+
+  <!-- 최근 기록 -->
+  <h2 class="h6 d-flex justify-content-between align-items-center">
+    <span>최근 기록</span>
+    <a href="{% url 'matches:detail' match.pk %}" class="small">시청자 화면 ↗</a>
+  </h2>
+  <div class="list-group shadow-sm mb-4" id="recent-list"></div>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'matches:lineup' match.pk %}" class="btn btn-outline-primary btn-sm">🧑‍🤝‍🧑 출전 명단</a>
+    <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary btn-sm">경기 페이지</a>
+    <a href="{% url 'matches:edit' match.pk %}" class="btn btn-outline-secondary btn-sm">상세 편집</a>
+  </div>
 </div>
 
-<div class="d-flex gap-2">
-  <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary btn-sm">경기 페이지 보기</a>
-  <a href="{% url 'matches:edit' match.pk %}" class="btn btn-outline-secondary btn-sm">상세 편집</a>
+<!-- 선수 선택 바텀시트 -->
+<div class="offcanvas offcanvas-bottom rounded-top-4" tabindex="-1" id="event-sheet"
+     aria-labelledby="sheet-title">
+  <div class="offcanvas-header pb-1">
+    <h5 class="offcanvas-title" id="sheet-title">선수 선택</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="닫기"></button>
+  </div>
+  <div class="offcanvas-body pt-2">
+    <div id="sheet-extra" class="mb-2 d-grid"></div>
+    <div class="roster-grid" id="sheet-roster"></div>
+  </div>
 </div>
+
+{{ roster|json_script:"roster-data" }}
+{{ timeline|json_script:"timeline-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var root = document.getElementById('live-root');
+  var PK = root.dataset.pk;
+  var URL = "{% url 'matches:live_console' match.pk %}";
+  var CSRF = "{{ csrf_token }}";
+  var roster = JSON.parse(document.getElementById('roster-data').textContent);
+
+  var sheetEl = document.getElementById('event-sheet');
+  var sheet = new bootstrap.Offcanvas(sheetEl);
+  var sheetTitle = document.getElementById('sheet-title');
+  var sheetRoster = document.getElementById('sheet-roster');
+  var sheetExtra = document.getElementById('sheet-extra');
+
+  var ICON = { GOAL:'⚽', OWN_GOAL:'⚽(자책)', YELLOW:'🟨', RED:'🟥',
+               SUB_IN:'🔄 IN', SUB_OUT:'🔄 OUT', ASSIST:'👟' };
+
+  function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+  function minute(){ var v = document.getElementById('clock').value; return v === '' ? '' : v; }
+
+  // 선수 타일 그리드 렌더 (onPick(playerId) 콜백)
+  function renderTiles(onPick) {
+    sheetRoster.innerHTML = '';
+    roster.forEach(function (p) {
+      var tile = document.createElement('div');
+      tile.className = 'player-tile' + (p.bench ? ' opacity-75' : '');
+      tile.innerHTML =
+        (p.captain ? '<span class="cap">Ⓒ</span>' : '') +
+        (p.bench ? '<span class="bench-tag">벤치</span>' : '') +
+        (p.number != null ? '<div class="num">' + esc(p.number) + '</div>'
+                          : '<div class="num">·</div>') +
+        '<div class="nm">' + esc(p.name) + '</div>';
+      tile.addEventListener('click', function () { onPick(p.id); });
+      sheetRoster.appendChild(tile);
+    });
+  }
+
+  function showSheet(title, extraHtml, onExtra, onPick) {
+    sheetTitle.textContent = title;
+    sheetExtra.innerHTML = extraHtml || '';
+    if (extraHtml && onExtra) {
+      sheetExtra.querySelector('button').addEventListener('click', onExtra);
+    }
+    renderTiles(onPick);
+    sheet.show();
+  }
+
+  // 서버로 액션 전송 (fetch) → 상태 갱신
+  function postAction(fields) {
+    var body = new URLSearchParams();
+    body.set('csrfmiddlewaretoken', CSRF);
+    Object.keys(fields).forEach(function (k) {
+      if (fields[k] !== undefined && fields[k] !== null && fields[k] !== '')
+        body.set(k, fields[k]);
+    });
+    return fetch(URL, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'fetch',
+                 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    }).then(function (r) { return r.json(); }).then(applyState)
+      .catch(function () { alert('전송 실패 — 다시 시도해 주세요.'); });
+  }
+
+  // ── 동작 버튼 ──
+  // 우리/상대 득점
+  document.querySelectorAll('[data-goal]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var side = btn.dataset.goal;
+      if (side === 'OPPONENT') {            // 상대 득점: 1탭 즉시
+        postAction({ action:'goal', side:'OPPONENT', minute: minute() });
+        return;
+      }
+      // 우리 득점: 득점 선수 → 도움 선수
+      showSheet('득점한 선수?', '', null, function (scorerId) {
+        showSheet('도움 준 선수?',
+          '<button class="btn btn-outline-secondary">도움 없음</button>',
+          function () { sheet.hide(); postAction({ action:'goal', side:'OUR', player:scorerId, minute:minute() }); },
+          function (assistId) {
+            sheet.hide();
+            postAction({ action:'goal', side:'OUR', player:scorerId, assist:assistId, minute:minute() });
+          });
+      });
+    });
+  });
+
+  // 경고 · 퇴장
+  document.querySelectorAll('[data-card]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var et = btn.dataset.card;
+      var label = et === 'YELLOW' ? '경고' : '퇴장';
+      showSheet(label + ' 받은 선수?',
+        '<button class="btn btn-outline-dark">상대팀 선수</button>',
+        function () { sheet.hide(); postAction({ action:'event', event_type:et, side:'OPPONENT', minute:minute() }); },
+        function (pid) { sheet.hide(); postAction({ action:'event', event_type:et, side:'OUR', player:pid, minute:minute() }); });
+    });
+  });
+
+  // 교체: 나간 선수 → 들어온 선수
+  document.querySelector('[data-sub]').addEventListener('click', function () {
+    showSheet('교체 — 나간 선수?', '', null, function (outId) {
+      showSheet('교체 — 들어온 선수?', '', null, function (inId) {
+        sheet.hide();
+        postAction({ action:'sub', player_out:outId, player_in:inId, minute:minute() });
+      });
+    });
+  });
+
+  // 시작/종료 토글
+  document.getElementById('toggle-btn').addEventListener('click', function () {
+    var live = root.dataset.status === 'LIVE';
+    postAction({ action: live ? 'finish' : 'start' });
+  });
+
+  // ── 상태 렌더 ──
+  function renderStatusBar() {
+    var live = root.dataset.status === 'LIVE';
+    var sb = document.getElementById('status-badge');
+    var tb = document.getElementById('toggle-btn');
+    if (live) {
+      sb.innerHTML = '<span class="badge bg-danger">🔴 LIVE</span>';
+      tb.textContent = '⏹ 종료'; tb.className = 'btn btn-sm btn-outline-danger';
+    } else if (root.dataset.status === 'FINISHED') {
+      sb.innerHTML = '<span class="badge bg-secondary">종료</span>';
+      tb.textContent = '↻ 재개'; tb.className = 'btn btn-sm btn-outline-secondary';
+    } else {
+      sb.innerHTML = '<span class="badge bg-secondary">예정</span>';
+      tb.textContent = '🔴 LIVE 시작'; tb.className = 'btn btn-sm btn-danger';
+    }
+  }
+
+  function renderRecent(timeline) {
+    var el = document.getElementById('recent-list');
+    if (!timeline || !timeline.length) {
+      el.innerHTML = '<div class="list-group-item text-muted">아직 기록이 없습니다.</div>';
+      return;
+    }
+    el.innerHTML = timeline.slice().reverse().map(function (it) {
+      var min = (it.minute === null || it.minute === '') ? '-' : (it.minute + "'");
+      var who = it.player || it.side_display;
+      var assist = it.assist ? ' <span class="text-muted">(도움 ' + esc(it.assist) + ')</span>' : '';
+      return '<div class="list-group-item recent-item">' +
+        '<div><span class="badge bg-light text-dark me-2">' + min + '</span>' +
+        (ICON[it.type] || '') + ' <strong>' + esc(who) + '</strong>' + assist + '</div>' +
+        '<button class="btn btn-sm btn-outline-danger" data-del="' + it.id + '">✕</button>' +
+        '</div>';
+    }).join('');
+    el.querySelectorAll('[data-del]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (confirm('이 기록을 삭제할까요?'))
+          postAction({ action:'delete', event_id: b.dataset.del });
+      });
+    });
+  }
+
+  function applyState(data) {
+    if (!data) return;
+    root.dataset.status = data.status;
+    document.getElementById('our-score').textContent = data.our_score == null ? 0 : data.our_score;
+    document.getElementById('opp-score').textContent = data.opponent_score == null ? 0 : data.opponent_score;
+    renderStatusBar();
+    renderRecent(data.timeline);
+  }
+
+  // 초기 렌더
+  renderStatusBar();
+  document.getElementById('our-score').textContent = root.dataset.our;
+  document.getElementById('opp-score').textContent = root.dataset.opp;
+  renderRecent(JSON.parse(document.getElementById('timeline-data').textContent));
+})();
+</script>
 {% endblock %}

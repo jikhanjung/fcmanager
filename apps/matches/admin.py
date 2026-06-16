@@ -1,6 +1,8 @@
 from django.contrib import admin
 
-from .models import Opponent, Match, MatchEvent, MatchVideo, OpponentMatch
+from .models import (
+    Match, MatchEvent, MatchLineup, MatchVideo, Opponent, OpponentMatch,
+)
 
 
 @admin.register(Opponent)
@@ -23,6 +25,16 @@ class MatchVideoInline(admin.TabularInline):
     model = MatchVideo
     extra = 1
     fields = ["url", "title"]
+
+
+class MatchLineupInline(admin.TabularInline):
+    """경기 출전 명단 인라인 (선발/벤치 + 등번호 + 주장)."""
+
+    model = MatchLineup
+    extra = 0
+    fields = ["player", "role", "jersey_number", "is_captain"]
+    autocomplete_fields = ["player"]
+    ordering = ["role", "jersey_number", "player__name"]
 
 
 @admin.register(MatchVideo)
@@ -58,7 +70,7 @@ class MatchAdmin(admin.ModelAdmin):
     search_fields = ["opponent__name", "venue"]
     date_hierarchy = "kickoff"
     autocomplete_fields = ["our_team", "opponent", "competition", "season"]
-    inlines = [MatchEventInline, MatchVideoInline]
+    inlines = [MatchLineupInline, MatchEventInline, MatchVideoInline]
     fieldsets = (
         ("경기 정보", {
             "fields": (
