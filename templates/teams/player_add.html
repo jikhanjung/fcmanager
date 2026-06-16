@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}선수 추가 — {{ team.name }}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-1">선수 추가</h1>
+<p class="text-muted small mb-4">{{ team.name }} · 기존 선수(멤버)에서 선택해 추가합니다.</p>
+
+<form method="post" class="card shadow-sm">
+  {% csrf_token %}
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-check mb-3">
+          {{ field }}
+          <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        </div>
+      {% else %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+
+    <p class="form-text mb-0">
+      명단에 없는 새 인물인가요?
+      <a href="{% url 'admin:teams_player_add' %}" target="_blank" rel="noopener">새 선수 등록(관리자)</a>
+      후 다시 선택하세요.
+    </p>
+  </div>
+  <div class="card-footer bg-transparent">
+    <button class="btn btn-primary" type="submit">추가</button>
+    <a href="{{ team.get_absolute_url }}" class="btn btn-outline-secondary">취소</a>
+  </div>
+</form>
+{% endblock %}

@@ -8,7 +8,7 @@ from apps.competitions.models import Season
 from apps.matches.models import Match, MatchEvent
 from apps.notices.models import Notice
 
-from .forms import MembershipForm, PlayerForm, TeamForm
+from .forms import MembershipAddForm, MembershipForm, PlayerForm, TeamForm
 from .models import Player, Team, TeamMembership
 
 staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
@@ -135,26 +135,22 @@ def _get_membership(team, player_pk):
 
 @staff_required
 def player_add(request, slug):
+    """기존 Player(멤버 마스터)에서 선택해 팀 소속을 추가. 새 Player는 만들지 않는다."""
     team = get_object_or_404(Team, slug=slug)
     season = Season.objects.filter(is_current=True).first()
     if request.method == "POST":
-        pform = PlayerForm(request.POST, request.FILES)
-        mform = MembershipForm(request.POST)
-        if pform.is_valid() and mform.is_valid():
-            player = pform.save()
-            m = mform.save(commit=False)
-            m.player = player
+        form = MembershipAddForm(request.POST, team=team, season=season)
+        if form.is_valid():
+            m = form.save(commit=False)
             m.team = team
             m.season = season
             m.is_active = True
             m.save()
-            messages.success(request, f"선수 '{player.name}'을(를) {team.name}에 추가했습니다.")
+            messages.success(request, f"'{m.player.name}'을(를) {team.name}에 추가했습니다.")
             return redirect(team.get_absolute_url())
     else:
-        pform = PlayerForm()
-        mform = MembershipForm()
-    return render(request, "teams/player_form.html",
-                  {"pform": pform, "mform": mform, "team": team, "is_create": True})
+        form = MembershipAddForm(team=team, season=season)
+    return render(request, "teams/player_add.html", {"form": form, "team": team})
 
 
 @staff_required
