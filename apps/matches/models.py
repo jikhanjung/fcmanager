@@ -48,6 +48,18 @@ class Match(models.Model):
         POSTPONED = "POSTPONED", "연기"
         CANCELLED = "CANCELLED", "취소"
 
+    class Stage(models.TextChoices):
+        GROUP = "GROUP", "조별리그"
+        RO16 = "RO16", "16강"
+        QUARTER = "QF", "8강"
+        SEMI = "SF", "준결승"
+        THIRD = "3RD", "3·4위전"
+        FINAL = "F", "결승"
+
+    # 대진표 정렬 순서(작을수록 앞 단계). 조별리그가 가장 앞.
+    STAGE_ORDER = {"GROUP": 0, "RO16": 1, "QF": 2, "SF": 3, "3RD": 4, "F": 5}
+    KNOCKOUT_STAGES = {"RO16", "QF", "SF", "3RD", "F"}
+
     our_team = models.ForeignKey(
         "teams.Team", on_delete=models.CASCADE, related_name="matches",
         verbose_name="우리 팀",
@@ -64,6 +76,10 @@ class Match(models.Model):
         "competitions.Division", on_delete=models.SET_NULL,
         related_name="matches", verbose_name="부문",
         null=True, blank=True,
+    )
+    stage = models.CharField(
+        "단계", max_length=6, choices=Stage.choices, default=Stage.GROUP,
+        help_text="조별리그 / 녹아웃(8강·준결승·결승 등)",
     )
     is_home = models.BooleanField("홈 경기", default=True)
     kickoff = models.DateTimeField("경기 일시")
@@ -103,6 +119,14 @@ class Match(models.Model):
         if self.our_score < self.opponent_score:
             return "L"
         return "D"
+
+    @property
+    def is_knockout(self):
+        return self.stage in self.KNOCKOUT_STAGES
+
+    @property
+    def stage_order(self):
+        return self.STAGE_ORDER.get(self.stage, 0)
 
 
 class OpponentMatch(models.Model):

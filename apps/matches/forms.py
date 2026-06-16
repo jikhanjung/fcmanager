@@ -12,8 +12,9 @@ class MatchResultForm(forms.ModelForm):
 
     class Meta:
         model = Match
-        fields = ["status", "our_score", "opponent_score", "note"]
+        fields = ["stage", "status", "our_score", "opponent_score", "note"]
         widgets = {
+            "stage": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
             "our_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "opponent_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),

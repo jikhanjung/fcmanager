@@ -63,10 +63,10 @@ class MatchEventInline(admin.TabularInline):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     list_display = [
-        "kickoff", "our_team", "opponent", "competition", "division",
+        "kickoff", "our_team", "opponent", "competition", "division", "stage",
         "status", "score_display", "result_badge",
     ]
-    list_filter = ["status", "competition", "division", "our_team", "is_home"]
+    list_filter = ["status", "stage", "competition", "division", "our_team", "is_home"]
     search_fields = ["opponent__name", "venue"]
     date_hierarchy = "kickoff"
     autocomplete_fields = ["our_team", "opponent", "competition", "division"]
@@ -76,8 +76,9 @@ class MatchAdmin(admin.ModelAdmin):
             "fields": (
                 ("our_team", "opponent"),
                 ("competition", "division"),
-                ("kickoff", "venue"),
-                ("is_home", "status"),
+                ("stage", "kickoff"),
+                ("venue", "is_home"),
+                ("status",),
             ),
         }),
         ("결과", {

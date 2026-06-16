@@ -50,8 +50,10 @@ def standings(request):
 
     groups = []
     if competition is not None:
+        # 순위표는 조별리그만 집계(녹아웃은 대진표로 표시).
         matches = Match.objects.filter(
             competition=competition,
+            stage=Match.Stage.GROUP,
             status=Match.Status.FINISHED,
             our_score__isnull=False,
             opponent_score__isnull=False,
@@ -221,21 +223,43 @@ def competition_list(request):
 
 
 def competition_detail(request, slug):
-    """대회 상세: 부문·출전팀·우리 경기 결과. 누구나 조회 가능."""
+    """대회 상세: 부문·출전팀 + 조별리그 경기 + 녹아웃 대진표. 누구나 조회 가능."""
     competition = get_object_or_404(Competition, slug=slug)
-    divisions = competition.divisions.all()
+    divisions = list(competition.divisions.all())
     entries = (
         competition.entries.select_related("team", "division").order_by("team__name")
     )
-    matches = (
+    matches = list(
         competition.matches.select_related("our_team", "opponent", "division")
         .order_by("kickoff")
     )
+
+    group_matches = [m for m in matches if not m.is_knockout]
+    knockout = [m for m in matches if m.is_knockout]
+
+    # 녹아웃 대진표: 부문별 → 단계별(준결승→결승) 열로 묶는다.
+    brackets = []
+    div_order = {d.id: i for i, d in enumerate(divisions)}
+    by_div = {}
+    for m in knockout:
+        by_div.setdefault(m.division_id, []).append(m)
+    for div_id, ms in sorted(by_div.items(), key=lambda kv: div_order.get(kv[0], 99)):
+        stages = {}
+        for m in ms:
+            stages.setdefault(m.stage, []).append(m)
+        columns = [
+            {"label": dict(Match.Stage.choices)[st], "matches": stages[st]}
+            for st in sorted(stages, key=lambda s: Match.STAGE_ORDER.get(s, 0))
+        ]
+        division = next((d for d in divisions if d.id == div_id), None)
+        brackets.append({"division": division, "columns": columns})
+
     return render(request, "competitions/competition_detail.html", {
         "competition": competition,
         "divisions": divisions,
         "entries": entries,
-        "matches": matches,
+        "group_matches": group_matches,
+        "brackets": brackets,
     })
 
 

@@ -49,7 +49,7 @@
       {% for m in matches %}
         <tr>
           <td class="text-nowrap small">{{ m.kickoff|date:"Y.m.d (D) H:i" }}</td>
-          <td class="small">{{ m.competition }}</td>
+          <td class="small">{{ m.competition }}{% if m.is_knockout %} <span class="badge bg-warning-subtle text-warning-emphasis">{{ m.get_stage_display }}</span>{% endif %}</td>
           <td>{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</td>
           <td class="text-center fw-bold">
             {% if m.our_score is not None and m.opponent_score is not None %}

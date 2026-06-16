@@ -7,6 +7,7 @@
     <div class="text-muted small mb-2">
       {{ match.kickoff|date:"Y년 m월 d일 (D) H:i" }} · {{ match.competition }}
       {% if match.division %} · {{ match.division.label }}{% endif %}
+      {% if match.is_knockout %} · <span class="fw-semibold">{{ match.get_stage_display }}</span>{% endif %}
       {% if match.venue %} · {{ match.venue }}{% endif %}
     </div>
     <div class="row align-items-center">

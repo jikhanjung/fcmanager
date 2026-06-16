@@ -77,6 +77,7 @@ class Command(BaseCommand):
             CompetitionEntry.objects.get_or_create(
                 team=team, competition=comp, division=div)
 
+        stage_map = {"준결승": Match.Stage.SEMI, "결승": Match.Stage.FINAL}
         created = 0
         for m in MATCHES:
             opp, _ = Opponent.objects.get_or_create(name=m["opp"])
@@ -89,6 +90,7 @@ class Command(BaseCommand):
                 kickoff=kickoff,
                 defaults={
                     "division": divisions[m["our"]],
+                    "stage": stage_map.get(m["round"], Match.Stage.GROUP),
                     "is_home": m["is_home"], "venue": m["venue"],
                     "status": Match.Status.SCHEDULED, "note": note,
                 },
