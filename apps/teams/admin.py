@@ -6,7 +6,7 @@ from .models import Team, Player, TeamMembership
 class TeamMembershipInline(admin.TabularInline):
     model = TeamMembership
     extra = 1
-    autocomplete_fields = ["player", "season"]
+    autocomplete_fields = ["player", "competition", "division"]
 
 
 @admin.register(Team)
@@ -39,7 +39,8 @@ class PlayerAdmin(admin.ModelAdmin):
 
 @admin.register(TeamMembership)
 class TeamMembershipAdmin(admin.ModelAdmin):
-    list_display = ["player", "team", "season", "jersey_number", "is_captain", "is_active"]
-    list_filter = ["team", "season", "is_active"]
+    list_display = ["player", "team", "competition", "division",
+                    "jersey_number", "is_captain", "is_active"]
+    list_filter = ["team", "competition", "division", "is_active"]
     search_fields = ["player__name"]
-    autocomplete_fields = ["player", "team", "season"]
+    autocomplete_fields = ["player", "team", "competition", "division"]

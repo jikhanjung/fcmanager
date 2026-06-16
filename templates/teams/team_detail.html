@@ -23,7 +23,12 @@
 </style>
 
 <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-  <h2 class="h5 mb-0">선수단 <span class="text-muted fs-6 fw-normal">({{ memberships|length }}명)</span></h2>
+  <h2 class="h5 mb-0">
+    선수단 <span class="text-muted fs-6 fw-normal">({{ memberships|length }}명)</span>
+    {% if latest_competition %}
+      <span class="text-muted fs-6 fw-normal d-block d-sm-inline">· {{ latest_competition.name }} 명단</span>
+    {% endif %}
+  </h2>
   {% if user.is_staff %}
     <a href="{% url 'teams:player_add' team.slug %}" class="btn btn-primary btn-sm">+ 선수 추가</a>
   {% endif %}

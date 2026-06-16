@@ -89,6 +89,18 @@ class TeamMembership(models.Model):
         Team, on_delete=models.CASCADE, related_name="memberships",
         verbose_name="팀",
     )
+    # 명단은 대회 단위로 꾸려진다(팀 이름은 유지하되 대회마다 새로 구성). 부문이 있는
+    # 대회면 division까지 지정. 팀 공개 페이지는 가장 최근 대회의 명단을 보여준다.
+    competition = models.ForeignKey(
+        "competitions.Competition", on_delete=models.CASCADE,
+        related_name="memberships", verbose_name="대회",
+        null=True, blank=True,
+    )
+    division = models.ForeignKey(
+        "competitions.Division", on_delete=models.SET_NULL,
+        related_name="memberships", verbose_name="부문",
+        null=True, blank=True,
+    )
     season = models.ForeignKey(
         "competitions.Season", on_delete=models.CASCADE,
         related_name="memberships", verbose_name="시즌",
@@ -104,7 +116,7 @@ class TeamMembership(models.Model):
         verbose_name = "팀 소속"
         verbose_name_plural = "팀 소속"
         ordering = ["team", "jersey_number"]
-        unique_together = [("player", "team", "season")]
+        unique_together = [("player", "team", "competition")]
 
     def __str__(self):
         num = f" #{self.jersey_number}" if self.jersey_number else ""

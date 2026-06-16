@@ -60,6 +60,11 @@ class Match(models.Model):
         "competitions.Competition", on_delete=models.PROTECT,
         related_name="matches", verbose_name="대회",
     )
+    division = models.ForeignKey(
+        "competitions.Division", on_delete=models.SET_NULL,
+        related_name="matches", verbose_name="부문",
+        null=True, blank=True,
+    )
     season = models.ForeignKey(
         "competitions.Season", on_delete=models.PROTECT,
         related_name="matches", verbose_name="시즌",

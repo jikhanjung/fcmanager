@@ -18,7 +18,12 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.competitions.models import Competition, CompetitionEntry, Season
+from apps.competitions.models import (
+    Competition, CompetitionEntry, Division, Season,
+)
+
+# Team.AgeGroup -> Division.AgeGroup
+AGE_TO_DIVISION = {"K7": "2030", "40": "40", "50": "50"}
 from apps.matches.models import Match, Opponent
 from apps.teams.models import Team
 
@@ -65,11 +70,15 @@ class Command(BaseCommand):
             slug=COMPETITION["slug"], defaults=COMPETITION)
 
         teams = {}
+        divisions = {}  # team slug -> Division
         for slug, t in TEAMS.items():
             team, _ = Team.objects.get_or_create(slug=slug, defaults=t)
             teams[slug] = team
+            div, _ = Division.objects.get_or_create(
+                competition=comp, age_group=AGE_TO_DIVISION.get(team.age_group, "OPEN"))
+            divisions[slug] = div
             CompetitionEntry.objects.get_or_create(
-                team=team, competition=comp, season=season)
+                team=team, competition=comp, division=div)
 
         created = 0
         for m in MATCHES:
@@ -80,8 +89,9 @@ class Command(BaseCommand):
                 note += f" — {m['note']}"
             match, was_created = Match.objects.get_or_create(
                 our_team=teams[m["our"]], opponent=opp, competition=comp,
-                season=season, kickoff=kickoff,
+                kickoff=kickoff,
                 defaults={
+                    "division": divisions[m["our"]],
                     "is_home": m["is_home"], "venue": m["venue"],
                     "status": Match.Status.SCHEDULED, "note": note,
                 },

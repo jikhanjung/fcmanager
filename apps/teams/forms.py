@@ -78,16 +78,17 @@ class MembershipAddForm(forms.ModelForm):
             "is_captain": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
-    def __init__(self, *args, team=None, season=None, **kwargs):
+    def __init__(self, *args, team=None, competition=None, division=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.team = team
-        self.season = season
+        self.competition = competition
+        self.division = division
         self.fields["player"].label = "선수 선택"
         self.fields["player"].empty_label = "— 선수 선택 —"
         qs = Player.objects.filter(deleted_at__isnull=True).order_by("name")
         if team is not None:
             taken = TeamMembership.objects.filter(
-                team=team, season=season).values_list("player_id", flat=True)
+                team=team, competition=competition).values_list("player_id", flat=True)
             qs = qs.exclude(pk__in=list(taken))
         self.fields["player"].queryset = qs
 
@@ -95,6 +96,13 @@ class MembershipAddForm(forms.ModelForm):
         cleaned = super().clean()
         player = cleaned.get("player")
         if player and self.team is not None and TeamMembership.objects.filter(
-                player=player, team=self.team, season=self.season).exists():
+                player=player, team=self.team, competition=self.competition).exists():
             raise forms.ValidationError("이미 이 팀 명단에 있는 선수입니다.")
+        # 나이 자격: 부문 최소 나이 미달이면 경고(생년 미상이면 통과). 차단까지는 하지 않음.
+        if player and self.division is not None and not self.division.is_eligible(player):
+            self.add_error(
+                "player",
+                f"{self.division.label} 나이 자격(만 {self.division.min_age}세 이상)에 "
+                f"미달할 수 있습니다. 확인 후 진행하세요.",
+            )
         return cleaned

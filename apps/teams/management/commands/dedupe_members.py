@@ -111,9 +111,9 @@ class Command(BaseCommand):
 
         for m in TeamMembership.objects.filter(player=dup):
             exists = TeamMembership.objects.filter(
-                player=canon, team=m.team, season=m.season).first()
+                player=canon, team=m.team, competition=m.competition).first()
             if exists:
-                # (정본,팀,시즌) 중복: 정본 소속에 등번호가 비었으면 중복 것에서 채움.
+                # (정본,팀,대회) 중복: 정본 소속에 등번호가 비었으면 중복 것에서 채움.
                 if exists.jersey_number is None and m.jersey_number is not None:
                     exists.jersey_number = m.jersey_number
                     exists.save(update_fields=["jersey_number"])

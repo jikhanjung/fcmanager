@@ -5,7 +5,26 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.competitions.models import Season
+from apps.competitions.models import Competition, Division, Season
+
+# Team.AgeGroup -> Division.AgeGroup
+_AGE_TO_DIVISION = {"K7": "2030", "40": "40", "50": "50"}
+
+
+def _latest_competition(team):
+    """팀의 명단/출전 기준 가장 최근 대회(연도·id 내림차순). 없으면 None."""
+    return (
+        Competition.objects.filter(memberships__team=team).order_by("-year", "-id").first()
+        or Competition.objects.filter(entries__team=team).order_by("-year", "-id").first()
+    )
+
+
+def _division_for(competition, team):
+    """대회 안에서 팀 연령대에 해당하는 부문. 부문 없는 대회면 None."""
+    if competition is None:
+        return None
+    ag = _AGE_TO_DIVISION.get(team.age_group, "OPEN")
+    return Division.objects.filter(competition=competition, age_group=ag).first()
 from apps.matches.models import Match, MatchEvent
 from apps.notices.models import Notice
 
@@ -45,16 +64,20 @@ def team_list(request):
 
 
 def team_detail(request, slug):
+    """팀 상세 — 명단은 '가장 최근 대회' 기준(명단은 대회 단위로 꾸려짐)."""
     team = get_object_or_404(Team, slug=slug)
+    latest = _latest_competition(team)
+    memberships = team.memberships.filter(
+        is_active=True, player__deleted_at__isnull=True)
+    if latest is not None:
+        memberships = memberships.filter(competition=latest)
     memberships = (
-        team.memberships.filter(is_active=True, player__deleted_at__isnull=True)
-        .select_related("player")
-        .order_by("jersey_number")
+        memberships.select_related("player", "division").order_by("jersey_number")
     )
     return render(
         request,
         "teams/team_detail.html",
-        {"team": team, "memberships": memberships},
+        {"team": team, "memberships": memberships, "latest_competition": latest},
     )
 
 
@@ -136,21 +159,28 @@ def _get_membership(team, player_pk):
 
 @staff_required
 def player_add(request, slug):
-    """기존 Player(멤버 마스터)에서 선택해 팀 소속을 추가. 새 Player는 만들지 않는다."""
+    """기존 Player(멤버 마스터)에서 선택해 팀 소속을 추가. 새 Player는 만들지 않는다.
+
+    명단은 '가장 최근 대회'에 귀속(팀 페이지 표시 기준과 일치). 그 대회에 팀 연령
+    부문이 있으면 division도 함께 지정한다.
+    """
     team = get_object_or_404(Team, slug=slug)
-    season = Season.objects.filter(is_current=True).first()
+    competition = _latest_competition(team)
+    division = _division_for(competition, team)
     if request.method == "POST":
-        form = MembershipAddForm(request.POST, team=team, season=season)
+        form = MembershipAddForm(request.POST, team=team,
+                                 competition=competition, division=division)
         if form.is_valid():
             m = form.save(commit=False)
             m.team = team
-            m.season = season
+            m.competition = competition
+            m.division = division
             m.is_active = True
             m.save()
             messages.success(request, f"'{m.player.name}'을(를) {team.name}에 추가했습니다.")
             return redirect(team.get_absolute_url())
     else:
-        form = MembershipAddForm(team=team, season=season)
+        form = MembershipAddForm(team=team, competition=competition, division=division)
     return render(request, "teams/player_add.html", {"form": form, "team": team})
 
 

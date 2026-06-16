@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Season, Competition, CompetitionEntry, Award
+from .models import Season, Competition, Division, CompetitionEntry, Award
 
 
 @admin.register(Season)
@@ -10,26 +10,39 @@ class SeasonAdmin(admin.ModelAdmin):
     search_fields = ["name", "year"]
 
 
+class DivisionInline(admin.TabularInline):
+    model = Division
+    extra = 0
+
+
 class CompetitionEntryInline(admin.TabularInline):
     model = CompetitionEntry
     extra = 1
-    autocomplete_fields = ["team", "season"]
+    autocomplete_fields = ["team", "division"]
 
 
 @admin.register(Competition)
 class CompetitionAdmin(admin.ModelAdmin):
-    list_display = ["name", "kind", "organizer"]
-    list_filter = ["kind"]
+    list_display = ["name", "kind", "year", "organizer"]
+    list_filter = ["kind", "year"]
     search_fields = ["name"]
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [CompetitionEntryInline]
+    inlines = [DivisionInline, CompetitionEntryInline]
+
+
+@admin.register(Division)
+class DivisionAdmin(admin.ModelAdmin):
+    list_display = ["competition", "age_group", "label"]
+    list_filter = ["competition", "age_group"]
+    search_fields = ["competition__name", "name"]
+    autocomplete_fields = ["competition"]
 
 
 @admin.register(CompetitionEntry)
 class CompetitionEntryAdmin(admin.ModelAdmin):
-    list_display = ["team", "competition", "season"]
-    list_filter = ["competition", "season", "team"]
-    autocomplete_fields = ["team", "competition", "season"]
+    list_display = ["team", "competition", "division"]
+    list_filter = ["competition", "division", "team"]
+    autocomplete_fields = ["team", "competition", "division"]
 
 
 @admin.register(Award)

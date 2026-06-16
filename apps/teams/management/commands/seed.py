@@ -16,7 +16,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.teams.models import Team, Player, TeamMembership
-from apps.competitions.models import Season, Competition, CompetitionEntry, Award
+from apps.competitions.models import (
+    Season, Competition, Division, CompetitionEntry, Award,
+)
+
+# Team.AgeGroup -> Division.AgeGroup
+_AGE_TO_DIVISION = {"K7": "2030", "40": "40", "50": "50"}
 from apps.matches.models import Opponent, Match, MatchEvent, OpponentMatch
 
 
@@ -262,6 +267,47 @@ class Command(BaseCommand):
                 defaults={"home_score": om["home_score"],
                           "away_score": om["away_score"]},
             )
+
+        # 8) 부문(Division) 백필 — 0004_backfill_divisions 마이그레이션과 동일 규칙.
+        #    여러 연령대가 출전한 대회에만 부문 생성, 명단/경기/출전에 귀속.
+        self._apply_divisions(teams.values(), comps.values())
+
+    def _apply_divisions(self, teams, comps):
+        def div(comp, team):
+            ag = _AGE_TO_DIVISION.get(team.age_group, "OPEN")
+            return Division.objects.filter(competition=comp, age_group=ag).first()
+
+        for comp in comps:
+            ages = {_AGE_TO_DIVISION.get(e.team.age_group, "OPEN")
+                    for e in CompetitionEntry.objects.filter(
+                        competition=comp).select_related("team")}
+            if len(ages) > 1:
+                for ag in ages:
+                    Division.objects.get_or_create(competition=comp, age_group=ag)
+
+        for e in CompetitionEntry.objects.select_related("team", "competition"):
+            e.division = div(e.competition, e.team)
+            e.save(update_fields=["division"])
+        for mt in Match.objects.select_related("our_team", "competition"):
+            mt.division = div(mt.competition, mt.our_team)
+            mt.save(update_fields=["division"])
+        for team in teams:
+            ag = _AGE_TO_DIVISION.get(team.age_group, "OPEN")
+            entries = list(CompetitionEntry.objects.filter(team=team)
+                           .select_related("competition")
+                           .order_by("-competition__year", "-competition_id"))
+            target_comp = target_div = None
+            for e in entries:
+                d = Division.objects.filter(
+                    competition=e.competition, age_group=ag).first()
+                if d:
+                    target_comp, target_div = e.competition, d
+                    break
+            if target_comp is None and entries:
+                target_comp = entries[0].competition
+            if target_comp is not None:
+                TeamMembership.objects.filter(team=team).update(
+                    competition=target_comp, division=target_div)
 
         self.stdout.write(self.style.SUCCESS(
             f"시드 완료: 팀 {Team.objects.count()} · 선수 {Player.objects.count()} · "
