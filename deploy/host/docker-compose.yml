@@ -1,0 +1,32 @@
+# 운영(dolfinid) 전용 compose.
+#   - deploy/sync_to_srv.sh 가 이 파일을 /srv/FcSky/docker-compose.yml 로 복사한다.
+#   - 그 위치(/srv/FcSky)에서 실행: cd /srv/FcSky && docker compose up -d
+#   - 이미지는 빌드하지 않고 pull. 버전은 .env 의 IMAGE_TAG (deploy.sh 가 갱신).
+#   - 개발/로컬 빌드는 별도 파일(deploy/docker-compose.yml, build: 포함)을 쓴다.
+services:
+  web:
+    image: honestjung/fcsky:${IMAGE_TAG:-latest}
+    container_name: fcsky
+    restart: unless-stopped
+    # 비밀값(DJANGO_SECRET_KEY 등) + IMAGE_TAG 는 /srv/FcSky/.env 에서 주입(git 비추적).
+    env_file:
+      - .env
+    ports:
+      # 호스트 8000은 portainer가 점유 → 8003으로 노출.
+      - "8003:8000"
+    environment:
+      DJANGO_DEBUG: "false"
+      # 사이트를 /FcSky/ 하위에서 서비스(정적/미디어/링크 모두 접두사 반영).
+      DJANGO_URL_PREFIX: "FcSky"
+      # nginx가 Host: 34.64.158.160 으로 프록시 → 해당 IP를 허용(DEBUG=false).
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,34.64.158.160"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "http://34.64.158.160"
+      # 영속 DB 보존을 위해 기본 시드 OFF.
+      DJANGO_SEED: "0"
+      # 관리자 계정은 없을 때만 생성(부트스트랩). 운영 비번은 교체 권장.
+      DJANGO_SUPERUSER_USERNAME: "admin"
+      DJANGO_SUPERUSER_PASSWORD: "fcsky1234"
+    volumes:
+      # DB·미디어는 호스트 영속 경로(/srv/FcSky). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
+      - /srv/FcSky/db.sqlite3:/app/db.sqlite3
+      - /srv/FcSky/media:/app/media

@@ -22,8 +22,8 @@ fi
 REMOTE_USER="${FCSKY_REMOTE_USER:-honestjung}"
 REMOTE_HOST="${FCSKY_REMOTE_HOST:-34.64.158.160}"   # dolfinid
 REMOTE_PATH="${FCSKY_REMOTE_PATH:-/srv/FcSky}"
-# .env 는 영속 볼륨(/srv/FcSky)이 아니라 compose 를 실행하는 홈 체크아웃에 있다.
-REMOTE_ENV_PATH="${FCSKY_REMOTE_ENV:-/home/honestjung/projects/FcSky/deploy/.env}"
+# .env 는 운영 런타임 위치(/srv/FcSky/.env). 배포 분리 후 compose 도 여기서 실행.
+REMOTE_ENV_PATH="${FCSKY_REMOTE_ENV:-/srv/FcSky/.env}"
 REMOTE="${REMOTE_USER}@${REMOTE_HOST}"
 
 BACKUP_DIR="/home/jikhanjung/backups/FcSky"
