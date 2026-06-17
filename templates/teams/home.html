@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}FC Sky — 홈{% endblock %}
+{% block title %}{{ current_club.name }} — 홈{% endblock %}
 {% block content %}
 
 <section class="hero mb-5 reveal reveal-1">
   <div class="d-flex flex-column align-items-start">
-    <img src="{% static 'img/fcskylogo.png' %}" alt="FC Sky 엠블럼" class="hero-logo mb-2">
-    <div class="eyebrow" style="color:var(--sky-2)">SEOCHO · FOOTBALL CLUB</div>
-    <h1 class="hero-title">FC <span class="sky">SKY</span></h1>
-    <p class="hero-tag mb-4">선수단부터 대회·일정·결과·명예의 전당까지 — FC Sky의 모든 기록.</p>
+    {% if current_club.logo %}
+      <img src="{{ current_club.logo.url }}" alt="{{ current_club.name }} 엠블럼" class="hero-logo mb-2">
+    {% else %}
+      <img src="{% static 'img/fcskylogo.png' %}" alt="{{ current_club.name }} 엠블럼" class="hero-logo mb-2">
+    {% endif %}
+    <div class="eyebrow" style="color:var(--sky-2)">FOOTBALL CLUB</div>
+    <h1 class="hero-title">{{ current_club.name }}</h1>
+    <p class="hero-tag mb-4">선수단부터 대회·일정·결과·명예의 전당까지 — {{ current_club.name }}의 모든 기록.</p>
     <div class="hero-cta d-flex flex-wrap gap-2">
       <a href="{% url 'matches:list' %}" class="btn btn-primary">일정 · 결과</a>
       <a href="{% url 'competitions:standings' %}" class="btn btn-ghost">순위표 보기</a>

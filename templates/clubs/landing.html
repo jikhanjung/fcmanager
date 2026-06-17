@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}클럽 선택 — FC Sky{% endblock %}
+{% block title %}클럽 선택 — {{ current_club.name|default:"FC Sky" }}{% endblock %}
 {% block content %}
 <div class="text-center my-4">
   <h1 class="h3 mb-1">FC Sky</h1>

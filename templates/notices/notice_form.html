@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if is_create %}공지 작성{% else %}공지 수정{% endif %} — FC Sky{% endblock %}
+{% block title %}{% if is_create %}공지 작성{% else %}공지 수정{% endif %} — {{ current_club.name|default:"FC Sky" }}{% endblock %}
 {% block content %}
 <h1 class="h4 mb-4">{% if is_create %}공지사항 작성{% else %}공지사항 수정{% endif %}</h1>
 

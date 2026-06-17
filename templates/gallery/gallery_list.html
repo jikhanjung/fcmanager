@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}갤러리 — FC Sky{% endblock %}
+{% block title %}갤러리 — {{ current_club.name|default:"FC Sky" }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">갤러리</h1>
 

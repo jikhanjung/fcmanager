@@ -55,7 +55,7 @@
 - [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 
-## 🏢 Phase 6 — 멀티테넌트 SaaS 전환
+## ✅ Phase 6 — 멀티테넌트 SaaS 전환 (A~D 완료)
 
 > 단일 클럽(FC Sky) → 여러 클럽 SaaS. 최소 전환 계획: `devlog/20260617_P03_SaaS_멀티테넌트_전환계획.md`.
 
@@ -63,7 +63,7 @@
       · Competition/Division 은 공유(참가는 CompetitionEntry), Opponent 는 클럽별
 - [x] B. 라우팅 + 스코핑 (P04) — B1 라우팅·B2 스코핑·B3 쓰기주입/폼제한·B4 격리테스트·B5 club non-null 완료
 - [x] C. 권한 + 온보딩 — ClubMembership 기반 권한·플랫폼 랜딩/로그인·클럽 생성(devlog 059)
-- [ ] D. 브랜딩 분리 (context processor 로 'FC Sky' 하드코딩 제거)
+- [x] D. 브랜딩 분리 — current_club 기반 로고·이름·타이틀(devlog 060)
 - 비범위(후속): 결제·요금제, 커스텀 도메인/서브도메인, schema/DB-per-tenant, Postgres 전환
 
 ## 🧹 기술 부채 / 개선 메모

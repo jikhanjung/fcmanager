@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}선수 순위 — FC Sky{% endblock %}
+{% block title %}선수 순위 — {{ current_club.name|default:"FC Sky" }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">선수 순위</h1>
 
