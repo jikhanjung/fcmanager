@@ -1,8 +1,8 @@
 #!/bin/bash
-# /srv/FcSky/deploy.sh X.Y.Z — FcSky 버전 스왑 배포 (운영 호스트 dolfinid 에서 실행)
+# /srv/fcmanager/deploy.sh X.Y.Z — FCManager 버전 스왑 배포 (운영 호스트 dolfinid 에서 실행)
 #
 # 전제: deploy/sync_to_srv.sh 로 이 파일과 docker-compose.yml·scripts/backup_db.py 가
-#       /srv/FcSky/ 에 이미 복사돼 있어야 한다. (개발 소스 /home/... 를 런타임으로 쓰지 않음)
+#       /srv/fcmanager/ 에 이미 복사돼 있어야 한다. (개발 소스 /home/... 를 런타임으로 쓰지 않음)
 #
 # 흐름: 이미지 pull → .env IMAGE_TAG 갱신 → 컨테이너 down → pre-deploy DB 스냅샷 → up → 헬스체크
 # 점검 페이지: down~up 사이 짧은 시간 nginx 가 502 → maintenance.html 자동 노출(devlog 023).
@@ -14,8 +14,8 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-cd /srv/FcSky
-IMAGE="honestjung/fcsky:${VERSION}"
+cd /srv/fcmanager
+IMAGE="honestjung/fcmanager:${VERSION}"
 
 echo "=== [1/6] Pull ${IMAGE} ==="
 docker pull "${IMAGE}"
@@ -35,16 +35,16 @@ docker compose down
 echo ""
 echo "=== [4/6] Pre-deploy DB 스냅샷 (롤백 안전망) ==="
 # compose down 직후 — writer 없어 cp 안전. WAL/SHM 도 함께 보존.
-SNAP_DIR=/srv/FcSky/backup/pre_deploy
+SNAP_DIR=/srv/fcmanager/backup/pre_deploy
 mkdir -p "$SNAP_DIR"
 TS=$(date -u +%Y%m%d_%H%M%S)
-SNAP="$SNAP_DIR/fcsky_pre_deploy_${VERSION}_${TS}.sqlite3"
-cp -p /srv/FcSky/db.sqlite3 "$SNAP"
-[ -f /srv/FcSky/db.sqlite3-wal ] && cp -p /srv/FcSky/db.sqlite3-wal "${SNAP}-wal" || true
-[ -f /srv/FcSky/db.sqlite3-shm ] && cp -p /srv/FcSky/db.sqlite3-shm "${SNAP}-shm" || true
+SNAP="$SNAP_DIR/fcmanager_pre_deploy_${VERSION}_${TS}.sqlite3"
+cp -p /srv/fcmanager/db.sqlite3 "$SNAP"
+[ -f /srv/fcmanager/db.sqlite3-wal ] && cp -p /srv/fcmanager/db.sqlite3-wal "${SNAP}-wal" || true
+[ -f /srv/fcmanager/db.sqlite3-shm ] && cp -p /srv/fcmanager/db.sqlite3-shm "${SNAP}-shm" || true
 echo "  snapshot: $SNAP ($(du -h "$SNAP" | cut -f1))"
 # retention: 최근 10개만 (hourly 12개·m710q daily 와 별개 트랙)
-ls -1tr "$SNAP_DIR"/fcsky_pre_deploy_*.sqlite3 2>/dev/null \
+ls -1tr "$SNAP_DIR"/fcmanager_pre_deploy_*.sqlite3 2>/dev/null \
     | head -n -10 \
     | while read -r f; do rm -f "$f" "$f-wal" "$f-shm"; done
 

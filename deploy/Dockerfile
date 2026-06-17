@@ -1,12 +1,12 @@
-# FC Sky — Django 애플리케이션 이미지
-# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcsky:0.5.7 .
+# FCManager — Django 애플리케이션 이미지(멀티테넌트 SaaS)
+# 빌드는 프로젝트 루트를 컨텍스트로:  docker build -f deploy/Dockerfile -t honestjung/fcmanager:0.5.7 .
 FROM python:3.12-slim
 
 # 릴리스 버전(단일 소스). 이 값을 올리면 LABEL·런타임 ENV·navbar 표시가 함께 바뀐다.
 ARG APP_VERSION=0.6.0
 
-LABEL org.opencontainers.image.title="FC Sky" \
-      org.opencontainers.image.description="FC Sky 웹사이트 (Django)" \
+LABEL org.opencontainers.image.title="FCManager" \
+      org.opencontainers.image.description="FCManager — 축구 클럽 관리 SaaS (Django)" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.source="https://github.com/honestjung/fcsky"
 

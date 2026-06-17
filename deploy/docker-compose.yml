@@ -5,7 +5,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: honestjung/fcsky:0.6.0
+    image: honestjung/fcmanager:0.6.0
     # 운영 SECRET_KEY 등 비밀값은 git 비추적인 deploy/.env 에서 주입(경로는 compose 파일 기준).
     env_file:
       - .env
@@ -21,7 +21,7 @@ services:
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
     volumes:
-      # DB·미디어는 호스트 영속 경로(/srv/FcSky). uid 1000(컨테이너 appuser) 소유여야 쓰기 가능.
-      # 미디어는 nginx가 /FcSky/media/ 로 직접 서빙(아래 디렉터리 alias).
-      - /srv/FcSky/db.sqlite3:/app/db.sqlite3
-      - /srv/FcSky/media:/app/media
+      # DB·미디어는 호스트 영속 경로(/srv/fcmanager). uid 1000(컨테이너 appuser) 소유여야 쓰기 가능.
+      # 미디어는 nginx가 /FCManager/media/ 로 직접 서빙(아래 디렉터리 alias).
+      - /srv/fcmanager/db.sqlite3:/app/db.sqlite3
+      - /srv/fcmanager/media:/app/media

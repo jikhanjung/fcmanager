@@ -1,6 +1,6 @@
-# FC Sky 웹사이트
+# FCManager 웹사이트
 
-**FC Sky**(K7=20-30대 / 40대 / 50대)의 선수단·대회·일정·결과·입상 내역을
+**FCManager**(K7=20-30대 / 40대 / 50대)의 선수단·대회·일정·결과·입상 내역을
 관리하고 공개하는 Django 사이트. 향후 실시간 중계 확장을 목표로 한다.
 
 ## 기술 스택
@@ -19,7 +19,7 @@ templates/           Bootstrap 기반 템플릿
 
 ## 개발 환경 실행
 ```bash
-source ~/venv/FcSky/bin/activate     # 가상환경
+source ~/venv/FCManager/bin/activate     # 가상환경
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver

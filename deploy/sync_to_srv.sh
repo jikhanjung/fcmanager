@@ -1,25 +1,25 @@
 #!/bin/bash
 # deploy/sync_to_srv.sh — 운영 호스트(dolfinid) 측 sync 진입점
 #
-# 개발 소스(/home/honestjung/projects/FcSky)는 git 체크아웃일 뿐, 런타임으로 직접 쓰지 않는다.
-# 배포 때 운영에 필요한 파일만 골라 /srv/FcSky 로 복사한다.
+# 개발 소스(/home/honestjung/projects/FCManager)는 git 체크아웃일 뿐, 런타임으로 직접 쓰지 않는다.
+# 배포 때 운영에 필요한 파일만 골라 /srv/fcmanager 로 복사한다.
 #
 # 사용 (dolfinid 에서 git pull 직후):
-#   cd ~/projects/FcSky
+#   cd ~/projects/FCManager
 #   git pull
 #   ./deploy/sync_to_srv.sh
-#   /srv/FcSky/deploy.sh X.Y.Z          # 이어서 컨테이너 교체
+#   /srv/fcmanager/deploy.sh X.Y.Z          # 이어서 컨테이너 교체
 #
 # 복사 대상:
-#   scripts/backup_db.py        → /srv/FcSky/scripts/   (호스트 hourly cron 이 실행)
-#   deploy/host/docker-compose.yml → /srv/FcSky/        (런타임 compose)
-#   deploy/host/deploy.sh       → /srv/FcSky/           (버전 스왑 스크립트)
+#   scripts/backup_db.py        → /srv/fcmanager/scripts/   (호스트 hourly cron 이 실행)
+#   deploy/host/docker-compose.yml → /srv/fcmanager/        (런타임 compose)
+#   deploy/host/deploy.sh       → /srv/fcmanager/           (버전 스왑 스크립트)
 #
-# .env 는 비밀값이라 동기화하지 않는다(운영 /srv/FcSky/.env 에서 호스트가 직접 관리).
+# .env 는 비밀값이라 동기화하지 않는다(운영 /srv/fcmanager/.env 에서 호스트가 직접 관리).
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HOST_DEST="${HOST_DEST:-/srv/FcSky}"
+HOST_DEST="${HOST_DEST:-/srv/fcmanager}"
 
 if [ ! -d "$HOST_DEST" ]; then
     echo "ERROR: $HOST_DEST 없음 — 이 스크립트는 운영 호스트(dolfinid)에서만 실행." >&2
@@ -39,4 +39,4 @@ chmod +x "$HOST_DEST/deploy.sh"
 echo "  2 files synced + deploy.sh executable."
 
 echo ""
-echo "=== Done. 다음: /srv/FcSky/deploy.sh X.Y.Z ==="
+echo "=== Done. 다음: /srv/fcmanager/deploy.sh X.Y.Z ==="

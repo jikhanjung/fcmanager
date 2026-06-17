@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""FC Sky 운영(dolfinid) hourly 백업 — DB(sqlite3 online backup) + nginx conf(tar.gz).
+"""FCManager 운영(dolfinid) hourly 백업 — DB(sqlite3 online backup) + nginx conf(tar.gz).
 
-fsis2026 의 backup_db.py 를 FC Sky 규모에 맞게 단순화한 것.
+fsis2026 의 backup_db.py 를 FCManager 규모에 맞게 단순화한 것.
   - DB: sqlite3 online backup API (컨테이너가 쓰는 중에도 안전)
   - nginx: /etc/nginx/sites-available/ tar.gz (전체 호스트 복원용, 권한 없으면 skip)
   - 소스별 최근 RETAIN_COUNT 개만 유지(오래된 것부터 삭제)
   - cron 으로 매시 정각 실행 (dolfinid devops crontab):
-      0 * * * * /usr/bin/python3 /srv/FcSky/scripts/backup_db.py >> /srv/FcSky/backup/backup.log 2>&1
+      0 * * * * /usr/bin/python3 /srv/fcmanager/scripts/backup_db.py >> /srv/fcmanager/backup/backup.log 2>&1
 
 fsis 와 달리 ghdb·data JSON 트랙 없음. DB 가 작아(<5MB) 부담 없음.
 """
@@ -17,9 +17,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-BACKUP_DIR = Path('/srv/FcSky/backup')
+BACKUP_DIR = Path('/srv/fcmanager/backup')
 SOURCES = [
-    ('fcsky', Path('/srv/FcSky/db.sqlite3')),
+    ('fcmanager', Path('/srv/fcmanager/db.sqlite3')),
 ]
 DATA_DIRS = [
     ('dolfinid_nginx', Path('/etc/nginx/sites-available')),

@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-FC Sky 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·입상 내역을
+FCManager 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·입상 내역을
 관리/공개하고, 장기적으로 실시간 중계까지 확장하는 것이 목표.
 
 ## 환경 / 실행
 
-- **가상환경은 반드시 `~/venv/FcSky` 사용** (프로젝트 로컬 `.venv` 만들지 말 것).
+- **가상환경은 반드시 `~/venv/FCManager` 사용** (프로젝트 로컬 `.venv` 만들지 말 것).
   ```bash
-  source ~/venv/FcSky/bin/activate
+  source ~/venv/FCManager/bin/activate
   ```
 - 의존성: `pip install -r requirements.txt` (Django 5.1, Pillow)
 - DB: SQLite(개발). `db.sqlite3`는 git 제외.

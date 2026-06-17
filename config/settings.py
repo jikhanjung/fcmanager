@@ -39,7 +39,7 @@ CSRF_TRUSTED_ORIGINS = [
     o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o
 ]
 
-# 서브패스 배포용 URL 접두사. 예: DJANGO_URL_PREFIX=FcSky 면 사이트 전체가 /FcSky/
+# 서브패스 배포용 URL 접두사. 예: DJANGO_URL_PREFIX=FCManager 면 사이트 전체가 /FCManager/
 # 하위에서 동작(정적/미디어 포함). 비우면(기본) 루트에서 동작. nginx는 경로를 자르지
 # 않고 그대로 전달하면 되고, 접두사 라우팅은 Django가 처리한다.
 URL_PREFIX = os.environ.get('DJANGO_URL_PREFIX', '').strip('/')
@@ -60,7 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # FC Sky apps
+    # FCManager apps
     'apps.clubs',
     'apps.teams',
     'apps.competitions',

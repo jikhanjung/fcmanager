@@ -1,14 +1,14 @@
 #!/bin/bash
 # =============================================================================
-# FC Sky 백업 스크립트 (m710q 개발/백업 호스트에서 실행)
+# FCManager 백업 스크립트 (m710q 개발/백업 호스트에서 실행)
 # 운영서버(dolfinid)에서 이 서버로 DB·media·.env 를 SSH pull 하여 보관.
-# fsis2026 backup-fsis.sh 를 FC Sky 규모로 단순화(단일 DB + media).
+# fsis2026 backup-fsis.sh 를 FCManager 규모로 단순화(단일 DB + media).
 #
-# cron 등록(m710q): crontab -e →  0 4 * * * /home/jikhanjung/scripts/backup-fcsky.sh
-# 수동 전체 스냅:    /home/jikhanjung/scripts/backup-fcsky.sh --full-snapshot
+# cron 등록(m710q): crontab -e →  0 4 * * * /home/jikhanjung/scripts/backup-fcmanager.sh
+# 수동 전체 스냅:    /home/jikhanjung/scripts/backup-fcmanager.sh --full-snapshot
 #
 # 운영서버 접속은 환경변수로 override 가능(기본값은 아래 설정):
-#   FCSKY_REMOTE_USER, FCSKY_REMOTE_HOST, FCSKY_REMOTE_PATH
+#   FCMANAGER_REMOTE_USER, FCMANAGER_REMOTE_HOST, FCMANAGER_REMOTE_PATH
 # =============================================================================
 
 set -euo pipefail
@@ -19,15 +19,15 @@ if [ "${1:-}" = "--full-snapshot" ]; then
 fi
 
 # --- 설정 ---
-REMOTE_USER="${FCSKY_REMOTE_USER:-honestjung}"
-REMOTE_HOST="${FCSKY_REMOTE_HOST:-34.64.158.160}"   # dolfinid
-REMOTE_PATH="${FCSKY_REMOTE_PATH:-/srv/FcSky}"
-# .env 는 운영 런타임 위치(/srv/FcSky/.env). 배포 분리 후 compose 도 여기서 실행.
-REMOTE_ENV_PATH="${FCSKY_REMOTE_ENV:-/srv/FcSky/.env}"
+REMOTE_USER="${FCMANAGER_REMOTE_USER:-honestjung}"
+REMOTE_HOST="${FCMANAGER_REMOTE_HOST:-34.64.158.160}"   # dolfinid
+REMOTE_PATH="${FCMANAGER_REMOTE_PATH:-/srv/fcmanager}"
+# .env 는 운영 런타임 위치(/srv/fcmanager/.env). 배포 분리 후 compose 도 여기서 실행.
+REMOTE_ENV_PATH="${FCMANAGER_REMOTE_ENV:-/srv/fcmanager/.env}"
 REMOTE="${REMOTE_USER}@${REMOTE_HOST}"
 
-BACKUP_DIR="/home/jikhanjung/backups/FcSky"
-NAS_DIR="/nas/JikhanJung/FcSky_backup"
+BACKUP_DIR="/home/jikhanjung/backups/fcmanager"
+NAS_DIR="/nas/JikhanJung/fcmanager_backup"
 DB_HISTORY_DIR="${BACKUP_DIR}/db_history"
 TAR_HISTORY_DIR="${BACKUP_DIR}/tar_history"
 CURRENT_DIR="${BACKUP_DIR}/current"
@@ -86,8 +86,8 @@ rsync -az --delete "${REMOTE}:${REMOTE_PATH}/media/" "${CURRENT_DIR}/media/" >> 
 log "media/ 동기화 완료"
 
 # --- 3. .env 백업 ---
-# 배포 구조 분리(devlog 050) 후 .env 는 운영 런타임 위치 /srv/FcSky/.env 에 있다
-# (호스트가 직접 관리, sync 대상 아님). FCSKY_REMOTE_ENV 로 override.
+# 배포 구조 분리(devlog 050) 후 .env 는 운영 런타임 위치 /srv/fcmanager/.env 에 있다
+# (호스트가 직접 관리, sync 대상 아님). FCMANAGER_REMOTE_ENV 로 override.
 scp -q "${REMOTE}:${REMOTE_ENV_PATH}" "${CURRENT_DIR}/.env" 2>/dev/null && \
     log ".env 복사 완료" || log "WARN: .env 없음 (건너뜀: ${REMOTE_ENV_PATH})"
 
@@ -188,7 +188,7 @@ if [ -d "${NAS_DIR}" ]; then
 fi
 
 # --- 8. 개발 환경(dev_data) 동기화 (디렉토리 있을 때만) ---
-DEV_DATA_DIR="/home/jikhanjung/dev_data/FcSky"
+DEV_DATA_DIR="/home/jikhanjung/dev_data/fcmanager"
 if [ -d "${DEV_DATA_DIR}" ]; then
     cp -f "${CURRENT_DIR}/db.sqlite3" "${DEV_DATA_DIR}/db.sqlite3"
     for ext in wal shm; do

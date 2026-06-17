@@ -25,6 +25,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Admin 사이트 헤더 커스터마이징
-admin.site.site_header = "FC Sky 관리자"
-admin.site.site_title = "FC Sky 관리자"
+admin.site.site_header = "FCManager 관리자"
+admin.site.site_title = "FCManager 관리자"
 admin.site.index_title = "데이터 관리"

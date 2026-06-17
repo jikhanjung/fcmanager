@@ -1,4 +1,4 @@
-# FC Sky 웹사이트 — TODO
+# FCManager 웹사이트 — TODO
 
 > 전체 로드맵은 [devlog/20260614_P01_프로젝트_계획.md](devlog/20260614_P01_프로젝트_계획.md) 참고.
 > 진행 상황 표기: `[ ]` 예정 · `[~]` 진행 중 · `[x]` 완료
@@ -48,16 +48,16 @@
 - [x] 미디어 파일 — `media/` 디렉토리 유지 + 백업으로 보호 (볼륨/S3 전환은 보류)
 - [x] **백업 체계** — 운영 hourly(`backup_db.py`) + m710q daily pull(`backup-fcsky.sh`).
       DB·media·nginx tar 포함. 매뉴얼: `docs/operation_manual/backup.md`.
-  - [x] `.env` 백업 — `/srv/FcSky/.env`에서 pull, m710q 백업 검증 완료(2026-06-17).
+  - [x] `.env` 백업 — `/srv/fcmanager/.env`에서 pull, m710q 백업 검증 완료(2026-06-17).
   - [ ] (선택) NAS/dev_data 디렉토리 생성 시 3계층화
-- [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/FcSky` (devlog 050, 매뉴얼 `deploy.md`)
+- [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/fcmanager` (devlog 050, 매뉴얼 `deploy.md`)
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 
 ## ✅ Phase 6 — 멀티테넌트 SaaS 전환 (A~D 완료)
 
-> 단일 클럽(FC Sky) → 여러 클럽 SaaS. 최소 전환 계획: `devlog/20260617_P03_SaaS_멀티테넌트_전환계획.md`.
+> 단일 클럽(FCManager) → 여러 클럽 SaaS. 최소 전환 계획: `devlog/20260617_P03_SaaS_멀티테넌트_전환계획.md`.
 
 - [x] A. 테넌트 모델 + backfill (`Club`·`ClubMembership`, 8개 모델 `club` FK, fcsky backfill — devlog 053)
       · Competition/Division 은 공유(참가는 CompetitionEntry), Opponent 는 클럽별

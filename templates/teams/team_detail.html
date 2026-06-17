@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ team.name }} — {{ current_club.name|default:"FC Sky" }}{% endblock %}
+{% block title %}{{ team.name }} — {{ current_club.name|default:"FCManager" }}{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-4">
   {% if team.logo %}<img src="{{ team.logo.url }}" alt="" height="64">{% endif %}

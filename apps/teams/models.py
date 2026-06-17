@@ -3,7 +3,7 @@ from django.urls import reverse
 
 
 class Team(models.Model):
-    """FC Sky 산하 팀 (K7=20-30대, 40대, 50대)."""
+    """FCManager 산하 팀 (K7=20-30대, 40대, 50대)."""
 
     class AgeGroup(models.TextChoices):
         K7 = "K7", "K7 (20-30대)"

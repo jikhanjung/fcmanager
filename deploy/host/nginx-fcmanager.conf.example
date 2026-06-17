@@ -1,7 +1,7 @@
-# fcmanager.app — FcSky(멀티테넌트 SaaS) nginx 예시.
+# fcmanager.app — FCManager(멀티테넌트 SaaS) nginx 예시.
 # dolfinid 의 /etc/nginx/sites-available/fcmanager 로 복사 후 sites-enabled 에 심링크.
 # 컨테이너는 127.0.0.1:8003 (compose). 정적은 컨테이너 내 WhiteNoise 가 /static/ 으로 서빙,
-# 미디어는 호스트 /srv/FcSky/media 를 nginx 가 직접 서빙.
+# 미디어는 호스트 /srv/fcmanager/media 를 nginx 가 직접 서빙.
 #
 # 적용:
 #   sudo cp deploy/host/nginx-fcmanager.conf.example /etc/nginx/sites-available/fcmanager
@@ -20,7 +20,7 @@ server {
 
     # 미디어: 호스트 디렉토리 직접 서빙 (컨테이너 볼륨과 동일 경로)
     location /media/ {
-        alias /srv/FcSky/media/;
+        alias /srv/fcmanager/media/;
         access_log off;
         expires 7d;
     }
@@ -35,10 +35,10 @@ server {
     }
 }
 
-# (참고) 기존 /FcSky/ 경로를 쓰던 북마크를 새 도메인으로 보내려면, FcSky 가 얹혀 있던
+# (참고) 기존 /FCManager/ 경로를 쓰던 북마크를 새 도메인으로 보내려면, FCManager 가 얹혀 있던
 # 기존 사이트(예: 2026biennale) 의 server 블록에 아래를 추가:
 #
-#   location /FcSky/ {
+#   location /FCManager/ {
 #       return 301 https://fcmanager.app/fcsky/;
 #   }
-#   location = /FcSky  { return 301 https://fcmanager.app/fcsky/; }
+#   location = /FCManager  { return 301 https://fcmanager.app/fcsky/; }

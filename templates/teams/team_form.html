@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if is_create %}팀 추가{% else %}{{ team.name }} 수정{% endif %} — {{ current_club.name|default:"FC Sky" }}{% endblock %}
+{% block title %}{% if is_create %}팀 추가{% else %}{{ team.name }} 수정{% endif %} — {{ current_club.name|default:"FCManager" }}{% endblock %}
 {% block content %}
 <h1 class="h4 mb-4">{% if is_create %}팀 추가{% else %}팀 수정 — {{ team.name }}{% endif %}</h1>
 

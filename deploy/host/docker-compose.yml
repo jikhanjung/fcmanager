@@ -1,14 +1,14 @@
 # 운영(dolfinid) 전용 compose.
-#   - deploy/sync_to_srv.sh 가 이 파일을 /srv/FcSky/docker-compose.yml 로 복사한다.
-#   - 그 위치(/srv/FcSky)에서 실행: cd /srv/FcSky && docker compose up -d
+#   - deploy/sync_to_srv.sh 가 이 파일을 /srv/fcmanager/docker-compose.yml 로 복사한다.
+#   - 그 위치(/srv/fcmanager)에서 실행: cd /srv/fcmanager && docker compose up -d
 #   - 이미지는 빌드하지 않고 pull. 버전은 .env 의 IMAGE_TAG (deploy.sh 가 갱신).
 #   - 개발/로컬 빌드는 별도 파일(deploy/docker-compose.yml, build: 포함)을 쓴다.
 services:
   web:
-    image: honestjung/fcsky:${IMAGE_TAG:-latest}
-    container_name: fcsky
+    image: honestjung/fcmanager:${IMAGE_TAG:-latest}
+    container_name: fcmanager
     restart: unless-stopped
-    # 비밀값(DJANGO_SECRET_KEY 등) + IMAGE_TAG 는 /srv/FcSky/.env 에서 주입(git 비추적).
+    # 비밀값(DJANGO_SECRET_KEY 등) + IMAGE_TAG 는 /srv/fcmanager/.env 에서 주입(git 비추적).
     env_file:
       - .env
     ports:
@@ -23,6 +23,6 @@ services:
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
     volumes:
-      # DB·미디어는 호스트 영속 경로(/srv/FcSky). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
-      - /srv/FcSky/db.sqlite3:/app/db.sqlite3
-      - /srv/FcSky/media:/app/media
+      # DB·미디어는 호스트 영속 경로(/srv/fcmanager). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
+      - /srv/fcmanager/db.sqlite3:/app/db.sqlite3
+      - /srv/fcmanager/media:/app/media
