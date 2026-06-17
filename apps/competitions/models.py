@@ -136,7 +136,7 @@ class Award(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="awards",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     title = models.CharField("수상명", max_length=120, help_text="예: 우승, 준우승, 득점왕")
     competition = models.ForeignKey(

@@ -12,7 +12,7 @@ class Team(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="teams",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     name = models.CharField("팀 이름", max_length=100)
     slug = models.SlugField("URL 슬러그", max_length=120)
@@ -50,7 +50,7 @@ class Player(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="players",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     name = models.CharField("이름", max_length=50)
     birth_year = models.PositiveIntegerField("출생 연도", null=True, blank=True)

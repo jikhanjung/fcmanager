@@ -62,7 +62,7 @@ class Match(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="matches",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     # 두 참가팀(entry). 우리 팀일 수도 외부팀일 수도 있다(대칭).
     home_entry = models.ForeignKey(

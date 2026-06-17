@@ -7,7 +7,7 @@ class Notice(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="notices",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     title = models.CharField("제목", max_length=200)
     body = models.TextField("내용")

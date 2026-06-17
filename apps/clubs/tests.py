@@ -2,6 +2,7 @@ from django.test import TestCase
 
 from apps.clubs.models import Club
 from apps.notices.models import Notice
+from apps.teams.models import Player, Team
 
 
 class TenantIsolationTest(TestCase):
@@ -13,6 +14,20 @@ class TenantIsolationTest(TestCase):
         cls.b = Club.objects.create(name="B클럽", slug="b")
         Notice.objects.create(club=cls.a, title="A전용공지", body="x")
         Notice.objects.create(club=cls.b, title="B전용공지", body="y")
+        cls.a_team = Team.objects.create(club=cls.a, name="A팀", slug="ateam", age_group="50")
+        cls.b_team = Team.objects.create(club=cls.b, name="B팀", slug="bteam", age_group="50")
+        cls.b_player = Player.objects.create(club=cls.b, name="B선수")
+
+    def test_team_list_and_detail_isolated(self):
+        ra = self.client.get("/a/teams/")
+        self.assertContains(ra, "A팀")
+        self.assertNotContains(ra, "B팀")
+        # 교차: A 경로로 B 팀 상세 → 404
+        self.assertEqual(self.client.get(f"/a/teams/{self.b_team.slug}/").status_code, 404)
+
+    def test_player_detail_isolated(self):
+        self.assertEqual(self.client.get(f"/a/players/{self.b_player.pk}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/b/players/{self.b_player.pk}/").status_code, 200)
 
     def test_notice_list_scoped_to_club(self):
         ra = self.client.get("/a/notices/")

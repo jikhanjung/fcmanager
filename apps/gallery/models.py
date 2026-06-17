@@ -6,7 +6,7 @@ class GalleryItem(models.Model):
 
     club = models.ForeignKey(
         "clubs.Club", on_delete=models.CASCADE, related_name="gallery_items",
-        verbose_name="클럽", null=True, blank=True,
+        verbose_name="클럽",
     )
     title = models.CharField("제목", max_length=200, blank=True)
     image = models.ImageField("사진", upload_to="gallery/%Y/%m/", blank=True)

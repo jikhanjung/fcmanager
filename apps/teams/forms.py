@@ -87,6 +87,8 @@ class MembershipAddForm(forms.ModelForm):
         self.fields["player"].empty_label = "— 선수 선택 —"
         qs = Player.objects.filter(deleted_at__isnull=True).order_by("name")
         if team is not None:
+            # 같은 클럽 선수만(테넌트 격리).
+            qs = qs.filter(club_id=team.club_id)
             taken = TeamMembership.objects.filter(
                 team=team, competition=competition).values_list("player_id", flat=True)
             qs = qs.exclude(pk__in=list(taken))
