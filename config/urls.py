@@ -1,27 +1,21 @@
-"""URL configuration for the FC Sky site."""
+"""플랫폼(테넌트 밖) URLconf — admin·랜딩만.
+
+클럽 페이지(`/<club-slug>/...`)는 TenantMiddleware 가 슬러그를 떼고 `config.urls_tenant`
+로 라우팅한다. 정적/미디어와 admin·accounts 는 슬러그 밖의 공유/플랫폼 경로다.
+"""
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
-from django.urls import include, path
+from django.urls import path
+
+from apps.clubs import views as club_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
-    path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("", include("apps.teams.urls")),
-    path("", include("apps.matches.urls")),
-    path("", include("apps.competitions.urls")),
-    path("", include("apps.notices.urls")),
-    path("", include("apps.gallery.urls")),
+    path("", club_views.platform_home, name="platform_home"),
 ]
 
-# 서브패스 배포(DJANGO_URL_PREFIX 지정 시): 전체 URL을 접두사 하위로 묶는다.
-# 모든 내부 링크가 reverse()/{% url %}/{% static %} 기반이라 접두사가 자동 반영된다.
-if settings.URL_PREFIX:
-    urlpatterns = [path(f"{settings.URL_PREFIX}/", include(urlpatterns))]
-
-# 개발 환경 미디어 서빙. MEDIA_URL이 이미 접두사를 포함하므로 래핑 뒤에 추가한다.
+# 개발 환경 미디어 서빙.
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

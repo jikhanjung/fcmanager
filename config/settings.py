@@ -74,6 +74,9 @@ MIDDLEWARE = [
     # 정적 파일 서빙(운영). 개발(DEBUG=True)에서는 staticfiles 앱이 우선 처리.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # 테넌트 해석: 경로 첫 세그먼트(/<club-slug>/)로 request.club·urlconf 설정.
+    # CommonMiddleware(APPEND_SLASH)가 바뀐 path_info·urlconf를 보도록 그 앞에 둔다.
+    'apps.clubs.middleware.TenantMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
