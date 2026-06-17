@@ -22,6 +22,8 @@ fi
 REMOTE_USER="${FCSKY_REMOTE_USER:-honestjung}"
 REMOTE_HOST="${FCSKY_REMOTE_HOST:-34.64.158.160}"   # dolfinid
 REMOTE_PATH="${FCSKY_REMOTE_PATH:-/srv/FcSky}"
+# .env 는 영속 볼륨(/srv/FcSky)이 아니라 compose 를 실행하는 홈 체크아웃에 있다.
+REMOTE_ENV_PATH="${FCSKY_REMOTE_ENV:-/home/honestjung/projects/FcSky/deploy/.env}"
 REMOTE="${REMOTE_USER}@${REMOTE_HOST}"
 
 BACKUP_DIR="/home/jikhanjung/backups/FcSky"
@@ -84,9 +86,10 @@ rsync -az --delete "${REMOTE}:${REMOTE_PATH}/media/" "${CURRENT_DIR}/media/" >> 
 log "media/ 동기화 완료"
 
 # --- 3. .env 백업 ---
-# 운영의 .env 는 compose 기준 경로라 /srv/FcSky/deploy/.env 에 있다.
-scp -q "${REMOTE}:${REMOTE_PATH}/deploy/.env" "${CURRENT_DIR}/.env" 2>/dev/null && \
-    log ".env 복사 완료" || log "WARN: .env 없음 (건너뜀)"
+# 운영의 .env 는 /srv/FcSky(영속 볼륨)가 아니라 compose 를 실행하는 홈 체크아웃
+# (/home/honestjung/projects/FcSky/deploy/.env)에 있다. FCSKY_REMOTE_ENV 로 override.
+scp -q "${REMOTE}:${REMOTE_ENV_PATH}" "${CURRENT_DIR}/.env" 2>/dev/null && \
+    log ".env 복사 완료" || log "WARN: .env 없음 (건너뜀: ${REMOTE_ENV_PATH})"
 
 # --- 4. nginx conf tar (운영 hourly 가 만든 최신본 1개 pull) ---
 NGINX_TAR_REMOTE=$(ssh "${REMOTE}" "ls -t ${REMOTE_PATH}/backup/dolfinid_nginx_*.tar.gz 2>/dev/null | head -1" 2>/dev/null || true)
