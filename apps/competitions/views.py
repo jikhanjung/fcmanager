@@ -4,7 +4,7 @@ from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.matches.models import Match, MatchEvent, OpponentMatch
+from apps.matches.models import Match, MatchEvent
 from apps.matches.services import (
     club_record,
     event_ranking,
@@ -50,86 +50,54 @@ def standings(request):
 
     groups = []
     if competition is not None:
-        # 순위표는 조별리그만 집계(녹아웃은 대진표로 표시).
+        # 순위표는 조별리그만 집계(녹아웃은 대진표로 표시). 부문(division)별로 참가팀(entry)
+        # 전적을 home/away 기준으로 모은다 — 우리 경기·상대팀 간 경기 모두 같은 Match.
         matches = Match.objects.filter(
             competition=competition,
             stage=Match.Stage.GROUP,
             status=Match.Status.FINISHED,
-            our_score__isnull=False,
-            opponent_score__isnull=False,
-        ).select_related("our_team", "opponent")
-
-        def _blank(name, url, is_ours):
-            return {"name": name, "url": url, "is_ours": is_ours,
-                    "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0}
-
-        by_group = {}
-        for m in matches:
-            g = by_group.setdefault(m.our_team_id, {"team": m.our_team, "rows": {}})
-            rows = g["rows"]
-            ours = rows.setdefault(
-                ("T", m.our_team_id),
-                _blank(m.our_team.name, m.our_team.get_absolute_url(), True))
-            opp = rows.setdefault(
-                ("O", m.opponent_id), _blank(m.opponent.name, None, False))
-
-            ours["p"] += 1
-            ours["gf"] += m.our_score
-            ours["ga"] += m.opponent_score
-            opp["p"] += 1
-            opp["gf"] += m.opponent_score
-            opp["ga"] += m.our_score
-
-            result = m.result
-            if result == "W":
-                ours["w"] += 1
-                opp["l"] += 1
-            elif result == "L":
-                ours["l"] += 1
-                opp["w"] += 1
-            else:
-                ours["d"] += 1
-                opp["d"] += 1
-
-        # 상대팀 간 경기(있으면) 같은 부문 조에 반영해 순위 보정.
-        group_by_age = {g["team"].age_group: g for g in by_group.values()}
-        om_qs = OpponentMatch.objects.filter(
-            competition=competition,
             home_score__isnull=False,
             away_score__isnull=False,
-        ).select_related("home", "away")
-        for om in om_qs:
-            g = group_by_age.get(om.age_group)
-            if g is None:
-                continue
-            rows = g["rows"]
-            h = rows.setdefault(("O", om.home_id), _blank(om.home.name, None, False))
-            a = rows.setdefault(("O", om.away_id), _blank(om.away.name, None, False))
-            h["p"] += 1
-            h["gf"] += om.home_score
-            h["ga"] += om.away_score
-            a["p"] += 1
-            a["gf"] += om.away_score
-            a["ga"] += om.home_score
-            if om.home_score > om.away_score:
-                h["w"] += 1
-                a["l"] += 1
-            elif om.home_score < om.away_score:
-                h["l"] += 1
-                a["w"] += 1
-            else:
-                h["d"] += 1
-                a["d"] += 1
+            division__isnull=False,
+        ).select_related(
+            "division", "home_entry__team", "home_entry__opponent",
+            "away_entry__team", "away_entry__opponent",
+        )
 
-        for g in by_group.values():
+        def _blank(entry):
+            is_ours = entry.team_id is not None
+            url = entry.team.get_absolute_url() if is_ours else None
+            return {"name": entry.name, "url": url, "is_ours": is_ours,
+                    "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0}
+
+        by_div = {}
+        for m in matches:
+            if m.home_entry_id is None or m.away_entry_id is None:
+                continue
+            g = by_div.setdefault(m.division_id, {"division": m.division, "rows": {}})
+            rows = g["rows"]
+            hr = rows.setdefault(m.home_entry_id, _blank(m.home_entry))
+            ar = rows.setdefault(m.away_entry_id, _blank(m.away_entry))
+            hr["p"] += 1; hr["gf"] += m.home_score; hr["ga"] += m.away_score
+            ar["p"] += 1; ar["gf"] += m.away_score; ar["ga"] += m.home_score
+            if m.home_score > m.away_score:
+                hr["w"] += 1; ar["l"] += 1
+            elif m.home_score < m.away_score:
+                hr["l"] += 1; ar["w"] += 1
+            else:
+                hr["d"] += 1; ar["d"] += 1
+
+        for g in by_div.values():
             table = list(g["rows"].values())
             for row in table:
                 row["gd"] = row["gf"] - row["ga"]
                 row["pts"] = row["w"] * 3 + row["d"]
             table.sort(key=lambda r: (-r["pts"], -r["gd"], -r["gf"], r["name"]))
-            groups.append({"team": g["team"], "table": table})
+            groups.append({"division": g["division"], "table": table})
 
-        groups.sort(key=lambda x: _AGE_ORDER.get(x["team"].age_group, 9))
+        _DIV_ORDER = {"2030": 0, "40": 1, "50": 2, "OPEN": 3}
+        groups.sort(key=lambda x: _DIV_ORDER.get(
+            x["division"].age_group if x["division"] else "", 9))
 
     context = {
         "competition": competition,
@@ -191,7 +159,7 @@ def year_detail(request, year):
     )
     recent = (
         Match.objects.filter(competition__year=year, status=Match.Status.FINISHED)
-        .select_related("our_team", "opponent", "competition")
+        .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:10]
     )
 
@@ -222,17 +190,16 @@ def competition_list(request):
                   {"competitions": competitions})
 
 
-def _bracket_for(matches, division, opp_sfs, div_to_team_age):
-    """한 부문의 녹아웃 대진(준결승[우리+반대편] → 결승) 구조. 녹아웃 없으면 None."""
+def _bracket_for(matches, division):
+    """한 부문의 녹아웃 대진(준결승 → 결승) 구조. 녹아웃 없으면 None.
+
+    참가팀 개편 후 반대편 준결승도 일반 Match(우리 팀 entry 없음)라 모두 같이 다룬다.
+    """
     knockout = [m for m in matches if m.is_knockout]
-    team_age = div_to_team_age.get(division.age_group) if division else None
-    rev_sfs = [o for o in opp_sfs if o.age_group == team_age]
-    our_semis = [m for m in knockout if m.stage == Match.Stage.SEMI]
-    finals = [m for m in knockout if m.stage == Match.Stage.FINAL]
-    if not (knockout or rev_sfs):
+    if not knockout:
         return None
-    semis = ([{"kind": "match", "obj": m} for m in our_semis]
-             + [{"kind": "opp", "obj": o} for o in rev_sfs])
+    semis = [{"kind": "match", "obj": m} for m in knockout if m.stage == Match.Stage.SEMI]
+    finals = [m for m in knockout if m.stage == Match.Stage.FINAL]
     return {"semis": semis, "final": finals[0] if finals else None}
 
 
@@ -241,18 +208,12 @@ def competition_detail(request, slug):
     competition = get_object_or_404(Competition, slug=slug)
     divisions = list(competition.divisions.all())
     entries = list(
-        competition.entries.select_related("team", "division").order_by("team__name")
+        competition.entries.select_related("team", "opponent", "division").order_by("team__name")
     )
     matches = list(
-        competition.matches.select_related("our_team", "opponent", "division")
+        competition.matches.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "division")
         .order_by("kickoff")
     )
-    div_to_team_age = {"2030": "K7", "40": "40", "50": "50"}
-    opp_sfs = list(
-        competition.opponent_matches.filter(stage=Match.Stage.SEMI)
-        .select_related("home", "away")
-    )
-
     def make_panel(division, ms, es, key, label):
         return {
             "key": key,
@@ -260,7 +221,7 @@ def competition_detail(request, slug):
             "division": division,
             "entries": es,
             "group_matches": [m for m in ms if not m.is_knockout],
-            "bracket": _bracket_for(ms, division, opp_sfs, div_to_team_age),
+            "bracket": _bracket_for(ms, division),
         }
 
     panels = []

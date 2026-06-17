@@ -20,8 +20,8 @@
 {% for group in groups %}
   <div class="mb-4">
     <div class="fw-bold mb-2">
-      <span class="badge bg-primary">{{ group.team.get_age_group_display }}</span>
-      {{ group.team.name }} 부문
+      <span class="badge bg-primary">{{ group.division.get_age_group_display }}</span>
+      {{ group.division.label }}
     </div>
     <div class="table-responsive">
       <table class="table table-hover align-middle text-center bg-white shadow-sm mb-0">

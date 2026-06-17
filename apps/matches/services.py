@@ -12,30 +12,40 @@ from .models import Match, MatchEvent
 AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 
 
+_MATCH_ENTRY_SELECT = (
+    "club", "competition",
+    "home_entry__team", "home_entry__opponent",
+    "away_entry__team", "away_entry__opponent",
+)
+
+
 def finished_matches(year=None):
     """점수가 입력된 종료 경기 쿼리셋. year(연도)가 주어지면 해당 연도 대회로 한정."""
     qs = Match.objects.filter(
         status=Match.Status.FINISHED,
-        our_score__isnull=False,
-        opponent_score__isnull=False,
+        home_score__isnull=False,
+        away_score__isnull=False,
     )
     if year and str(year).isdigit():
         qs = qs.filter(competition__year=year)
-    return qs
+    return qs.select_related(*_MATCH_ENTRY_SELECT)
 
 
 def club_record(matches):
-    """팀별 전적 리스트와 클럽 합계 dict를 반환.
+    """팀별 전적 리스트와 클럽 합계 dict를 반환(우리 팀이 참가한 경기만).
 
     반환: (teams, club)
       teams — 부문 순으로 정렬된 팀별 전적 dict 리스트
       club  — 전 팀 합산 전적 dict
     """
     team_rows = {}
-    for m in matches.select_related("our_team"):
+    for m in matches:
+        team = m.our_team  # 호환 프로퍼티: 우리 팀 entry 의 Team (없으면 None=상대팀 간 경기)
+        if team is None:
+            continue
         r = team_rows.setdefault(
-            m.our_team_id,
-            {"team": m.our_team, "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0},
+            team.id,
+            {"team": team, "p": 0, "w": 0, "d": 0, "l": 0, "gf": 0, "ga": 0},
         )
         r["p"] += 1
         r["gf"] += m.our_score
@@ -139,9 +149,16 @@ def recompute_score(match):
     def count(etype, side):
         return sum(1 for e in evs if e["event_type"] == etype and e["side"] == side)
 
-    match.our_score = count(GOAL, OUR) + count(OWN_GOAL, OPP)
-    match.opponent_score = count(GOAL, OPP) + count(OWN_GOAL, OUR)
-    match.save(update_fields=["our_score", "opponent_score", "updated_at"])
+    our_score = count(GOAL, OUR) + count(OWN_GOAL, OPP)
+    opp_score = count(GOAL, OPP) + count(OWN_GOAL, OUR)
+    our = match.our_entry
+    if our is None:  # 우리 팀 경기가 아니면 이벤트 기반 재집계 불가
+        return
+    if our.id == match.home_entry_id:
+        match.home_score, match.away_score = our_score, opp_score
+    else:
+        match.home_score, match.away_score = opp_score, our_score
+    match.save(update_fields=["home_score", "away_score", "updated_at"])
 
 
 def serialize_timeline(match):

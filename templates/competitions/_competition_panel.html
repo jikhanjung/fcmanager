@@ -2,7 +2,11 @@
 <h2 class="h6 text-muted mt-3 mb-2">출전팀</h2>
 <div class="d-flex flex-wrap gap-2 mb-4">
   {% for e in p.entries %}
-    <a href="{{ e.team.get_absolute_url }}" class="badge bg-light text-dark border text-decoration-none p-2">{{ e.team.name }}</a>
+    {% if e.team %}
+      <a href="{{ e.team.get_absolute_url }}" class="badge bg-light text-dark border text-decoration-none p-2">{{ e.name }}</a>
+    {% else %}
+      <span class="badge bg-light text-dark border p-2">{{ e.name }}</span>
+    {% endif %}
   {% empty %}
     <span class="text-muted">출전 정보가 없습니다.</span>
   {% endfor %}
@@ -16,35 +20,19 @@
     <div class="ko-pair">
     {% for s in p.bracket.semis %}
       <div class="ko-cell">
-        {% if s.kind == "match" %}
-          <a href="{{ s.obj.get_absolute_url }}" class="ko-card">
-            <div class="ko-row">
-              <span class="nm {% if s.obj.result == 'W' %}fw-bold{% endif %}">{{ s.obj.our_team.name }}</span>
-              <span class="sc">{% if s.obj.our_score is not None %}{{ s.obj.our_score }}{% else %}-{% endif %}</span>
-            </div>
-            <div class="ko-row">
-              <span class="nm {% if s.obj.result == 'L' %}fw-bold{% endif %}">{{ s.obj.opponent.name }}</span>
-              <span class="sc">{% if s.obj.opponent_score is not None %}{{ s.obj.opponent_score }}{% else %}-{% endif %}</span>
-            </div>
-            <div class="text-muted small mt-1">{{ s.obj.kickoff|date:"m/d H:i" }}{% if s.obj.our_score is None %} · {{ s.obj.get_status_display }}{% endif %}</div>
-          </a>
-        {% else %}
-          <div class="ko-card">
-            <div class="ko-row">
-              <span class="nm {% if s.obj.winner and s.obj.winner.id == s.obj.home_id %}fw-bold{% endif %}">{{ s.obj.home.name }}</span>
-              <span class="sc">{% if s.obj.home_score is not None %}{{ s.obj.home_score }}{% else %}-{% endif %}</span>
-            </div>
-            <div class="ko-row">
-              <span class="nm {% if s.obj.winner and s.obj.winner.id == s.obj.away_id %}fw-bold{% endif %}">{{ s.obj.away.name }}</span>
-              <span class="sc">{% if s.obj.away_score is not None %}{{ s.obj.away_score }}{% else %}-{% endif %}</span>
-            </div>
-            <div class="ko-meta">
-              <span class="text-muted small">반대편</span>
-              {% if user.is_staff %}
-                <a href="{% url 'matches:opponent_edit' s.obj.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-primary btn-sm py-0">결과 입력</a>
-              {% endif %}
-            </div>
+        <a href="{{ s.obj.get_absolute_url }}" class="ko-card">
+          <div class="ko-row">
+            <span class="nm {% if s.obj.winner_entry and s.obj.winner_entry.id == s.obj.home_entry_id %}fw-bold{% endif %}">{% if s.obj.home_entry %}{{ s.obj.home_entry.name }}{% else %}미정{% endif %}</span>
+            <span class="sc">{% if s.obj.home_score is not None %}{{ s.obj.home_score }}{% else %}-{% endif %}</span>
           </div>
+          <div class="ko-row">
+            <span class="nm {% if s.obj.winner_entry and s.obj.winner_entry.id == s.obj.away_entry_id %}fw-bold{% endif %}">{% if s.obj.away_entry %}{{ s.obj.away_entry.name }}{% else %}미정{% endif %}</span>
+            <span class="sc">{% if s.obj.away_score is not None %}{{ s.obj.away_score }}{% else %}-{% endif %}</span>
+          </div>
+          <div class="text-muted small mt-1">{% if s.obj.kickoff %}{{ s.obj.kickoff|date:"m/d H:i" }}{% endif %}{% if s.obj.home_score is None %} · {{ s.obj.get_status_display }}{% endif %}</div>
+        </a>
+        {% if user.is_staff and not s.obj.is_our_match and s.obj.home_score is None %}
+          <a href="{% url 'matches:opponent_edit' s.obj.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-primary btn-sm py-0 mt-1">결과 입력</a>
         {% endif %}
       </div>
     {% endfor %}
@@ -56,14 +44,14 @@
       <div class="ko-cell">
         <a href="{{ p.bracket.final.get_absolute_url }}" class="ko-card ko-card--final">
           <div class="ko-row">
-            <span class="nm {% if p.bracket.final.result == 'W' %}fw-bold{% endif %}">{{ p.bracket.final.our_team.name }}</span>
-            <span class="sc">{% if p.bracket.final.our_score is not None %}{{ p.bracket.final.our_score }}{% else %}-{% endif %}</span>
+            <span class="nm {% if p.bracket.final.winner_entry and p.bracket.final.winner_entry.id == p.bracket.final.home_entry_id %}fw-bold{% endif %}">{% if p.bracket.final.home_entry %}{{ p.bracket.final.home_entry.name }}{% else %}미정{% endif %}</span>
+            <span class="sc">{% if p.bracket.final.home_score is not None %}{{ p.bracket.final.home_score }}{% else %}-{% endif %}</span>
           </div>
           <div class="ko-row">
-            <span class="nm {% if p.bracket.final.result == 'L' %}fw-bold{% endif %}">{{ p.bracket.final.opponent.name }}</span>
-            <span class="sc">{% if p.bracket.final.opponent_score is not None %}{{ p.bracket.final.opponent_score }}{% else %}-{% endif %}</span>
+            <span class="nm {% if p.bracket.final.winner_entry and p.bracket.final.winner_entry.id == p.bracket.final.away_entry_id %}fw-bold{% endif %}">{% if p.bracket.final.away_entry %}{{ p.bracket.final.away_entry.name }}{% else %}미정{% endif %}</span>
+            <span class="sc">{% if p.bracket.final.away_score is not None %}{{ p.bracket.final.away_score }}{% else %}-{% endif %}</span>
           </div>
-          <div class="text-muted small mt-1">{{ p.bracket.final.kickoff|date:"m/d H:i" }}{% if p.bracket.final.our_score is None %} · {{ p.bracket.final.get_status_display }}{% endif %}</div>
+          <div class="text-muted small mt-1">{% if p.bracket.final.kickoff %}{{ p.bracket.final.kickoff|date:"m/d H:i" }}{% endif %}{% if p.bracket.final.home_score is None %} · {{ p.bracket.final.get_status_display }}{% endif %}</div>
         </a>
       </div>
     </div>
@@ -76,13 +64,12 @@
   {% for m in p.group_matches %}
     <a href="{{ m.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
       <span>
-        <small class="text-muted me-2">{{ m.kickoff|date:"m/d H:i" }}</small>
-        {{ m.our_team.name }} vs {{ m.opponent.name }}
+        <small class="text-muted me-2">{% if m.kickoff %}{{ m.kickoff|date:"m/d H:i" }}{% endif %}</small>
+        {{ m.home_entry.name }} vs {{ m.away_entry.name }}
       </span>
       <span class="fw-bold">
-        {% if m.our_score is not None %}
-          {% if m.result == "W" %}<span class="text-success">{% elif m.result == "L" %}<span class="text-danger">{% else %}<span class="text-muted">{% endif %}
-          {{ m.our_score }} : {{ m.opponent_score }}</span>
+        {% if m.home_score is not None %}
+          {{ m.home_score }} : {{ m.away_score }}
         {% else %}
           <span class="badge bg-light text-muted border">{{ m.get_status_display }}</span>
         {% endif %}

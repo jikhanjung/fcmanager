@@ -81,12 +81,11 @@ class Division(models.Model):
 
 
 class CompetitionEntry(models.Model):
-    """팀의 대회 출전 (시즌별)."""
+    """대회/부문 참가팀. 우리 팀(team) 또는 외부팀(opponent) 중 정확히 하나.
 
-    team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="entries",
-        verbose_name="팀",
-    )
+    경기(Match)는 이 참가팀(entry) 둘을 home/away 로 참조한다.
+    """
+
     competition = models.ForeignKey(
         Competition, on_delete=models.CASCADE, related_name="entries",
         verbose_name="대회",
@@ -95,16 +94,41 @@ class CompetitionEntry(models.Model):
         "Division", on_delete=models.SET_NULL, related_name="entries",
         verbose_name="부문", null=True, blank=True,
     )
+    # 참가팀 정체성: team(우리 클럽 팀) XOR opponent(외부팀). 정확히 하나.
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="entries",
+        verbose_name="우리 팀", null=True, blank=True,
+    )
+    opponent = models.ForeignKey(
+        "matches.Opponent", on_delete=models.CASCADE, related_name="entries",
+        verbose_name="외부팀", null=True, blank=True,
+    )
     note = models.CharField("비고", max_length=200, blank=True)
 
     class Meta:
-        verbose_name = "대회 출전"
-        verbose_name_plural = "대회 출전"
+        verbose_name = "대회 참가팀"
+        verbose_name_plural = "대회 참가팀"
         ordering = ["-competition__year", "competition"]
-        unique_together = [("team", "competition", "division")]
+        unique_together = [
+            ("competition", "division", "team"),
+            ("competition", "division", "opponent"),
+        ]
+
+    @property
+    def name(self):
+        if self.team_id:
+            return self.team.name
+        if self.opponent_id:
+            return self.opponent.name
+        return "?"
+
+    @property
+    def club_id(self):
+        """우리 팀 entry 면 소속 클럽 id, 외부팀이면 None."""
+        return self.team.club_id if self.team_id else None
 
     def __str__(self):
-        return f"{self.team} - {self.competition}"
+        return f"{self.name} - {self.competition}"
 
 
 class Award(models.Model):

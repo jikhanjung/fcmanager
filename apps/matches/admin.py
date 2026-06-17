@@ -1,25 +1,12 @@
 from django.contrib import admin
 
-from .models import (
-    Match, MatchEvent, MatchLineup, MatchVideo, Opponent, OpponentMatch,
-)
+from .models import Match, MatchEvent, MatchLineup, MatchVideo, Opponent
 
 
 @admin.register(Opponent)
 class OpponentAdmin(admin.ModelAdmin):
     list_display = ["name", "short_name"]
     search_fields = ["name", "short_name"]
-
-
-@admin.register(OpponentMatch)
-class OpponentMatchAdmin(admin.ModelAdmin):
-    list_display = [
-        "competition", "age_group", "stage", "home", "home_score",
-        "away_score", "away",
-    ]
-    list_filter = ["competition", "age_group", "stage"]
-    search_fields = ["home__name", "away__name"]
-    autocomplete_fields = ["competition", "home", "away"]
 
 
 class MatchVideoInline(admin.TabularInline):
@@ -41,15 +28,15 @@ class MatchLineupInline(admin.TabularInline):
 @admin.register(MatchVideo)
 class MatchVideoAdmin(admin.ModelAdmin):
     list_display = ["match", "title", "url"]
-    search_fields = ["title", "url", "match__opponent__name"]
+    search_fields = ["title", "url"]
     autocomplete_fields = ["match"]
 
 
 class MatchEventInline(admin.TabularInline):
     """경기 이벤트 인라인 (득점자·어시스트·시간 입력용).
 
-    득점=GOAL, 어시스트=ASSIST 를 각각 한 줄로 추가한다.
-    우리 팀 이벤트는 선수를 지정(side=우리 팀), 상대 득점은 side=상대팀 + 선수 비움.
+    side(OUR/OPPONENT)는 우리 entry 기준. 우리 팀 이벤트는 선수 지정, 상대 득점은
+    side=상대팀 + 선수 비움.
     """
 
     model = MatchEvent
@@ -64,51 +51,43 @@ class MatchEventInline(admin.TabularInline):
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
     list_display = [
-        "kickoff", "our_team", "opponent", "competition", "division", "stage",
-        "status", "score_display", "result_badge",
+        "kickoff", "home_entry", "away_entry", "competition", "division", "stage",
+        "status", "score_display",
     ]
-    list_filter = ["status", "stage", "competition", "division", "our_team", "is_home"]
-    search_fields = ["opponent__name", "venue"]
+    list_filter = ["status", "stage", "competition", "division", "club"]
+    search_fields = ["venue", "home_entry__opponent__name", "away_entry__opponent__name",
+                     "home_entry__team__name", "away_entry__team__name"]
     date_hierarchy = "kickoff"
-    autocomplete_fields = ["our_team", "opponent", "competition", "division",
-                           "opponent_feeder", "advance_feeder"]
+    autocomplete_fields = ["competition", "division", "opponent_feeder", "advance_feeder"]
     inlines = [MatchLineupInline, MatchEventInline, MatchVideoInline]
     fieldsets = (
         ("경기 정보", {
             "fields": (
-                ("our_team", "opponent"),
+                ("club",),
+                ("home_entry", "away_entry"),
                 ("competition", "division"),
                 ("stage", "kickoff"),
-                ("venue", "is_home"),
-                ("status",),
+                ("venue", "status"),
             ),
         }),
         ("대진 자동 진행(녹아웃)", {
             "classes": ("collapse",),
             "fields": ("opponent_feeder", "advance_feeder"),
-            "description": "결승 상대 = 상대 진출 경기(반대편 준결승) 승자. "
-                           "우리 진출 경기(우리 준결승)에서 지면 자동으로 '취소'.",
+            "description": "결승 상대(away_entry) = 상대 진출 경기(반대편 준결승) 승자. "
+                           "우리 진출 경기에서 지면 자동으로 '취소'.",
         }),
         ("결과", {
-            "fields": (("our_score", "opponent_score"),),
-            "description": (
-                "최종 스코어를 입력하고, 아래 <b>경기 이벤트</b>에 "
-                "득점자·어시스트와 득점 시간(분)을 추가하세요. "
-                "상대팀 득점은 ‘팀 구분’을 상대팀으로 두고 선수는 비웁니다."
-            ),
+            "fields": (("home_score", "away_score"),),
+            "description": "최종 스코어 입력 후 아래 <b>경기 이벤트</b>에 득점자·시간을 추가하세요.",
         }),
         ("비고", {"fields": ("note",), "classes": ("collapse",)}),
     )
 
-    @admin.display(description="스코어", ordering="our_score")
+    @admin.display(description="스코어", ordering="home_score")
     def score_display(self, obj):
-        if obj.our_score is None or obj.opponent_score is None:
+        if obj.home_score is None or obj.away_score is None:
             return "—"
-        return f"{obj.our_score} : {obj.opponent_score}"
-
-    @admin.display(description="결과")
-    def result_badge(self, obj):
-        return {"W": "승", "D": "무", "L": "패"}.get(obj.result, "—")
+        return f"{obj.home_score} : {obj.away_score}"
 
 
 @admin.register(MatchEvent)

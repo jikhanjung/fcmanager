@@ -23,21 +23,16 @@ def extract_youtube_id(url):
 
 
 class Opponent(models.Model):
-    """상대팀 (외부 팀). 클럽별로 자기 상대팀 목록을 관리."""
+    """외부팀 (비-플랫폼 팀). 대회 참가팀(CompetitionEntry)으로 공유된다(클럽 무관)."""
 
-    club = models.ForeignKey(
-        "clubs.Club", on_delete=models.CASCADE, related_name="opponents",
-        verbose_name="클럽", null=True, blank=True,
-    )
-    name = models.CharField("팀명", max_length=120)
+    name = models.CharField("팀명", max_length=120, unique=True)
     short_name = models.CharField("약칭", max_length=40, blank=True)
     logo = models.ImageField("로고", upload_to="opponents/logos/", blank=True)
 
     class Meta:
-        verbose_name = "상대팀"
-        verbose_name_plural = "상대팀"
+        verbose_name = "외부팀"
+        verbose_name_plural = "외부팀"
         ordering = ["name"]
-        unique_together = [("club", "name")]
 
     def __str__(self):
         return self.name
@@ -69,13 +64,16 @@ class Match(models.Model):
         "clubs.Club", on_delete=models.CASCADE, related_name="matches",
         verbose_name="클럽", null=True, blank=True,
     )
-    our_team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="matches",
-        verbose_name="우리 팀",
+    # 두 참가팀(entry). 우리 팀일 수도 외부팀일 수도 있다(대칭).
+    home_entry = models.ForeignKey(
+        "competitions.CompetitionEntry", on_delete=models.CASCADE,
+        related_name="home_matches", verbose_name="홈 참가팀",
+        null=True, blank=True,
     )
-    opponent = models.ForeignKey(
-        Opponent, on_delete=models.PROTECT, related_name="matches",
-        verbose_name="상대팀",
+    away_entry = models.ForeignKey(
+        "competitions.CompetitionEntry", on_delete=models.CASCADE,
+        related_name="away_matches", verbose_name="원정 참가팀",
+        null=True, blank=True,
     )
     competition = models.ForeignKey(
         "competitions.Competition", on_delete=models.PROTECT,
@@ -93,23 +91,22 @@ class Match(models.Model):
     # 대진 자동 진행(feeder): 결승 상대 = opponent_feeder(반대편 준결승) 승자.
     # advance_feeder(우리 준결승)에서 우리가 지면 이 경기는 '진출 실패' 처리.
     opponent_feeder = models.ForeignKey(
-        "OpponentMatch", on_delete=models.SET_NULL, null=True, blank=True,
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="feeds_opponent_of", verbose_name="상대 진출 경기",
-        help_text="이 경기의 상대 = 선택한 경기의 승자(예: 반대편 준결승).",
+        help_text="이 경기의 상대(away_entry) = 선택한 경기의 승자(예: 반대편 준결승).",
     )
     advance_feeder = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="advances_to", verbose_name="우리 진출 경기",
         help_text="우리가 선택한 경기(예: 우리 준결승)에서 이겨야 이 경기에 진출.",
     )
-    is_home = models.BooleanField("홈 경기", default=True)
-    kickoff = models.DateTimeField("경기 일시")
+    kickoff = models.DateTimeField("경기 일시", null=True, blank=True)
     venue = models.CharField("장소", max_length=200, blank=True)
     status = models.CharField(
         "상태", max_length=12, choices=Status.choices, default=Status.SCHEDULED
     )
-    our_score = models.PositiveIntegerField("우리 득점", null=True, blank=True)
-    opponent_score = models.PositiveIntegerField("상대 득점", null=True, blank=True)
+    home_score = models.PositiveIntegerField("홈 득점", null=True, blank=True)
+    away_score = models.PositiveIntegerField("원정 득점", null=True, blank=True)
     note = models.TextField("비고", blank=True)
 
     # 중계 콘솔 자동 시계의 기준점. 'LIVE 시작'을 누른 실제 시각으로,
@@ -125,21 +122,84 @@ class Match(models.Model):
         ordering = ["-kickoff"]
 
     def __str__(self):
-        return f"{self.our_team} vs {self.opponent} ({self.kickoff:%Y-%m-%d})"
+        h = self.home_entry.name if self.home_entry_id else "?"
+        a = self.away_entry.name if self.away_entry_id else "?"
+        return f"{h} vs {a}"
 
     def get_absolute_url(self):
         return reverse("matches:detail", kwargs={"pk": self.pk})
 
+    # ── 우리 팀 관점 호환 프로퍼티 ──
+    # (기존 our_team/opponent/our_score/opponent_score/is_home/result 를 home/away entry 에서 도출)
+    @property
+    def our_entry(self):
+        """home/away 중 이 경기 클럽(club) 소속 팀의 entry. 없으면 None(상대팀 간 경기)."""
+        for e in (self.home_entry, self.away_entry):
+            if e and e.club_id is not None and e.club_id == self.club_id:
+                return e
+        return None
+
+    @property
+    def opponent_entry(self):
+        our = self.our_entry
+        if our is None:
+            return None
+        return self.away_entry if our.id == self.home_entry_id else self.home_entry
+
+    @property
+    def is_our_match(self):
+        return self.our_entry is not None
+
+    @property
+    def our_team(self):
+        e = self.our_entry
+        return e.team if e else None
+
+    @property
+    def opponent(self):
+        """상대(호환): 외부팀이면 Opponent, 플랫폼 팀이면 Team. str→이름."""
+        oe = self.opponent_entry
+        if oe is None:
+            return None
+        return oe.opponent or oe.team
+
+    @property
+    def is_home(self):
+        our = self.our_entry
+        return our is not None and our.id == self.home_entry_id
+
+    @property
+    def our_score(self):
+        our = self.our_entry
+        if our is None:
+            return None
+        return self.home_score if our.id == self.home_entry_id else self.away_score
+
+    @property
+    def opponent_score(self):
+        our = self.our_entry
+        if our is None:
+            return None
+        return self.away_score if our.id == self.home_entry_id else self.home_score
+
     @property
     def result(self):
-        """우리 팀 기준 승/무/패 (W/D/L). 점수 미입력 시 None."""
-        if self.our_score is None or self.opponent_score is None:
+        """우리 팀 기준 승/무/패 (W/D/L). 점수 미입력/상대팀 간 경기면 None."""
+        os, ops = self.our_score, self.opponent_score
+        if os is None or ops is None:
             return None
-        if self.our_score > self.opponent_score:
-            return "W"
-        if self.our_score < self.opponent_score:
-            return "L"
-        return "D"
+        return "W" if os > ops else ("L" if os < ops else "D")
+
+    @property
+    def winner_entry(self):
+        """승자 entry(무승부/미입력 시 None). 녹아웃 진출 판정용."""
+        if self.home_score is None or self.away_score is None:
+            return None
+        if self.home_score > self.away_score:
+            return self.home_entry
+        if self.away_score > self.home_score:
+            return self.away_entry
+        return None
 
     @property
     def is_knockout(self):
@@ -148,64 +208,6 @@ class Match(models.Model):
     @property
     def stage_order(self):
         return self.STAGE_ORDER.get(self.stage, 0)
-
-
-class OpponentMatch(models.Model):
-    """상대팀 간 경기 (우리 팀이 끼지 않은 경기).
-
-    조 순위표를 완성하기 위한 보정용. 부문(age_group)으로 어느 조에 속하는지 구분한다.
-    """
-
-    club = models.ForeignKey(
-        "clubs.Club", on_delete=models.CASCADE, related_name="opponent_matches",
-        verbose_name="클럽", null=True, blank=True,
-    )
-    competition = models.ForeignKey(
-        "competitions.Competition", on_delete=models.CASCADE,
-        related_name="opponent_matches", verbose_name="대회",
-    )
-    age_group = models.CharField(
-        "부문", max_length=4, choices=Team.AgeGroup.choices,
-        help_text="어느 부문(조)의 경기인지",
-    )
-    home = models.ForeignKey(
-        Opponent, on_delete=models.PROTECT, related_name="home_opponent_matches",
-        verbose_name="홈팀",
-    )
-    away = models.ForeignKey(
-        Opponent, on_delete=models.PROTECT, related_name="away_opponent_matches",
-        verbose_name="원정팀",
-    )
-    stage = models.CharField(
-        "단계", max_length=6, choices=Match.Stage.choices, default=Match.Stage.GROUP,
-        help_text="조별리그 / 녹아웃(반대편 준결승 등)",
-    )
-    home_score = models.PositiveIntegerField("홈 득점", null=True, blank=True)
-    away_score = models.PositiveIntegerField("원정 득점", null=True, blank=True)
-    kickoff = models.DateTimeField("경기 일시", null=True, blank=True)
-    note = models.CharField("비고", max_length=200, blank=True)
-
-    class Meta:
-        verbose_name = "상대팀 간 경기"
-        verbose_name_plural = "상대팀 간 경기"
-        ordering = ["competition", "age_group", "id"]
-
-    def __str__(self):
-        s = ""
-        if self.home_score is not None and self.away_score is not None:
-            s = f" {self.home_score}:{self.away_score}"
-        return f"[{self.get_age_group_display()}] {self.home} vs {self.away}{s}"
-
-    @property
-    def winner(self):
-        """승자 Opponent(무승부/미입력 시 None). 녹아웃 진출자 판정용."""
-        if self.home_score is None or self.away_score is None:
-            return None
-        if self.home_score > self.away_score:
-            return self.home
-        if self.away_score > self.home_score:
-            return self.away
-        return None
 
 
 class MatchEvent(models.Model):

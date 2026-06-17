@@ -4,16 +4,17 @@ from django.forms import inlineformset_factory
 
 from apps.teams.models import Player
 
-from .models import (
-    Match, MatchEvent, MatchVideo, OpponentMatch, extract_youtube_id,
-)
+from .models import Match, MatchEvent, MatchVideo, extract_youtube_id
 
 
 class OpponentMatchResultForm(forms.ModelForm):
-    """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신."""
+    """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신.
+
+    참가팀 개편 후 '상대팀 간 경기'도 우리 팀 entry 가 없는 일반 Match → home/away 입력.
+    """
 
     class Meta:
-        model = OpponentMatch
+        model = Match
         fields = ["home_score", "away_score", "kickoff", "note"]
         widgets = {
             "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
@@ -35,12 +36,12 @@ class MatchResultForm(forms.ModelForm):
 
     class Meta:
         model = Match
-        fields = ["stage", "status", "our_score", "opponent_score", "note"]
+        fields = ["stage", "status", "home_score", "away_score", "note"]
         widgets = {
             "stage": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
-            "our_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
-            "opponent_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "away_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "note": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 

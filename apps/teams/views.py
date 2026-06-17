@@ -40,12 +40,12 @@ def home(request):
     upcoming = (
         Match.objects.filter(kickoff__gte=now)
         .exclude(status=Match.Status.CANCELLED)
-        .select_related("our_team", "opponent", "competition")
+        .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("kickoff")[:5]
     )
     recent = (
         Match.objects.filter(status=Match.Status.FINISHED)
-        .select_related("our_team", "opponent", "competition")
+        .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:5]
     )
     teams = Team.objects.all()
