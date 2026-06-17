@@ -30,8 +30,8 @@ services:
       # 영속 DB 사용. 기존 데이터 보존을 위해 기본 시드 OFF.
       # 초기 데이터를 새로 깔 때만 일시적으로 1로 실행.
       DJANGO_SEED: "0"
+      # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
-      DJANGO_SUPERUSER_PASSWORD: "fcsky1234"
     volumes:
       # DB·미디어는 호스트 영속 경로(/srv/FcSky). uid 1000(컨테이너 appuser) 소유여야 쓰기 가능.
       # 미디어는 nginx가 /FcSky/media/ 로 직접 서빙(아래 디렉터리 alias).

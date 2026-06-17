@@ -23,9 +23,9 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: "http://34.64.158.160"
       # 영속 DB 보존을 위해 기본 시드 OFF.
       DJANGO_SEED: "0"
-      # 관리자 계정은 없을 때만 생성(부트스트랩). 운영 비번은 교체 권장.
+      # 관리자 계정은 없을 때만 생성(신규 DB 부트스트랩).
+      # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
-      DJANGO_SUPERUSER_PASSWORD: "fcsky1234"
     volumes:
       # DB·미디어는 호스트 영속 경로(/srv/FcSky). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
       - /srv/FcSky/db.sqlite3:/app/db.sqlite3
