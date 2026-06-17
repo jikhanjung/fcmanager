@@ -156,7 +156,7 @@
       .catch(function () { /* 일시적 실패는 다음 주기에 재시도 */ });
   }
 
-  timer = setInterval(poll, 7000);
+  timer = setInterval(poll, 3000);
   poll();
 })();
 </script>

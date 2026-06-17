@@ -34,7 +34,7 @@
 ## 📡 Phase 4 — 실시간 중계
 
 - [x] **경기 LIVE 상태 + MatchEvent 실시간 입력(운영진 모바일 콘솔 `/matches/<pk>/live/`)**
-- [x] **라이브 스코어보드 / 타임라인 자동 갱신 — 폴링(`live.json`, 7초 주기)**
+- [x] **라이브 스코어보드 / 타임라인 자동 갱신 — 폴링(`live.json`, 3초 주기)**
   - WebSocket/Redis 미도입(단일 컨테이너·WSGI 유지). 데이터 계약은 추후 WS 교체 가능.
 - [ ] (확장) Django Channels + Redis → WebSocket 푸시 전환
 - [ ] (확장) 교체 IN/OUT 라인업 연동, 중계 콘솔 무새로고침(fetch)
@@ -54,6 +54,16 @@
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
+
+## 🏢 Phase 6 — 멀티테넌트 SaaS 전환
+
+> 단일 클럽(FC Sky) → 여러 클럽 SaaS. 최소 전환 계획: `devlog/20260617_P03_SaaS_멀티테넌트_전환계획.md`.
+
+- [ ] A. 테넌트 모델 + backfill (`Club`·`ClubMembership`, 루트 모델 `club` FK, 복합 unique)
+- [ ] B. 라우팅 + 스코핑 (미들웨어 `request.club`, `/<slug>/` 하위화, 쿼리 필터)
+- [ ] C. 권한 + 온보딩 (클럽별 staff, 클럽 생성·초대 최소 화면)
+- [ ] D. 브랜딩 분리 (context processor 로 'FC Sky' 하드코딩 제거)
+- 비범위(후속): 결제·요금제, 커스텀 도메인/서브도메인, schema/DB-per-tenant, Postgres 전환
 
 ## 🧹 기술 부채 / 개선 메모
 
