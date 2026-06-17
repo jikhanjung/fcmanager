@@ -55,7 +55,7 @@ docker compose up -d
 echo ""
 echo "=== [6/6] 헬스체크 (백엔드 기동 대기) ==="
 for i in $(seq 1 60); do
-    if curl -fsS -o /dev/null -m 2 http://127.0.0.1:8003/FcSky/admin/login/ ; then
+    if curl -fsS -o /dev/null -m 2 http://127.0.0.1:8003/admin/login/ ; then
         echo "  backend up after ${i}s"
         break
     fi

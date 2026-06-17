@@ -3,7 +3,7 @@
 FROM python:3.12-slim
 
 # 릴리스 버전(단일 소스). 이 값을 올리면 LABEL·런타임 ENV·navbar 표시가 함께 바뀐다.
-ARG APP_VERSION=0.5.7
+ARG APP_VERSION=0.6.0
 
 LABEL org.opencontainers.image.title="FC Sky" \
       org.opencontainers.image.description="FC Sky 웹사이트 (Django)" \
@@ -29,9 +29,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # 애플리케이션 코드
 COPY . .
 
-# 서브패스 배포 시 정적 파일 내부 url() 참조도 접두사에 맞춰 수집해야 하므로
-# collectstatic 전에 동일 접두사를 적용한다(런타임 DJANGO_URL_PREFIX와 일치시킬 것).
-#   docker build --build-arg DJANGO_URL_PREFIX=FcSky ...
+# SaaS(전용 도메인 루트)에서는 URL_PREFIX 미사용 → 정적은 /static/ 로 수집(기본값 빈 값).
+# (서브패스 배포가 필요하면 --build-arg DJANGO_URL_PREFIX=... 로 접두사 지정 가능)
 ARG DJANGO_URL_PREFIX=""
 ENV DJANGO_URL_PREFIX=${DJANGO_URL_PREFIX}
 

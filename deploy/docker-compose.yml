@@ -5,10 +5,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-      args:
-        # 정적 파일을 서브패스(/FcSky/)에 맞춰 수집. 아래 environment와 동일해야 함.
-        DJANGO_URL_PREFIX: "FcSky"
-    image: honestjung/fcsky:0.5.7
+    image: honestjung/fcsky:0.6.0
     # 운영 SECRET_KEY 등 비밀값은 git 비추적인 deploy/.env 에서 주입(경로는 compose 파일 기준).
     env_file:
       - .env
@@ -17,15 +14,9 @@ services:
       - "8003:8000"
     environment:
       DJANGO_DEBUG: "false"
-      # 사이트를 /FcSky/ 하위에서 서비스(정적/미디어/링크 모두 접두사 반영).
-      DJANGO_URL_PREFIX: "FcSky"
-      # nginx가 Host: 34.64.158.160 으로 프록시 → 해당 IP를 허용해야 함(DEBUG=false).
-      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,34.64.158.160"
-      # admin 로그인 등 POST의 CSRF 출처 검증(IP 기반 접근).
-      DJANGO_CSRF_TRUSTED_ORIGINS: "http://34.64.158.160"
-      # 운영 도메인/HTTPS 도입 시 도메인·https 출처를 위 두 값에 추가. 예:
-      #   DJANGO_ALLOWED_HOSTS: "fcsky.example.com,localhost,127.0.0.1,0.0.0.0,34.64.158.160"
-      #   DJANGO_CSRF_TRUSTED_ORIGINS: "https://fcsky.example.com,http://34.64.158.160"
+      # SaaS: 전용 도메인(fcmanager.app) 루트에서 서비스. URL_PREFIX 미사용 → 정적/미디어 /static/, /media/.
+      DJANGO_ALLOWED_HOSTS: "fcmanager.app,www.fcmanager.app,localhost,127.0.0.1,0.0.0.0,34.64.158.160"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "https://fcmanager.app,https://www.fcmanager.app"
       # DJANGO_SECRET_KEY 는 위 env_file(deploy/.env)에서 주입 — 여기에 두지 않음(git 비추적).
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"

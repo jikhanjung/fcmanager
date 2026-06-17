@@ -16,11 +16,9 @@ services:
       - "8003:8000"
     environment:
       DJANGO_DEBUG: "false"
-      # 사이트를 /FcSky/ 하위에서 서비스(정적/미디어/링크 모두 접두사 반영).
-      DJANGO_URL_PREFIX: "FcSky"
-      # nginx가 Host: 34.64.158.160 으로 프록시 → 해당 IP를 허용(DEBUG=false).
-      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,34.64.158.160"
-      DJANGO_CSRF_TRUSTED_ORIGINS: "http://34.64.158.160"
+      # SaaS: 전용 도메인 루트에서 서비스(플랫폼 / + 클럽 /<slug>/). URL_PREFIX 미사용.
+      DJANGO_ALLOWED_HOSTS: "fcmanager.app,www.fcmanager.app,localhost,127.0.0.1,0.0.0.0,34.64.158.160"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "https://fcmanager.app,https://www.fcmanager.app"
       # 관리자 계정은 없을 때만 생성(신규 DB 부트스트랩).
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"

@@ -7,6 +7,41 @@
 
 ---
 
+## SaaS 도메인 전환 (1회 — fcmanager.app)
+
+멀티테넌트 전환(Phase 6) 후 사이트는 `/FcSky/` 서브패스가 아니라 **전용 도메인 루트**에서
+서비스된다: `https://fcmanager.app/`(플랫폼) + `/<club-slug>/`(클럽, 예 `/fcsky/`).
+
+> ⚠️ 컨테이너 교체와 nginx 변경은 **한 묶음**으로. 이미지만 갈면 기존 `/FcSky/` 가 깨진다.
+
+```bash
+# 1) DNS: fcmanager.app, www → dolfinid IP(34.64.158.160) A 레코드 (선행)
+
+# 2) (m710q) URL_PREFIX 제거된 이미지 빌드·푸시 — 정적이 /static/ 로 수집됨
+docker build -f deploy/Dockerfile -t honestjung/fcsky:0.6.0 . && docker push honestjung/fcsky:0.6.0
+
+# 3) (dolfinid) nginx server 블록 + HTTPS
+sudo cp ~/projects/FcSky/deploy/host/nginx-fcmanager.conf.example /etc/nginx/sites-available/fcmanager
+sudo ln -s /etc/nginx/sites-available/fcmanager /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d fcmanager.app -d www.fcmanager.app
+# 기존 2026biennale 사이트에 /FcSky/ → https://fcmanager.app/fcsky/ 301 추가(선택)
+
+# 4) (dolfinid) 운영 파일 동기화 + 컨테이너 교체 (.env 에서 DJANGO_URL_PREFIX 제거)
+cd ~/projects/FcSky && git pull && ./deploy/sync_to_srv.sh
+sed -i '/^DJANGO_URL_PREFIX=/d' /srv/FcSky/.env   # 있으면 제거(슬러그가 대체)
+/srv/FcSky/deploy.sh 0.6.0
+
+# 5) 검증
+curl -fsS -o /dev/null -w '%{http_code}\n' https://fcmanager.app/            # 플랫폼 랜딩
+curl -fsS -o /dev/null -w '%{http_code}\n' https://fcmanager.app/fcsky/      # 클럽
+```
+
+`compose`(deploy/host/docker-compose.yml)는 이미 `DJANGO_URL_PREFIX` 미설정 +
+`ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` 에 fcmanager.app 반영됨.
+
+---
+
 ## 0. 구조 요약
 
 ```
