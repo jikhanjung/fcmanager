@@ -17,6 +17,10 @@ fi
 cd /srv/fcmanager
 IMAGE="honestjung/fcmanager:${VERSION}"
 
+# 헬스체크 포트(.env HOST_PORT, 기본 8003). 병렬 운영 시 8004 등으로 override 가능.
+HOST_PORT=$(sed -n 's/^HOST_PORT=//p' .env 2>/dev/null)
+HOST_PORT=${HOST_PORT:-8003}
+
 echo "=== [1/6] Pull ${IMAGE} ==="
 docker pull "${IMAGE}"
 
@@ -55,7 +59,7 @@ docker compose up -d
 echo ""
 echo "=== [6/6] 헬스체크 (백엔드 기동 대기) ==="
 for i in $(seq 1 60); do
-    if curl -fsS -o /dev/null -m 2 http://127.0.0.1:8003/admin/login/ ; then
+    if curl -fsS -o /dev/null -m 2 "http://127.0.0.1:${HOST_PORT}/admin/login/" ; then
         echo "  backend up after ${i}s"
         break
     fi
@@ -63,5 +67,5 @@ for i in $(seq 1 60); do
 done
 
 echo ""
-echo "=== Done: fcsky -> ${VERSION} ==="
+echo "=== Done: fcmanager -> ${VERSION} (port ${HOST_PORT}) ==="
 docker compose ps

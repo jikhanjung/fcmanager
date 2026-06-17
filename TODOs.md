@@ -52,7 +52,10 @@
   - [ ] (선택) NAS/dev_data 디렉토리 생성 시 3계층화
 - [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/fcmanager` (devlog 050, 매뉴얼 `deploy.md`)
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
-- [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
+- [x] 리버스 프록시(Nginx) + HTTPS + 도메인 연결 — `fcmanager.app` 병렬 배포(포트 8004,
+      `/srv/fcmanager`), certbot HTTPS + HTTP→HTTPS 301 + HSTS, fcsky 레거시 유지 (devlog 063)
+  - [ ] **신규 인스턴스 백업 cron 추가** — `/srv/fcmanager/db.sqlite3` hourly/daily 미적용(중요)
+  - [ ] 레거시 fcsky 폐기 시점·절차 결정
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 
 ## ✅ Phase 6 — 멀티테넌트 SaaS 전환 (A~D 완료)

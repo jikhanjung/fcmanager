@@ -12,8 +12,9 @@ services:
     env_file:
       - .env
     ports:
-      # 호스트 8000은 portainer가 점유 → 8003으로 노출.
-      - "8003:8000"
+      # 호스트 8000은 portainer가 점유 → 기본 8003. 병렬 운영(레거시 fcsky 와 동시 가동)
+      # 시에는 /srv/fcmanager/.env 의 HOST_PORT 로 override(예: 8004).
+      - "${HOST_PORT:-8003}:8000"
     environment:
       DJANGO_DEBUG: "false"
       # SaaS: 전용 도메인 루트에서 서비스(플랫폼 / + 클럽 /<slug>/). URL_PREFIX 미사용.
