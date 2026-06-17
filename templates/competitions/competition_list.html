@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">모든 대회</h1>
-  {% if user.is_staff %}
+  {% if is_club_staff %}
     <a href="{% url 'competitions:competition_manage' %}" class="btn btn-outline-secondary btn-sm">대회 관리</a>
   {% endif %}
 </div>

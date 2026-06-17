@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}클럽 만들기 — FC Sky{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">클럽 만들기</h1>
+<form method="post" enctype="multipart/form-data" class="card shadow-sm" style="max-width:32rem">
+  {% csrf_token %}
+  <div class="card-body">
+    {% for f in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
+        {{ f }}
+        {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+        {% if f.errors %}<div class="text-danger small">{{ f.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card-footer bg-transparent">
+    <button class="btn btn-primary" type="submit">만들기</button>
+    <a href="/" class="btn btn-outline-secondary">취소</a>
+  </div>
+</form>
+{% endblock %}

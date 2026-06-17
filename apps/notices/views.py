@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .forms import NoticeForm
 from .models import Notice
 
-staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
+from apps.clubs.permissions import club_staff_required as staff_required
 
 
 def notice_list(request):

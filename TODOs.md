@@ -62,7 +62,7 @@
 - [x] A. 테넌트 모델 + backfill (`Club`·`ClubMembership`, 8개 모델 `club` FK, fcsky backfill — devlog 053)
       · Competition/Division 은 공유(참가는 CompetitionEntry), Opponent 는 클럽별
 - [x] B. 라우팅 + 스코핑 (P04) — B1 라우팅·B2 스코핑·B3 쓰기주입/폼제한·B4 격리테스트·B5 club non-null 완료
-- [ ] C. 권한 + 온보딩 (클럽별 staff, 클럽 생성·초대 최소 화면)
+- [x] C. 권한 + 온보딩 — ClubMembership 기반 권한·플랫폼 랜딩/로그인·클럽 생성(devlog 059)
 - [ ] D. 브랜딩 분리 (context processor 로 'FC Sky' 하드코딩 제거)
 - 비범위(후속): 결제·요금제, 커스텀 도메인/서브도메인, schema/DB-per-tenant, Postgres 전환
 

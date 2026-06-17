@@ -6,12 +6,17 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from apps.clubs import views as club_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # 플랫폼 로그인(테넌트 밖) — 로그인 후 랜딩으로. (클럽 생성·클럽 선택용)
+    path("accounts/login/", auth_views.LoginView.as_view(next_page="/"), name="login"),
+    path("accounts/logout/", auth_views.LogoutView.as_view(next_page="/"), name="logout"),
+    path("clubs/new/", club_views.club_create, name="club_create"),
     path("", club_views.platform_home, name="platform_home"),
 ]
 

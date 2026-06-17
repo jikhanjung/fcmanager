@@ -46,5 +46,42 @@ class TenantIsolationTest(TestCase):
     def test_unknown_club_404(self):
         self.assertEqual(self.client.get("/zzz/notices/").status_code, 404)
 
-    def test_platform_root_redirects_to_a_club(self):
-        self.assertEqual(self.client.get("/").status_code, 302)
+    def test_platform_root_landing(self):
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "/a/")
+
+
+class ClubPermissionTest(TestCase):
+    """클럽별 운영진 권한 + 온보딩."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        cls.a = Club.objects.create(name="A", slug="a")
+        cls.b = Club.objects.create(name="B", slug="b")
+        cls.a_staff = User.objects.create_user("astaff", password="pw")
+        ClubMembership.objects.create(user=cls.a_staff, club=cls.a,
+                                      role=ClubMembership.Role.STAFF)
+
+    def test_own_club_management_ok(self):
+        self.client.force_login(self.a_staff)
+        self.assertEqual(self.client.get("/a/teams/add/").status_code, 200)
+
+    def test_other_club_management_forbidden(self):
+        self.client.force_login(self.a_staff)
+        self.assertEqual(self.client.get("/b/teams/add/").status_code, 403)
+
+    def test_anonymous_management_redirects_login(self):
+        self.assertEqual(self.client.get("/a/teams/add/").status_code, 302)
+
+    def test_club_create_makes_owner(self):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        u = User.objects.create_user("owner", password="pw")
+        self.client.force_login(u)
+        resp = self.client.post("/clubs/new/", {"name": "새클럽", "slug": "new"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(ClubMembership.objects.filter(
+            user=u, club__slug="new", role=ClubMembership.Role.OWNER).exists())

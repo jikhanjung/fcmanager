@@ -31,7 +31,7 @@ from apps.notices.models import Notice
 from .forms import MembershipAddForm, MembershipForm, PlayerForm, TeamForm
 from .models import Player, Team, TeamMembership
 
-staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
+from apps.clubs.permissions import club_staff_required as staff_required
 
 
 def home(request):

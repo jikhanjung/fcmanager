@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">팀</h1>
-  {% if user.is_staff %}<a href="{% url 'teams:team_add' %}" class="btn btn-primary btn-sm">+ 팀 추가</a>{% endif %}
+  {% if is_club_staff %}<a href="{% url 'teams:team_add' %}" class="btn btn-primary btn-sm">+ 팀 추가</a>{% endif %}
 </div>
 <div class="row g-3">
   {% for team in teams %}

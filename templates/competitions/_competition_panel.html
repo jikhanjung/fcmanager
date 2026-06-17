@@ -31,7 +31,7 @@
           </div>
           <div class="text-muted small mt-1">{% if s.obj.kickoff %}{{ s.obj.kickoff|date:"m/d H:i" }}{% endif %}{% if s.obj.home_score is None %} · {{ s.obj.get_status_display }}{% endif %}</div>
         </a>
-        {% if user.is_staff and not s.obj.is_our_match and s.obj.home_score is None %}
+        {% if is_club_staff and not s.obj.is_our_match and s.obj.home_score is None %}
           <a href="{% url 'matches:opponent_edit' s.obj.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-primary btn-sm py-0 mt-1">결과 입력</a>
         {% endif %}
       </div>

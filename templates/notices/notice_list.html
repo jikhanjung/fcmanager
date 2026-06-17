@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">공지사항</h1>
-  {% if user.is_staff %}<a href="{% url 'notices:add' %}" class="btn btn-primary btn-sm">+ 공지 작성</a>{% endif %}
+  {% if is_club_staff %}<a href="{% url 'notices:add' %}" class="btn btn-primary btn-sm">+ 공지 작성</a>{% endif %}
 </div>
 
 <div class="list-group shadow-sm">

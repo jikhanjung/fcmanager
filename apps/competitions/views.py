@@ -18,7 +18,7 @@ from .models import Award, Competition
 
 _AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 
-staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
+from apps.clubs.permissions import club_staff_required as staff_required
 
 
 def _years(club):

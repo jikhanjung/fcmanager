@@ -72,7 +72,7 @@ def schedule(request):
     return render(request, "matches/match_list.html", context)
 
 
-staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
+from apps.clubs.permissions import club_staff_required as staff_required
 
 
 @staff_required

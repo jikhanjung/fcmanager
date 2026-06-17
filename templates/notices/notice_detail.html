@@ -15,7 +15,7 @@
 
 <div class="d-flex justify-content-between mt-3">
   <a href="{% url 'notices:list' %}" class="btn btn-outline-secondary btn-sm">← 목록으로</a>
-  {% if user.is_staff %}
+  {% if is_club_staff %}
     <span class="d-flex gap-2">
       <a href="{% url 'notices:edit' notice.pk %}" class="btn btn-outline-secondary btn-sm">수정</a>
       <a href="{% url 'notices:delete' notice.pk %}" class="btn btn-outline-danger btn-sm">삭제</a>

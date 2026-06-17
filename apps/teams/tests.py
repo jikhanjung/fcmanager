@@ -26,10 +26,10 @@ class PublicPagesSmokeTest(TestCase):
     def test_unknown_club_404(self):
         self.assertEqual(self.client.get("/nope/").status_code, 404)
 
-    def test_platform_root_redirects_to_club(self):
+    def test_platform_root_landing(self):
         resp = self.client.get("/")
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp["Location"], "/fcsky/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "/fcsky/")
 
 
 class AuthTest(TestCase):
@@ -37,9 +37,13 @@ class AuthTest(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        _fcsky()
+        from apps.clubs.models import ClubMembership
+        club = _fcsky()
         cls.staff = User.objects.create_user(
             "관리자아이디", password="pw1234", is_staff=True)
+        # 클럽별 권한: fcsky 운영진으로 등록(관리 메뉴 노출).
+        ClubMembership.objects.create(
+            user=cls.staff, club=club, role=ClubMembership.Role.OWNER)
 
     def test_login_page_ok(self):
         resp = self.client.get("/fcsky/accounts/login/")

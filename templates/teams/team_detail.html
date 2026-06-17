@@ -8,7 +8,7 @@
     <span class="badge bg-primary">{{ team.get_age_group_display }}</span>
     {% if team.founded_date %}<span class="text-muted ms-2">창단 {{ team.founded_date|date:"Y.m.d" }}</span>{% endif %}
   </div>
-  {% if user.is_staff %}
+  {% if is_club_staff %}
     <a href="{% url 'teams:team_edit' team.slug %}" class="btn btn-outline-secondary btn-sm">팀 수정</a>
   {% endif %}
 </div>
@@ -29,7 +29,7 @@
       <span class="text-muted fs-6 fw-normal d-block d-sm-inline">· {{ latest_competition.name }} 명단</span>
     {% endif %}
   </h2>
-  {% if user.is_staff %}
+  {% if is_club_staff %}
     <a href="{% url 'teams:player_add' team.slug %}" class="btn btn-primary btn-sm">+ 선수 추가</a>
   {% endif %}
 </div>
@@ -58,7 +58,7 @@
             </div>
           </div>
         </a>
-        {% if user.is_staff %}
+        {% if is_club_staff %}
           <div class="px-2 pb-2 d-flex gap-2">
             <a href="{% url 'teams:player_edit' team.slug m.player.pk %}" class="btn btn-outline-secondary btn-sm py-0">수정</a>
             <a href="{% url 'teams:player_remove' team.slug m.player.pk %}" class="btn btn-outline-danger btn-sm py-0">제외</a>
