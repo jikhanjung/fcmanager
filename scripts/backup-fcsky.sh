@@ -86,8 +86,8 @@ rsync -az --delete "${REMOTE}:${REMOTE_PATH}/media/" "${CURRENT_DIR}/media/" >> 
 log "media/ 동기화 완료"
 
 # --- 3. .env 백업 ---
-# 운영의 .env 는 /srv/FcSky(영속 볼륨)가 아니라 compose 를 실행하는 홈 체크아웃
-# (/home/honestjung/projects/FcSky/deploy/.env)에 있다. FCSKY_REMOTE_ENV 로 override.
+# 배포 구조 분리(devlog 050) 후 .env 는 운영 런타임 위치 /srv/FcSky/.env 에 있다
+# (호스트가 직접 관리, sync 대상 아님). FCSKY_REMOTE_ENV 로 override.
 scp -q "${REMOTE}:${REMOTE_ENV_PATH}" "${CURRENT_DIR}/.env" 2>/dev/null && \
     log ".env 복사 완료" || log "WARN: .env 없음 (건너뜀: ${REMOTE_ENV_PATH})"
 
