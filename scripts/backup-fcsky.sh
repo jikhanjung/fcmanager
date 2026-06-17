@@ -84,7 +84,8 @@ rsync -az --delete "${REMOTE}:${REMOTE_PATH}/media/" "${CURRENT_DIR}/media/" >> 
 log "media/ 동기화 완료"
 
 # --- 3. .env 백업 ---
-scp -q "${REMOTE}:${REMOTE_PATH}/.env" "${CURRENT_DIR}/.env" 2>/dev/null && \
+# 운영의 .env 는 compose 기준 경로라 /srv/FcSky/deploy/.env 에 있다.
+scp -q "${REMOTE}:${REMOTE_PATH}/deploy/.env" "${CURRENT_DIR}/.env" 2>/dev/null && \
     log ".env 복사 완료" || log "WARN: .env 없음 (건너뜀)"
 
 # --- 4. nginx conf tar (운영 hourly 가 만든 최신본 1개 pull) ---

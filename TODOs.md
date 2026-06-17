@@ -44,8 +44,13 @@
 - [x] Docker 이미지화 (`deploy/`, `honestjung/fcsky:0.1.0`, Gunicorn)
 - [x] 정적 파일 운영 설정 (WhiteNoise) — 미디어/S3는 추후
 - [x] `SECRET_KEY`/`DEBUG`/`ALLOWED_HOSTS` 환경변수 분리 (운영 키 지정은 배포 시)
-- [ ] PostgreSQL 전환 (현재 SQLite, 컨테이너 내부 휘발)
-- [ ] 미디어 파일 운영 설정 (볼륨/S3)
+- [ ] ~~PostgreSQL 전환~~ — 당분간 보류. SQLite DB는 호스트 파일(볼륨)로 영속화되어 유실 위험 없음.
+- [x] 미디어 파일 — `media/` 디렉토리 유지 + 백업으로 보호 (볼륨/S3 전환은 보류)
+- [x] **백업 체계** — 운영 hourly(`backup_db.py`) + m710q daily pull(`backup-fcsky.sh`).
+      DB·media·nginx tar 포함. 매뉴얼: `docs/operation_manual/backup.md`.
+  - [~] `.env` 백업 — 위치 확정(`/srv/FcSky/deploy/.env`), 스크립트 경로 수정 완료.
+        m710q `~/scripts/backup-fcsky.sh` 에 배포 후 검증만 남음.
+  - [ ] (선택) NAS/dev_data 디렉토리 생성 시 3계층화
 - [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
 - [ ] 관리자 계정 비밀번호 교체
 
