@@ -54,8 +54,7 @@
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [x] 리버스 프록시(Nginx) + HTTPS + 도메인 연결 — `fcmanager.app` 병렬 배포(포트 8004,
       `/srv/fcmanager`), certbot HTTPS + HTTP→HTTPS 301 + HSTS, fcsky 레거시 유지 (devlog 063)
-  - [~] 신규 인스턴스 백업 — dolfinid **hourly cron 등록 완료**(`/srv/fcmanager/scripts/backup_db.py`, 2026-06-17).
-        m710q daily pull 은 `backup-fcmanager.sh`(REMOTE_PATH=`/srv/fcmanager`) 배포 시 자동 포함.
+  - [x] 신규 인스턴스 백업 — dolfinid hourly cron + m710q daily pull(`backup-fcmanager.sh`) 모두 적용 완료(2026-06-17).
   - [ ] 레거시 fcsky 폐기 시점·절차 결정
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 
