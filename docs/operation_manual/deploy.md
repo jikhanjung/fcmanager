@@ -101,7 +101,10 @@ docker compose up -d
 - **운영 컨테이너 가동 중 호스트에서 직접 `manage.py` 대량 쓰기·migrate 금지** — 컨테이너와
   호스트가 같은 SQLite 를 동시에 쓰면 DB 손상. 스키마 변경은 이미지 빌드→push→entrypoint migrate.
 - `.env` 비밀값(`DJANGO_SECRET_KEY`)은 git 비추적. `/srv/FcSky/.env` 권한 600 유지.
-- 관리자 비번(`DJANGO_SUPERUSER_PASSWORD=fcsky1234`)은 운영 교체 권장(TODOs).
+- 관리자(`admin`) 비번은 **2026-06-17 운영에서 교체 완료**. compose 의
+  `DJANGO_SUPERUSER_PASSWORD` 는 신규 DB 부트스트랩용 기본값일 뿐, 기존 운영 계정
+  비번을 바꾸지 않는다(entrypoint 는 계정이 없을 때만 생성). 운영 실제 비번은
+  `/srv/FcSky/.env` 또는 별도 비밀 관리로 둘 것(평문 커밋 금지).
 
 ---
 

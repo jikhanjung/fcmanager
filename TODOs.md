@@ -48,12 +48,12 @@
 - [x] 미디어 파일 — `media/` 디렉토리 유지 + 백업으로 보호 (볼륨/S3 전환은 보류)
 - [x] **백업 체계** — 운영 hourly(`backup_db.py`) + m710q daily pull(`backup-fcsky.sh`).
       DB·media·nginx tar 포함. 매뉴얼: `docs/operation_manual/backup.md`.
-  - [~] `.env` 백업 — `/srv/FcSky/.env` 생성 완료(dolfinid 마이그레이션). m710q 백업 검증만 남음.
+  - [x] `.env` 백업 — `/srv/FcSky/.env`에서 pull, m710q 백업 검증 완료(2026-06-17).
   - [ ] (선택) NAS/dev_data 디렉토리 생성 시 3계층화
 - [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/FcSky` (devlog 050, 매뉴얼 `deploy.md`)
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [ ] 리버스 프록시(Nginx) + HTTPS + 도메인 연결, 백업
-- [ ] 관리자 계정 비밀번호 교체
+- [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 
 ## 🧹 기술 부채 / 개선 메모
 
