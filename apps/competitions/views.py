@@ -21,10 +21,11 @@ _AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
 staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
 
 
-def _years():
-    """대회가 존재하는 연도 목록(내림차순)."""
+def _years(club):
+    """이 클럽이 경기를 가진 대회의 연도 목록(내림차순)."""
     return list(
-        Competition.objects.values_list("year", flat=True).distinct().order_by("-year")
+        Competition.objects.filter(matches__club=club)
+        .values_list("year", flat=True).distinct().order_by("-year")
     )
 
 
@@ -35,7 +36,7 @@ def standings(request):
     상대팀들의 전적을 '우리 경기 기준'으로 집계한다(상대팀 간 경기는 미반영).
     리그·토너먼트 모두 동일하게 동작. 승점 = 승*3 + 무*1.
     """
-    comps = Competition.objects.filter(matches__isnull=False).distinct()
+    comps = Competition.objects.filter(matches__club=request.club).distinct()
 
     comp_slug = request.GET.get("competition") or ""
 
@@ -54,6 +55,7 @@ def standings(request):
         # 전적을 home/away 기준으로 모은다 — 우리 경기·상대팀 간 경기 모두 같은 Match.
         matches = Match.objects.filter(
             competition=competition,
+            club=request.club,
             stage=Match.Stage.GROUP,
             status=Match.Status.FINISHED,
             home_score__isnull=False,
@@ -110,7 +112,7 @@ def standings(request):
 
 def awards(request):
     """명예의 전당: 입상 내역을 대회별로 정리(연도 필터)."""
-    qs = Award.objects.select_related(
+    qs = Award.objects.filter(club=request.club).select_related(
         "competition", "team", "player"
     ).order_by("-competition__year", "competition__name", "rank")
 
@@ -120,7 +122,7 @@ def awards(request):
 
     context = {
         "awards": qs,
-        "years": _years(),
+        "years": _years(request.club),
         "selected": {"year": year},
     }
     return render(request, "competitions/awards.html", context)
@@ -129,36 +131,40 @@ def awards(request):
 def year_index(request):
     """연도별 아카이브 목록: 연도마다 종료 경기 수·대회 수·입상 수 요약."""
     rows = []
-    for year in _years():
-        comps = Competition.objects.filter(year=year)
+    for year in _years(request.club):
+        comps = Competition.objects.filter(
+            year=year, matches__club=request.club).distinct()
         rows.append({
             "year": year,
             "competition_count": comps.count(),
             "finished": Match.objects.filter(
-                competition__year=year, status=Match.Status.FINISHED).count(),
-            "award_count": Award.objects.filter(competition__year=year).count(),
+                club=request.club, competition__year=year,
+                status=Match.Status.FINISHED).count(),
+            "award_count": Award.objects.filter(
+                club=request.club, competition__year=year).count(),
         })
     return render(request, "competitions/year_index.html", {"years": rows})
 
 
 def year_detail(request, year):
     """연도 종합 아카이브: 클럽 요약 + 출전 대회·입상 + 득점/도움 TOP + 최근 경기."""
-    teams, club = club_record(finished_matches(year))
+    teams, club = club_record(finished_matches(year, request.club))
 
-    ev = our_events(year)
+    ev = our_events(year, request.club)
     scorers = event_ranking(ev, MatchEvent.EventType.GOAL, limit=10)
     assisters = event_ranking(ev, MatchEvent.EventType.ASSIST, limit=10)
 
     competitions = (
-        Competition.objects.filter(year=year).order_by("name")
+        Competition.objects.filter(year=year, matches__club=request.club)
+        .distinct().order_by("name")
     )
     awards = (
-        Award.objects.filter(competition__year=year)
+        Award.objects.filter(club=request.club, competition__year=year)
         .select_related("competition", "team", "player")
         .order_by("competition__name", "rank")
     )
     recent = (
-        Match.objects.filter(competition__year=year, status=Match.Status.FINISHED)
+        Match.objects.filter(club=request.club, competition__year=year, status=Match.Status.FINISHED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:10]
     )
@@ -181,10 +187,11 @@ def year_detail(request, year):
 def competition_list(request):
     """모든 대회 목록(연도 내림차순). 누구나 조회 가능."""
     competitions = (
-        Competition.objects.annotate(
+        Competition.objects.filter(matches__club=request.club)
+        .annotate(
             division_count=Count("divisions", distinct=True),
-            match_count=Count("matches", distinct=True),
-        ).prefetch_related("divisions").order_by("-year", "name")
+            match_count=Count("matches", filter=Q(matches__club=request.club), distinct=True),
+        ).prefetch_related("divisions").distinct().order_by("-year", "name")
     )
     return render(request, "competitions/competition_list.html",
                   {"competitions": competitions})
@@ -208,10 +215,10 @@ def competition_detail(request, slug):
     competition = get_object_or_404(Competition, slug=slug)
     divisions = list(competition.divisions.all())
     entries = list(
-        competition.entries.select_related("team", "opponent", "division").order_by("team__name")
+        competition.entries.filter(Q(team__isnull=True) | Q(team__club=request.club)).select_related("team", "opponent", "division").order_by("team__name")
     )
     matches = list(
-        competition.matches.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "division")
+        competition.matches.filter(club=request.club).select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "division")
         .order_by("kickoff")
     )
     def make_panel(division, ms, es, key, label):

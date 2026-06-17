@@ -19,13 +19,15 @@ _MATCH_ENTRY_SELECT = (
 )
 
 
-def finished_matches(year=None):
-    """점수가 입력된 종료 경기 쿼리셋. year(연도)가 주어지면 해당 연도 대회로 한정."""
+def finished_matches(year=None, club=None):
+    """점수가 입력된 종료 경기 쿼리셋. year·club 으로 한정 가능."""
     qs = Match.objects.filter(
         status=Match.Status.FINISHED,
         home_score__isnull=False,
         away_score__isnull=False,
     )
+    if club is not None:
+        qs = qs.filter(club=club)
     if year and str(year).isdigit():
         qs = qs.filter(competition__year=year)
     return qs.select_related(*_MATCH_ENTRY_SELECT)
@@ -73,11 +75,13 @@ def club_record(matches):
     return teams, club
 
 
-def our_events(year=None):
-    """우리 팀(선수 지정) 이벤트 쿼리셋. year(연도)가 주어지면 해당 연도 대회로 한정."""
+def our_events(year=None, club=None):
+    """우리 팀(선수 지정) 이벤트 쿼리셋. year·club 으로 한정 가능."""
     ev = MatchEvent.objects.filter(
         side=MatchEvent.Side.OUR, player__isnull=False
     )
+    if club is not None:
+        ev = ev.filter(match__club=club)
     if year and str(year).isdigit():
         ev = ev.filter(match__competition__year=year)
     return ev

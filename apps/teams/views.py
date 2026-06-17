@@ -38,18 +38,18 @@ def home(request):
     """홈: 다음 경기 / 최근 결과 / 팀 목록."""
     now = timezone.now()
     upcoming = (
-        Match.objects.filter(kickoff__gte=now)
+        Match.objects.filter(club=request.club, kickoff__gte=now)
         .exclude(status=Match.Status.CANCELLED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("kickoff")[:5]
     )
     recent = (
-        Match.objects.filter(status=Match.Status.FINISHED)
+        Match.objects.filter(club=request.club, status=Match.Status.FINISHED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:5]
     )
-    teams = Team.objects.all()
-    notices = Notice.objects.filter(is_published=True)[:5]
+    teams = Team.objects.filter(club=request.club)
+    notices = Notice.objects.filter(club=request.club, is_published=True)[:5]
     return render(
         request,
         "teams/home.html",
@@ -59,13 +59,13 @@ def home(request):
 
 
 def team_list(request):
-    teams = Team.objects.all()
+    teams = Team.objects.filter(club=request.club)
     return render(request, "teams/team_list.html", {"teams": teams})
 
 
 def team_detail(request, slug):
     """팀 상세 — 명단은 '가장 최근 대회' 기준(명단은 대회 단위로 꾸려짐)."""
-    team = get_object_or_404(Team, slug=slug)
+    team = get_object_or_404(Team, slug=slug, club=request.club)
     latest = _latest_competition(team)
     memberships = team.memberships.filter(
         is_active=True, player__deleted_at__isnull=True)
@@ -83,7 +83,7 @@ def team_detail(request, slug):
 
 def player_detail(request, pk):
     """선수 상세: 프로필 + 소속 이력 + 득점/도움/카드 기록 + 수상."""
-    player = get_object_or_404(Player, pk=pk)
+    player = get_object_or_404(Player, pk=pk, club=request.club)
     memberships = (
         player.memberships.select_related("team", "competition", "division")
         .order_by("-competition__year", "team")
@@ -99,7 +99,7 @@ def player_detail(request, pk):
 
     goal_events = (
         player.match_events.filter(event_type=ET.GOAL)
-        .select_related("match", "match__opponent", "match__competition")
+        .select_related("match", "match__home_entry__opponent", "match__away_entry__opponent", "match__competition")
         .order_by("-match__kickoff")
     )
     awards = player.awards.select_related("competition")
@@ -124,7 +124,9 @@ def team_create(request):
     if request.method == "POST":
         form = TeamForm(request.POST, request.FILES)
         if form.is_valid():
-            team = form.save()
+            team = form.save(commit=False)
+            team.club = request.club
+            team.save()
             messages.success(request, f"팀 '{team.name}'을(를) 추가했습니다.")
             return redirect(team.get_absolute_url())
     else:
@@ -134,7 +136,7 @@ def team_create(request):
 
 @staff_required
 def team_edit(request, slug):
-    team = get_object_or_404(Team, slug=slug)
+    team = get_object_or_404(Team, slug=slug, club=request.club)
     if request.method == "POST":
         form = TeamForm(request.POST, request.FILES, instance=team)
         if form.is_valid():
@@ -164,7 +166,7 @@ def player_add(request, slug):
     명단은 '가장 최근 대회'에 귀속(팀 페이지 표시 기준과 일치). 그 대회에 팀 연령
     부문이 있으면 division도 함께 지정한다.
     """
-    team = get_object_or_404(Team, slug=slug)
+    team = get_object_or_404(Team, slug=slug, club=request.club)
     competition = _latest_competition(team)
     division = _division_for(competition, team)
     if request.method == "POST":
@@ -186,8 +188,8 @@ def player_add(request, slug):
 
 @staff_required
 def player_edit(request, slug, pk):
-    team = get_object_or_404(Team, slug=slug)
-    player = get_object_or_404(Player, pk=pk)
+    team = get_object_or_404(Team, slug=slug, club=request.club)
+    player = get_object_or_404(Player, pk=pk, club=request.club)
     membership = _get_membership(team, pk)
     if request.method == "POST":
         pform = PlayerForm(request.POST, request.FILES, instance=player)
@@ -208,8 +210,8 @@ def player_edit(request, slug, pk):
 @staff_required
 def player_remove(request, slug, pk):
     """선수를 팀에서 제외(소속 삭제). 선수 레코드·기록은 보존."""
-    team = get_object_or_404(Team, slug=slug)
-    player = get_object_or_404(Player, pk=pk)
+    team = get_object_or_404(Team, slug=slug, club=request.club)
+    player = get_object_or_404(Player, pk=pk, club=request.club)
     membership = _get_membership(team, pk)
     if request.method == "POST":
         membership.delete()
@@ -230,7 +232,7 @@ def player_manage(request):
     q = (request.GET.get("q") or "").strip()
     show_deleted = request.GET.get("deleted") == "1"
     players = (
-        Player.objects.annotate(team_count=Count("memberships__team", distinct=True))
+        Player.objects.filter(club=request.club).annotate(team_count=Count("memberships__team", distinct=True))
         .prefetch_related("memberships__team").order_by("name")
     )
     players = players.filter(deleted_at__isnull=not show_deleted)
@@ -238,8 +240,8 @@ def player_manage(request):
         players = players.filter(name__icontains=q)
     return render(request, "teams/player_manage.html", {
         "players": players, "q": q, "show_deleted": show_deleted,
-        "active_total": Player.objects.filter(deleted_at__isnull=True).count(),
-        "deleted_total": Player.objects.filter(deleted_at__isnull=False).count(),
+        "active_total": Player.objects.filter(club=request.club, deleted_at__isnull=True).count(),
+        "deleted_total": Player.objects.filter(club=request.club, deleted_at__isnull=False).count(),
     })
 
 
@@ -249,7 +251,9 @@ def player_create(request):
     if request.method == "POST":
         form = PlayerForm(request.POST, request.FILES)
         if form.is_valid():
-            player = form.save()
+            player = form.save(commit=False)
+            player.club = request.club
+            player.save()
             messages.success(request, f"선수 '{player.name}'을(를) 등록했습니다.")
             return redirect("teams:player_manage")
     else:
@@ -261,7 +265,7 @@ def player_create(request):
 @staff_required
 def player_master_edit(request, pk):
     """Player 레코드 정보 수정(팀 소속·등번호와 무관)."""
-    player = get_object_or_404(Player, pk=pk)
+    player = get_object_or_404(Player, pk=pk, club=request.club)
     if request.method == "POST":
         form = PlayerForm(request.POST, request.FILES, instance=player)
         if form.is_valid():
@@ -277,7 +281,7 @@ def player_master_edit(request, pk):
 @staff_required
 def player_master_delete(request, pk):
     """Player를 soft delete(삭제 표시). 레코드·소속·기록은 보존, 목록·로스터에서만 숨김."""
-    player = get_object_or_404(Player, pk=pk, deleted_at__isnull=True)
+    player = get_object_or_404(Player, pk=pk, club=request.club, deleted_at__isnull=True)
     if request.method == "POST":
         player.deleted_at = timezone.now()
         player.save(update_fields=["deleted_at", "updated_at"])
@@ -293,7 +297,7 @@ def player_master_delete(request, pk):
 @staff_required
 def player_restore(request, pk):
     """soft delete된 Player를 복구."""
-    player = get_object_or_404(Player, pk=pk, deleted_at__isnull=False)
+    player = get_object_or_404(Player, pk=pk, club=request.club, deleted_at__isnull=False)
     if request.method == "POST":
         player.deleted_at = None
         player.save(update_fields=["deleted_at", "updated_at"])

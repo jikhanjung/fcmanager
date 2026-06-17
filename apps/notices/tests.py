@@ -8,10 +8,10 @@ from .models import Notice
 class NoticeViewTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        Club.objects.get_or_create(slug="fcsky", defaults={"name": "FC Sky"})
-        cls.pub = Notice.objects.create(title="공개 공지", body="내용")
+        cls.club = Club.objects.get_or_create(slug="fcsky", defaults={"name": "FC Sky"})[0]
+        cls.pub = Notice.objects.create(club=cls.club, title="공개 공지", body="내용")
         cls.hidden = Notice.objects.create(
-            title="비공개", body="x", is_published=False)
+            club=cls.club, title="비공개", body="x", is_published=False)
 
     def test_list_shows_only_published(self):
         resp = self.client.get("/fcsky/notices/")

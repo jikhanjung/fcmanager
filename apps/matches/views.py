@@ -24,11 +24,13 @@ from .services import (
 )
 
 
-def _common_filters():
+def _common_filters(club):
+    comp_ids = Match.objects.filter(club=club).values_list("competition_id", flat=True)
+    comps = Competition.objects.filter(id__in=comp_ids).distinct()
     return {
-        "teams": Team.objects.all(),
-        "competitions": Competition.objects.all(),
-        "years": list(Competition.objects.values_list("year", flat=True)
+        "teams": Team.objects.filter(club=club),
+        "competitions": comps,
+        "years": list(comps.values_list("year", flat=True)
                        .distinct().order_by("-year")),
     }
 
@@ -38,7 +40,7 @@ def schedule(request):
     matches = Match.objects.select_related(
         "home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition", "division"
     # 공개 일정은 우리 팀(team entry)이 참가한 경기만(상대팀 간 경기 제외).
-    ).filter(Q(home_entry__team__isnull=False) | Q(away_entry__team__isnull=False))
+    ).filter(club=request.club).filter(Q(home_entry__team__isnull=False) | Q(away_entry__team__isnull=False))
 
     team = request.GET.get("team") or ""
     competition = request.GET.get("competition") or ""
@@ -65,7 +67,7 @@ def schedule(request):
             "year": year,
             "show": show,
         },
-        **_common_filters(),
+        **_common_filters(request.club),
     }
     return render(request, "matches/match_list.html", context)
 
@@ -77,7 +79,7 @@ staff_required = user_passes_test(lambda u: u.is_staff, login_url="login")
 def match_edit(request, pk):
     """운영진용 경기 결과 편집 (스코어·상태 + 득점/도움/시간 이벤트). 사이트 내 직접 편집."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition"), pk=pk
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition"), pk=pk, club=request.club
     )
     # 득점·도움 선수 선택지는 해당 경기 팀에 등록된 선수로 제한.
     team_players = (
@@ -130,7 +132,7 @@ def opponent_match_edit(request, pk):
     """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신."""
     om = get_object_or_404(
         Match.objects.select_related(
-            "competition", "home_entry__opponent", "away_entry__opponent"), pk=pk)
+            "competition", "home_entry__opponent", "away_entry__opponent"), pk=pk, club=request.club)
     next_url = request.GET.get("next") or request.POST.get("next") or ""
     if request.method == "POST":
         form = OpponentMatchResultForm(request.POST, instance=om)
@@ -150,7 +152,7 @@ def match_detail(request, pk):
         Match.objects.select_related(
             "home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition", "division"
         ),
-        pk=pk,
+        pk=pk, club=request.club,
     )
     events = list(match.events.select_related("player").order_by("minute", "id"))
     timeline = build_timeline(events)
@@ -192,7 +194,7 @@ def _live_payload(match):
 def match_live_json(request, pk):
     """공개 폴링 엔드포인트: LIVE 경기의 스코어·상태·타임라인을 JSON으로."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk, club=request.club
     )
     return JsonResponse(_live_payload(match))
 
@@ -247,7 +249,7 @@ def _build_roster(match):
 def match_lineup(request, pk):
     """경기 출전 명단 편집(모바일): 선발/벤치/주장 지정. 우리 팀 한정."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk, club=request.club
     )
     from apps.teams.models import TeamMembership
     # 팀 등번호(소속에서). 저장 시 라인업 등번호 기본값으로 사용.
@@ -298,7 +300,7 @@ def match_lineup(request, pk):
 def match_live_console(request, pk):
     """운영진용 실시간 중계 콘솔(모바일): LIVE 토글 + 빠른 이벤트 입력/삭제."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk, club=request.club
     )
     team_players = (
         Player.objects.filter(memberships__team=match.our_team)
@@ -401,6 +403,7 @@ def scorers(request):
     """선수 순위: 우리 팀 골·도움·공격포인트 집계 + 팀·대회·시즌 필터."""
     ET = MatchEvent.EventType
     events = MatchEvent.objects.filter(
+        match__club=request.club,
         side=MatchEvent.Side.OUR,
         player__isnull=False,
         event_type__in=[ET.GOAL, ET.ASSIST],
@@ -432,7 +435,7 @@ def scorers(request):
     context = {
         "ranking": ranking,
         "selected": {"team": team, "competition": competition, "year": year},
-        **_common_filters(),
+        **_common_filters(request.club),
     }
     return render(request, "matches/scorers.html", context)
 
@@ -442,10 +445,10 @@ def stats(request):
     year = request.GET.get("year") or ""
 
     # 팀별 전적 + 클럽 합계
-    teams, club = club_record(finished_matches(year))
+    teams, club = club_record(finished_matches(year, request.club))
 
     # 득점/도움/카드 (우리 팀 이벤트)
-    ev = our_events(year)
+    ev = our_events(year, request.club)
     scorers = event_ranking(ev, MatchEvent.EventType.GOAL, limit=10)
     assisters = event_ranking(ev, MatchEvent.EventType.ASSIST, limit=10)
 

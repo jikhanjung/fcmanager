@@ -8,9 +8,9 @@ from .models import GalleryItem
 class GalleryViewTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        Club.objects.get_or_create(slug="fcsky", defaults={"name": "FC Sky"})
-        cls.pub = GalleryItem.objects.create(title="우승 사진", caption="c")
-        GalleryItem.objects.create(title="비공개컷", is_published=False)
+        cls.club = Club.objects.get_or_create(slug="fcsky", defaults={"name": "FC Sky"})[0]
+        cls.pub = GalleryItem.objects.create(club=cls.club, title="우승 사진", caption="c")
+        GalleryItem.objects.create(club=cls.club, title="비공개컷", is_published=False)
 
     def test_list_ok_and_filters_published(self):
         resp = self.client.get("/fcsky/gallery/")
