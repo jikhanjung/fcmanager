@@ -37,7 +37,7 @@
   </div>
 </form>
 
-<div class="table-responsive">
+<div class="table-responsive d-none d-md-block">
   <table class="table table-hover align-middle bg-white shadow-sm">
     <thead class="table-light">
       <tr>
@@ -47,7 +47,7 @@
     </thead>
     <tbody>
       {% for m in matches %}
-        <tr>
+        <tr class="match-row" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
           <td class="text-nowrap small">{{ m.kickoff|date:"Y.m.d (D) H:i" }}</td>
           <td class="small">{{ m.competition }}{% if m.is_knockout %} <span class="badge bg-warning-subtle text-warning-emphasis">{{ m.get_stage_display }}</span>{% endif %}</td>
           <td>{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</td>
@@ -64,7 +64,7 @@
             {% if m.status == 'LIVE' %}<span class="badge bg-danger">🔴 LIVE</span>
             {% else %}<span class="badge bg-light text-muted">{{ m.get_status_display }}</span>{% endif %}
           </td>
-          <td><a href="{{ m.get_absolute_url }}" class="btn btn-sm btn-outline-primary">상세</a></td>
+          <td class="text-end text-muted"><a href="{{ m.get_absolute_url }}" class="text-decoration-none text-muted" aria-label="경기 상세">›</a></td>
         </tr>
       {% empty %}
         <tr><td colspan="7" class="text-muted">조건에 맞는 경기가 없습니다.</td></tr>
@@ -72,4 +72,48 @@
     </tbody>
   </table>
 </div>
+
+<!-- 모바일: 카드형 목록 -->
+<div class="d-md-none">
+  {% for m in matches %}
+    <div class="match-row card mb-2 shadow-sm border-0" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <small class="text-muted">{{ m.kickoff|date:"m/d (D) H:i" }}</small>
+          {% if m.status == 'LIVE' %}<span class="badge bg-danger">🔴 LIVE</span>
+          {% else %}<span class="badge bg-light text-muted">{{ m.get_status_display }}</span>{% endif %}
+        </div>
+        <div class="small text-muted mb-2 text-truncate">
+          {{ m.competition }}{% if m.is_knockout %} · {{ m.get_stage_display }}{% endif %}
+        </div>
+        <div class="d-flex justify-content-between align-items-center gap-2">
+          <div class="fw-semibold" style="min-width:0">
+            <div class="text-truncate">{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</div>
+            <div class="text-muted text-truncate">vs {{ m.opponent }}</div>
+          </div>
+          <div class="text-end flex-shrink-0">
+            {% if m.our_score is not None and m.opponent_score is not None %}
+              <div class="fw-bold fs-5 lh-1">{{ m.our_score }} : {{ m.opponent_score }}</div>
+              {% if m.result == "W" %}<span class="badge bg-success">승</span>
+              {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
+              {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}
+            {% else %}<span class="badge bg-light text-muted">예정</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-muted">조건에 맞는 경기가 없습니다.</p>
+  {% endfor %}
+</div>
+
+<script>
+  document.querySelectorAll('.match-row').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      // 행 안의 링크를 직접 눌렀다면 기본 동작에 맡긴다.
+      if (e.target.closest('a')) return;
+      window.location = row.dataset.href;
+    });
+  });
+</script>
 {% endblock %}

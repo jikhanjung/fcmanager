@@ -183,6 +183,21 @@ a:hover > .card, .hover-lift:hover {
 .list-group-item a { color: var(--ink); font-weight: 600; }
 .list-group-item a:hover { color: var(--sky); }
 
+/* 클릭 가능한 row — 마우스 오버 시 전체 강조 */
+.row-link { transition: background-color .12s ease, box-shadow .12s ease; }
+.row-link:hover {
+  background-color: #d6e4ff;
+  box-shadow: inset 4px 0 0 var(--sky);
+}
+.row-link:hover a { color: var(--sky); }
+
+/* 모바일 경기 카드 — 마우스 오버 시 강조 */
+.match-row.card { transition: background-color .12s ease, box-shadow .12s ease; }
+.match-row.card:hover {
+  background-color: #d6e4ff;
+  box-shadow: inset 4px 0 0 var(--sky), 0 .4rem .9rem rgba(47,128,255,.18) !important;
+}
+
 /* ── 테이블 ───────────────────────────────────────────── */
 .table { --bs-table-bg: transparent; border-color: var(--line); }
 .table > thead {
@@ -193,7 +208,8 @@ a:hover > .card, .hover-lift:hover {
   text-transform: uppercase; padding: .8rem 1rem;
 }
 .table > tbody td { padding: .8rem 1rem; vertical-align: middle; }
-.table.table-hover > tbody > tr:hover > * { background: rgba(47,128,255,.06); }
+.table.table-hover > tbody > tr:hover > * { background: #d6e4ff; }
+.table.table-hover > tbody > tr.match-row:hover > td:first-child { box-shadow: inset 4px 0 0 var(--sky); }
 .table-light, .table > thead.table-light { background: #f3f6fc; color: var(--ink); }
 
 /* ── 폼 ───────────────────────────────────────────────── */

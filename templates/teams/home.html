@@ -28,7 +28,7 @@
   </div>
   <ul class="list-group list-group-flush">
     {% for n in notices %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
+      <li class="list-group-item d-flex justify-content-between align-items-center row-link" data-href="{{ n.get_absolute_url }}" style="cursor:pointer">
         <a href="{{ n.get_absolute_url }}">
           {% if n.is_pinned %}<span class="badge bg-danger me-1">고정</span>{% endif %}{{ n.title }}
         </a>
@@ -45,7 +45,7 @@
       <div class="card-header"><span class="section-title">다가오는 경기</span></div>
       <ul class="list-group list-group-flush">
         {% for m in upcoming %}
-          <li class="list-group-item">
+          <li class="list-group-item row-link" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
             <small class="text-muted">{{ m.kickoff|date:"m/d (D) H:i" }} · {{ m.competition }}</small><br>
             <a href="{{ m.get_absolute_url }}"><strong>{{ m.our_team }}</strong> vs {{ m.opponent }}</a>
             {% if m.venue %}<span class="text-muted">@ {{ m.venue }}</span>{% endif %}
@@ -62,7 +62,7 @@
       <div class="card-header"><span class="section-title">최근 결과</span></div>
       <ul class="list-group list-group-flush">
         {% for m in recent %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+          <li class="list-group-item d-flex justify-content-between align-items-center row-link" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
             <span>
               <small class="text-muted">{{ m.kickoff|date:"m/d" }} · {{ m.competition }}</small><br>
               <a href="{{ m.get_absolute_url }}">{{ m.our_team }} vs {{ m.opponent }}</a>
@@ -102,4 +102,14 @@
     <p class="text-muted">아직 등록된 팀이 없습니다.</p>
   {% endfor %}
 </div>
+
+<script>
+  document.querySelectorAll('.row-link').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      // 행 안의 링크를 직접 눌렀다면 기본 동작에 맡긴다.
+      if (e.target.closest('a')) return;
+      window.location = row.dataset.href;
+    });
+  });
+</script>
 {% endblock %}

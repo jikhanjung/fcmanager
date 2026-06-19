@@ -15,6 +15,51 @@
 
 {% if team.description %}<p class="text-muted">{{ team.description|linebreaksbr }}</p>{% endif %}
 
+{% if upcoming or recent %}
+<div class="row g-4 mt-1 mb-2">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title">다가오는 경기</span></div>
+      <ul class="list-group list-group-flush">
+        {% for m in upcoming %}
+          <li class="list-group-item row-link" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
+            <small class="text-muted">{{ m.kickoff|date:"m/d (D) H:i" }} · {{ m.competition }}</small><br>
+            <a href="{{ m.get_absolute_url }}"><strong>{{ m.our_team }}</strong> vs {{ m.opponent }}</a>
+            {% if m.venue %}<span class="text-muted">@ {{ m.venue }}</span>{% endif %}
+          </li>
+        {% empty %}
+          <li class="list-group-item text-muted">예정된 경기가 없습니다.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><span class="section-title">최근 결과</span></div>
+      <ul class="list-group list-group-flush">
+        {% for m in recent %}
+          <li class="list-group-item d-flex justify-content-between align-items-center row-link" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
+            <span>
+              <small class="text-muted">{{ m.kickoff|date:"m/d" }} · {{ m.competition }}</small><br>
+              <a href="{{ m.get_absolute_url }}">{{ m.our_team }} vs {{ m.opponent }}</a>
+            </span>
+            <span class="d-flex align-items-center gap-2">
+              <span class="score-num">{{ m.our_score }} : {{ m.opponent_score }}</span>
+              {% if m.result == "W" %}<span class="badge bg-success">승</span>
+              {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
+              {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}
+            </span>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-muted">기록된 경기 결과가 없습니다.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <style>
   .player-card { transition: transform .12s ease, box-shadow .12s ease; }
   .player-card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.12) !important; }
@@ -70,4 +115,14 @@
     <p class="text-muted">등록된 선수가 없습니다.</p>
   {% endfor %}
 </div>
+
+<script>
+  document.querySelectorAll('.row-link').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      // 행 안의 링크를 직접 눌렀다면 기본 동작에 맡긴다.
+      if (e.target.closest('a')) return;
+      window.location = row.dataset.href;
+    });
+  });
+</script>
 {% endblock %}

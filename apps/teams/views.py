@@ -74,10 +74,28 @@ def team_detail(request, slug):
     memberships = (
         memberships.select_related("player", "division").order_by("jersey_number")
     )
+
+    now = timezone.now()
+    team_matches = (
+        Match.objects.filter(
+            Q(home_entry__team=team) | Q(away_entry__team=team), club=request.club)
+        .select_related("home_entry__team", "home_entry__opponent",
+                        "away_entry__team", "away_entry__opponent", "competition")
+    )
+    upcoming = (
+        team_matches.filter(kickoff__gte=now)
+        .exclude(status=Match.Status.CANCELLED)
+        .order_by("kickoff")[:5]
+    )
+    recent = (
+        team_matches.filter(status=Match.Status.FINISHED)
+        .order_by("-kickoff")[:5]
+    )
     return render(
         request,
         "teams/team_detail.html",
-        {"team": team, "memberships": memberships, "latest_competition": latest},
+        {"team": team, "memberships": memberships, "latest_competition": latest,
+         "upcoming": upcoming, "recent": recent},
     )
 
 
