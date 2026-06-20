@@ -6,6 +6,7 @@ from .models import Competition, Division, CompetitionEntry, Award
 class DivisionInline(admin.TabularInline):
     model = Division
     extra = 0
+    fields = ["age_group", "name", "half_length_minutes"]
 
 
 class CompetitionEntryInline(admin.TabularInline):
@@ -16,7 +17,7 @@ class CompetitionEntryInline(admin.TabularInline):
 
 @admin.register(Competition)
 class CompetitionAdmin(admin.ModelAdmin):
-    list_display = ["name", "kind", "year", "organizer"]
+    list_display = ["name", "kind", "year", "organizer", "half_length_minutes"]
     list_filter = ["kind", "year"]
     search_fields = ["name"]
     prepopulated_fields = {"slug": ("name",)}
@@ -25,7 +26,7 @@ class CompetitionAdmin(admin.ModelAdmin):
 
 @admin.register(Division)
 class DivisionAdmin(admin.ModelAdmin):
-    list_display = ["competition", "age_group", "label"]
+    list_display = ["competition", "age_group", "label", "half_length_minutes"]
     list_filter = ["competition", "age_group"]
     search_fields = ["competition__name", "name"]
     autocomplete_fields = ["competition"]

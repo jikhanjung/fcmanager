@@ -38,17 +38,22 @@
 {% block content %}
 <div data-pk="{{ match.pk }}"
      data-status="{{ match.status }}"
+     data-period="{{ match.period }}"
+     data-half-length="{{ half_length }}"
      data-our="{{ match.our_score|default:0 }}"
      data-opp="{{ match.opponent_score|default:0 }}"
      id="live-root">
 
-  <!-- 상단 고정 바: 상태 · 시계 · 시작/종료 -->
+  <!-- 상단 고정 바: 진행 단계 · 시계 · 단계 진행 버튼 -->
   <div class="live-bar bg-body border-bottom py-2 mb-2">
     <div class="d-flex align-items-center justify-content-between">
       <span id="status-badge"></span>
-      <button type="button" id="clock"
-              class="btn btn-sm btn-outline-secondary clock-display"
-              title="탭하여 경기 시간 보정">--:--</button>
+      <div class="text-center">
+        <button type="button" id="clock"
+                class="btn btn-sm btn-outline-secondary clock-display"
+                title="탭하여 경기 시간 보정">--:--</button>
+        <div class="small text-muted lh-1">전후반 {{ half_length }}분</div>
+      </div>
       <button id="toggle-btn" class="btn btn-sm"></button>
     </div>
   </div>
@@ -142,7 +147,11 @@
   var manualOffset = 0;                      // 운영자 수동 보정 누적(초)
   function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
   var anchorPerf = nowMs();
-  function running(){ return root.dataset.status === 'LIVE'; }
+  // 시계는 전반·후반 진행 중에만 흐른다(하프타임·종료·시작 전엔 정지).
+  function running(){
+    var p = root.dataset.period;
+    return p === 'FIRST' || p === 'SECOND';
+  }
 
   // 현재 경과 초(킥오프 기준). LIVE일 때만 흐른다.
   function elapsedSec(){
@@ -285,27 +294,38 @@
     });
   });
 
-  // 시작/종료 토글
+  // ── 진행 단계(전반/하프타임/후반/종료) ──
+  // 현재 단계 → 다음 단계 버튼(누르면 보낼 액션). 단계 버튼 하나로 흐름을 진행.
+  var STAGE = {
+    SCHEDULED: { action:'start_first',  label:'▶ 전반 시작', cls:'btn btn-sm btn-danger' },
+    FIRST:     { action:'halftime',     label:'⏸ 하프타임', cls:'btn btn-sm btn-warning' },
+    HALFTIME:  { action:'start_second', label:'▶ 후반 시작', cls:'btn btn-sm btn-danger' },
+    SECOND:    { action:'finish',       label:'⏹ 경기 종료', cls:'btn btn-sm btn-outline-danger' },
+    FINISHED:  { action:'start_first',  label:'↻ 재시작',    cls:'btn btn-sm btn-outline-secondary' }
+  };
+  var PERIOD_BADGE = {
+    SCHEDULED: '<span class="badge bg-secondary">예정</span>',
+    FIRST:     '<span class="badge bg-danger">🔴 전반</span>',
+    HALFTIME:  '<span class="badge bg-warning text-dark">하프타임</span>',
+    SECOND:    '<span class="badge bg-danger">🔴 후반</span>',
+    FINISHED:  '<span class="badge bg-secondary">종료</span>'
+  };
+
+  // 단계 진행 버튼
   document.getElementById('toggle-btn').addEventListener('click', function () {
-    var live = root.dataset.status === 'LIVE';
-    postAction({ action: live ? 'finish' : 'start' });
+    var st = STAGE[root.dataset.period] || STAGE.SCHEDULED;
+    if (st.action === 'finish' && !confirm('경기를 종료할까요?')) return;
+    postAction({ action: st.action });
   });
 
   // ── 상태 렌더 ──
   function renderStatusBar() {
-    var live = root.dataset.status === 'LIVE';
-    var sb = document.getElementById('status-badge');
+    var p = root.dataset.period || 'SCHEDULED';
+    var st = STAGE[p] || STAGE.SCHEDULED;
+    document.getElementById('status-badge').innerHTML =
+      PERIOD_BADGE[p] || PERIOD_BADGE.SCHEDULED;
     var tb = document.getElementById('toggle-btn');
-    if (live) {
-      sb.innerHTML = '<span class="badge bg-danger">🔴 LIVE</span>';
-      tb.textContent = '⏹ 종료'; tb.className = 'btn btn-sm btn-outline-danger';
-    } else if (root.dataset.status === 'FINISHED') {
-      sb.innerHTML = '<span class="badge bg-secondary">종료</span>';
-      tb.textContent = '↻ 재개'; tb.className = 'btn btn-sm btn-outline-secondary';
-    } else {
-      sb.innerHTML = '<span class="badge bg-secondary">예정</span>';
-      tb.textContent = '🔴 LIVE 시작'; tb.className = 'btn btn-sm btn-danger';
-    }
+    tb.textContent = st.label; tb.className = st.cls;
   }
 
   function renderRecent(timeline) {
@@ -335,6 +355,7 @@
   function applyState(data) {
     if (!data) return;
     root.dataset.status = data.status;
+    if (data.period) root.dataset.period = data.period;
     document.getElementById('our-score').textContent = data.our_score == null ? 0 : data.our_score;
     document.getElementById('opp-score').textContent = data.opponent_score == null ? 0 : data.opponent_score;
     syncClock(data.elapsed_seconds);

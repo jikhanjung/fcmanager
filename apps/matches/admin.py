@@ -41,7 +41,7 @@ class MatchEventInline(admin.TabularInline):
 
     model = MatchEvent
     extra = 2
-    fields = ["event_type", "side", "player", "minute", "description"]
+    fields = ["event_type", "side", "player", "half", "minute", "description"]
     autocomplete_fields = ["player"]
     ordering = ["minute", "id"]
     verbose_name = "경기 이벤트"
@@ -70,6 +70,11 @@ class MatchAdmin(admin.ModelAdmin):
                 ("venue", "status"),
             ),
         }),
+        ("중계 진행", {
+            "classes": ("collapse",),
+            "fields": ("period", ("live_started_at", "second_half_started_at")),
+            "description": "중계 콘솔이 자동으로 채운다. 보정이 필요할 때만 직접 수정.",
+        }),
         ("대진 자동 진행(녹아웃)", {
             "classes": ("collapse",),
             "fields": ("opponent_feeder", "advance_feeder"),
@@ -92,6 +97,6 @@ class MatchAdmin(admin.ModelAdmin):
 
 @admin.register(MatchEvent)
 class MatchEventAdmin(admin.ModelAdmin):
-    list_display = ["match", "minute", "event_type", "side", "player"]
+    list_display = ["match", "half", "minute", "event_type", "side", "player"]
     list_filter = ["event_type", "side"]
     autocomplete_fields = ["match", "player"]

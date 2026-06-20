@@ -16,6 +16,8 @@ class Competition(models.Model):
     year = models.PositiveIntegerField("연도", default=2026)
     organizer = models.CharField("주최", max_length=120, blank=True)
     description = models.TextField("설명", blank=True)
+    # 전후반 한 쪽 길이(분). 중계 콘솔 시계·후반 시작점 기준. 부문(Division)에서 덮어쓸 수 있다.
+    half_length_minutes = models.PositiveIntegerField("전후반 길이(분)", default=45)
 
     class Meta:
         verbose_name = "대회"
@@ -53,6 +55,11 @@ class Division(models.Model):
     name = models.CharField(
         "부문명", max_length=60, blank=True,
         help_text="비우면 연령 부문 표시명을 사용(예: 40대부문).",
+    )
+    # 부문별 전후반 길이. 비우면 대회(Competition) 기본값을 사용한다.
+    half_length_minutes = models.PositiveIntegerField(
+        "전후반 길이(분)", null=True, blank=True,
+        help_text="비우면 대회 기본값 사용.",
     )
 
     class Meta:

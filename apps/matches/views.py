@@ -164,16 +164,43 @@ def match_detail(request, pk):
     )
 
 
-def _elapsed_seconds(match):
-    """콘솔 자동 타이머의 경과 초.
+def _current_half(match):
+    """현재 진행 단계의 전/후반 번호(1·2). 시작 전이면 None."""
+    P = Match.Period
+    if match.period in (P.FIRST, P.HALFTIME):
+        return 1
+    if match.period in (P.SECOND, P.FINISHED):
+        return 2
+    return None
 
-    기준은 'LIVE 시작'을 누른 실제 시각(``live_started_at``) — 예정 킥오프와 무관.
-    아직 시작 전이면 예정 킥오프로 폴백(시작 전 카운트다운 표시용), 둘 다 없으면 None.
+
+def _elapsed_seconds(match):
+    """콘솔 자동 타이머의 경과 초(전후반 연속 표기).
+
+    전반: now - 전반 시작시각. 하프타임: 전후반 길이에서 정지.
+    후반: 전후반 길이 + (now - 후반 시작시각) — 전반 길이부터 이어서 흐른다.
+    종료: 후반까지 했으면 풀타임(길이×2), 아니면 길이. 시작 전엔 킥오프 카운트다운 폴백.
     """
+    P = Match.Period
+    half = match.half_length_seconds
+    now = timezone.now()
+    if match.period == P.FIRST:
+        if not match.live_started_at:
+            return None
+        return int((now - match.live_started_at).total_seconds())
+    if match.period == P.HALFTIME:
+        return half
+    if match.period == P.SECOND:
+        if not match.second_half_started_at:
+            return half
+        return half + int((now - match.second_half_started_at).total_seconds())
+    if match.period == P.FINISHED:
+        return half * 2 if match.second_half_started_at else half
+    # 시작 전(SCHEDULED): 킥오프가 있으면 카운트다운용 경과(음수 가능), 없으면 None.
     base = match.live_started_at or match.kickoff
     if not base:
         return None
-    return int((timezone.now() - base).total_seconds())
+    return int((now - base).total_seconds())
 
 
 def _live_payload(match):
@@ -182,6 +209,9 @@ def _live_payload(match):
         "status": match.status,
         "status_display": match.get_status_display(),
         "is_live": match.status == Match.Status.LIVE,
+        "period": match.period,
+        "period_display": match.get_period_display(),
+        "half_length": match.half_length_minutes,
         "our_score": match.our_score,
         "opponent_score": match.opponent_score,
         "result": match.result,
@@ -194,7 +224,7 @@ def _live_payload(match):
 def match_live_json(request, pk):
     """공개 폴링 엔드포인트: LIVE 경기의 스코어·상태·타임라인을 JSON으로."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk, club=request.club
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition", "division"), pk=pk, club=request.club
     )
     return JsonResponse(_live_payload(match))
 
@@ -298,9 +328,9 @@ def match_lineup(request, pk):
 
 @staff_required
 def match_live_console(request, pk):
-    """운영진용 실시간 중계 콘솔(모바일): LIVE 토글 + 빠른 이벤트 입력/삭제."""
+    """운영진용 실시간 중계 콘솔(모바일): 전후반 진행 + 빠른 이벤트 입력/삭제."""
     match = get_object_or_404(
-        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent"), pk=pk, club=request.club
+        Match.objects.select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition", "division"), pk=pk, club=request.club
     )
     team_players = (
         Player.objects.filter(memberships__team=match.our_team)
@@ -317,8 +347,10 @@ def match_live_console(request, pk):
         "match": match,
         "roster": _build_roster(match),
         "timeline": serialize_timeline(match),
-        # 자동 타이머 기준: 킥오프 이후 경과 초(킥오프 미설정 시 None).
+        # 자동 타이머 기준: 진행 단계별 경과 초(시작 전·킥오프 미설정 시 None).
         "elapsed_seconds": _elapsed_seconds(match),
+        # 전후반 길이(분) — 후반 시작점·하프타임 정지 표시 기준.
+        "half_length": match.half_length_minutes,
     })
 
 
@@ -333,36 +365,48 @@ def _handle_live_action(request, match, team_players):
     GOAL = MatchEvent.EventType.GOAL
     ASSIST = MatchEvent.EventType.ASSIST
     minute = _parse_minute(request.POST.get("minute"))
+    half = _current_half(match)
     score_changed = False
 
-    if action == "start":
-        # 예정 상태에서 새로 시작하면 시작시각을 다시 세팅(이전 LIVE 흔적 무시).
-        # 종료(FINISHED) 후 재개는 기존 시각을 보존해 자동 시계 연속성 유지.
-        fresh_start = match.status == Match.Status.SCHEDULED
+    if action in ("start_first", "start"):
+        # 전반 시작: 누른 시각을 기준으로 전반 시계가 0:00에서 흐른다(킥오프와 무관).
         match.status = Match.Status.LIVE
-        # 'LIVE 시작'을 누른 시각을 자동 시계 기준으로 고정(킥오프와 무관).
-        fields = ["status", "updated_at"]
-        if fresh_start or match.live_started_at is None:
-            match.live_started_at = timezone.now()
-            fields.append("live_started_at")
-        match.save(update_fields=fields)
-        messages.success(request, "경기를 LIVE로 시작했습니다.")
+        match.period = Match.Period.FIRST
+        match.live_started_at = timezone.now()
+        match.second_half_started_at = None
+        match.save(update_fields=["status", "period", "live_started_at",
+                                  "second_half_started_at", "updated_at"])
+        messages.success(request, "전반을 시작했습니다.")
+    elif action == "halftime":
+        match.period = Match.Period.HALFTIME
+        match.save(update_fields=["period", "updated_at"])
+        messages.success(request, "하프타임입니다.")
+    elif action == "start_second":
+        # 후반 시작: 후반 시계 = 전후반 길이 + (now - 이 시각). 전반 길이부터 이어서 흐른다.
+        match.status = Match.Status.LIVE
+        match.period = Match.Period.SECOND
+        match.second_half_started_at = timezone.now()
+        match.save(update_fields=["status", "period",
+                                  "second_half_started_at", "updated_at"])
+        messages.success(request, "후반을 시작했습니다.")
     elif action == "finish":
         match.status = Match.Status.FINISHED
-        match.save(update_fields=["status", "updated_at"])
+        match.period = Match.Period.FINISHED
+        match.save(update_fields=["status", "period", "updated_at"])
         messages.success(request, "경기를 종료했습니다.")
     elif action == "goal":
         side = request.POST.get("side") or MatchEvent.Side.OUR
         player = team_players.filter(pk=request.POST.get("player") or 0).first()
         goal = MatchEvent.objects.create(
             match=match, event_type=GOAL, side=side,
-            player=player if side == MatchEvent.Side.OUR else None, minute=minute,
+            player=player if side == MatchEvent.Side.OUR else None,
+            minute=minute, half=half,
         )
         assist = team_players.filter(pk=request.POST.get("assist") or 0).first()
         if side == MatchEvent.Side.OUR and assist:
             MatchEvent.objects.create(
                 match=match, event_type=ASSIST, side=side,
-                player=assist, minute=minute, goal=goal,
+                player=assist, minute=minute, half=half, goal=goal,
             )
         score_changed = True
         messages.success(request, "득점을 기록했습니다.")
@@ -373,7 +417,8 @@ def _handle_live_action(request, match, team_players):
             player = team_players.filter(pk=request.POST.get("player") or 0).first()
             MatchEvent.objects.create(
                 match=match, event_type=etype, side=side,
-                player=player if side == MatchEvent.Side.OUR else None, minute=minute,
+                player=player if side == MatchEvent.Side.OUR else None,
+                minute=minute, half=half,
             )
             score_changed = etype == MatchEvent.EventType.OWN_GOAL
             messages.success(request, "이벤트를 기록했습니다.")
@@ -384,10 +429,10 @@ def _handle_live_action(request, match, team_players):
         OUR = MatchEvent.Side.OUR
         if out_p:
             MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_OUT,
-                                      side=OUR, player=out_p, minute=minute)
+                                      side=OUR, player=out_p, minute=minute, half=half)
         if in_p:
             MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_IN,
-                                      side=OUR, player=in_p, minute=minute)
+                                      side=OUR, player=in_p, minute=minute, half=half)
         if out_p or in_p:
             messages.success(request, "교체를 기록했습니다.")
     elif action == "delete":

@@ -141,6 +141,11 @@
         timelineEl.innerHTML = '<div class="list-group-item text-muted">기록된 이벤트가 없습니다.</div>';
       }
     }
+    if (hintEl && data.is_live) {
+      // 진행 단계(전반/하프타임/후반)를 함께 표시.
+      hintEl.textContent = (data.period_display ? data.period_display + ' · ' : '') +
+                           '실시간 자동 갱신 중…';
+    }
     if (!data.is_live) {
       // 경기 종료 → 폴링 중지 후 새로고침으로 최종 결과(승/무/패 배지 등) 반영.
       if (timer) clearInterval(timer);

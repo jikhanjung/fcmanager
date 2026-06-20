@@ -48,6 +48,14 @@ class Match(models.Model):
         POSTPONED = "POSTPONED", "연기"
         CANCELLED = "CANCELLED", "취소"
 
+    class Period(models.TextChoices):
+        """중계 진행 단계(상태 LIVE 내부의 전·후반 구분)."""
+        SCHEDULED = "SCHEDULED", "시작 전"
+        FIRST = "FIRST", "전반"
+        HALFTIME = "HALFTIME", "하프타임"
+        SECOND = "SECOND", "후반"
+        FINISHED = "FINISHED", "종료"
+
     class Stage(models.TextChoices):
         GROUP = "GROUP", "조별리그"
         RO16 = "RO16", "16강"
@@ -109,9 +117,16 @@ class Match(models.Model):
     away_score = models.PositiveIntegerField("원정 득점", null=True, blank=True)
     note = models.TextField("비고", blank=True)
 
-    # 중계 콘솔 자동 시계의 기준점. 'LIVE 시작'을 누른 실제 시각으로,
-    # 예정 킥오프와 무관하게 이 시각부터 경기 시계가 0:00에서 흐른다.
-    live_started_at = models.DateTimeField("중계 시작 시각", null=True, blank=True)
+    # 중계 진행 단계(전반/하프타임/후반/종료). 상태(status)는 공개 페이지용으로 유지하고,
+    # 콘솔의 전후반 전환은 이 필드로 추적한다.
+    period = models.CharField(
+        "진행 단계", max_length=12, choices=Period.choices, default=Period.SCHEDULED,
+    )
+    # 중계 콘솔 자동 시계의 기준점. '전반 시작'을 누른 실제 시각으로,
+    # 예정 킥오프와 무관하게 이 시각부터 전반 시계가 0:00에서 흐른다.
+    live_started_at = models.DateTimeField("전반 시작 시각", null=True, blank=True)
+    # '후반 시작'을 누른 실제 시각. 후반 시계 = 전후반 길이 + (now - 이 시각).
+    second_half_started_at = models.DateTimeField("후반 시작 시각", null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -202,6 +217,17 @@ class Match(models.Model):
         return None
 
     @property
+    def half_length_minutes(self):
+        """이 경기의 전후반 한 쪽 길이(분). 부문 오버라이드 → 대회 기본값 순."""
+        if self.division_id and self.division.half_length_minutes:
+            return self.division.half_length_minutes
+        return self.competition.half_length_minutes
+
+    @property
+    def half_length_seconds(self):
+        return self.half_length_minutes * 60
+
+    @property
     def is_knockout(self):
         return self.stage in self.KNOCKOUT_STAGES
 
@@ -240,6 +266,8 @@ class MatchEvent(models.Model):
     )
     event_type = models.CharField("이벤트", max_length=10, choices=EventType.choices)
     minute = models.PositiveIntegerField("분", null=True, blank=True)
+    # 이벤트가 일어난 전·후반 구분(1=전반, 2=후반). 콘솔 기록 시 진행 단계에서 채운다.
+    half = models.PositiveSmallIntegerField("전/후반", null=True, blank=True)
     description = models.CharField("설명", max_length=200, blank=True)
     # 도움(ASSIST) 이벤트가 어느 득점(GOAL)에 연결되는지 명시적으로 가리킨다.
     # (분 미입력 시 분 기준 추정이 불가능하므로 직접 연결로 정확히 짝짓는다.)
