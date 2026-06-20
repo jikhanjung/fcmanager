@@ -11,27 +11,32 @@ _최종 갱신: 2026-06-20_
 
 ## 한 줄 요약
 
-Phase 1~4 완료. UI 개선(경기 행 클릭·모바일 카드)까지 커밋(`2be171b`). 이미지
-`0.6.1` 빌드·push 완료. **운영(dolfinid) 0.6.1 배포 완료**(2026-06-20, 사이트 정상).
+Phase 1~4 완료. 중계 콘솔 **전후반 구분 + 길이 설정(대회/부문) + 시계 일시정지/재개**
+추가, 버전 관리 fsis2026 패턴(`config/version.py`+`deploy/build.sh`) 도입.
+이미지 `0.6.2` 빌드·push 완료. **운영(dolfinid) 0.6.2 배포 완료**(2026-06-20, 사이트 정상).
 
 ## 코드 / 브랜치
 
 - 브랜치: `main` (배포도 main 직접 — feature 브랜치 안 씀)
-- 최신 커밋: `2be171b` — 경기 행 전체 클릭 이동 + 일정/결과 모바일 카드화 + 팀 상세 경기 섹션
+- 최신 커밋: `2f44e7e` — build: 버전 단일소스 config/version.py + deploy/build.sh (fsis2026 패턴)
+  - 직전: `20b7d60` 일시정지, `fecf828` 대회 편집 폼 길이, `7b8cd75` 전후반 구분·길이
 - 작업 트리: clean (단, `db.sqlite3.devbak` 는 추적 안 함 — 아래 "로컬 개발 DB" 참고)
 
 ## 배포 상태
 
 | 위치 | 버전 | 상태 |
 |------|------|------|
-| Docker Hub `honestjung/fcmanager` | **0.6.1** | push 완료 (digest `sha256:ac17d695…`), 매니페스트 정상 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.1** | 배포 완료(2026-06-20). 컨테이너 `fcmanager` Up, 사이트 200 |
+| Docker Hub `honestjung/fcmanager` | **0.6.2** + `latest` | push 완료 (digest `sha256:a9a5e289…`), 매니페스트 정상 |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.2** | 배포 완료(2026-06-20). 컨테이너 `fcmanager` Up, `fcmanager.app` 200, navbar `v0.6.2` |
 
-- 운영 0.6.1 배포 완료 — 미완 배포 작업 없음.
-- 0.6.1 변경은 템플릿/뷰/CSS만 — **마이그레이션 없음**(entrypoint migrate 추가 작업 없음).
-- dolfinid 소스 체크아웃(`~/projects/FcSky`)은 GitHub pull 키 없음 → `git pull` 실패.
+- 운영 0.6.2 배포 완료 — 미완 배포 작업 없음.
+- 0.6.2 는 **마이그레이션 3개 포함**(competitions 0009, matches 0015·0016) — entrypoint 의
+  `migrate` 가 컨테이너 기동 시 적용. 배포 후 사이트 정상 확인됨.
+- 버전 단일 소스 = `config/version.py`. 다음 릴리스는 **`./deploy/build.sh X.Y.Z`** 로
+  (test → version.py bump/commit → build `:X.Y.Z`·`:latest` → push) 일괄 처리.
+- dolfinid 소스 체크아웃(`~/projects/FcSky`)은 GitHub pull 키 없음 → `git pull` 실패할 수 있음.
   단 앱 코드는 이미지에 포함되어 배포에 지장 없음(`sync_to_srv` 는 compose/deploy.sh/백업
-  스크립트만 복사, 이번 커밋은 그 파일들 안 건드림).
+  스크립트만 복사).
 
 ## 운영 호스트 (요약 — 상세는 메모리/매뉴얼)
 
