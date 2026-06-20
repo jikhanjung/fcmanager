@@ -14,6 +14,8 @@ _최종 갱신: 2026-06-20_
 Phase 1~4 완료. 중계 콘솔 **전후반 구분 + 길이 설정(대회/부문) + 시계 일시정지/재개**
 추가, 버전 관리 fsis2026 패턴(`config/version.py`+`deploy/build.sh`) 도입, 운영 쿠키
 Secure 보안 설정. 이미지 `0.6.3` 빌드·push 완료. **운영(dolfinid) 0.6.3 배포 완료**(2026-06-20, 사이트 정상).
+레거시 진입점(`/FcSky/`·`/2026biennale/`·`biennale.nopeoplestime.info`) → 새 도메인 301
+리다이렉트 정리(devlog 068).
 
 ## 코드 / 브랜치
 
@@ -34,6 +36,9 @@ Secure 보안 설정. 이미지 `0.6.3` 빌드·push 완료. **운영(dolfinid) 
   `SESSION_COOKIE_SECURE`·`CSRF_COOKIE_SECURE` 활성(devlog 067).
 - (직전) 0.6.2 는 **마이그레이션 3개 포함**(competitions 0009, matches 0015·0016) — entrypoint
   `migrate` 가 적용 완료.
+- **레거시 리다이렉트(호스트 nginx, repo 비추적)**: `/FcSky/`→`fcmanager.app/fcsky/`,
+  `/2026biennale/`·`biennale.nopeoplestime.info`→`biennale.app` (devlog 068). 레거시 fcsky
+  컨테이너(8003)는 롤백용으로 가동 유지.
 - 버전 단일 소스 = `config/version.py`. 다음 릴리스는 **`./deploy/build.sh X.Y.Z`** 로
   (test → version.py bump/commit → build `:X.Y.Z`·`:latest` → push) 일괄 처리.
 - dolfinid 소스 체크아웃(`~/projects/FcSky`)은 GitHub pull 키 없음 → `git pull` 실패할 수 있음.
