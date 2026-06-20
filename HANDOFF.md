@@ -43,10 +43,17 @@ Phase 1~4 완료. UI 개선(경기 행 클릭·모바일 카드)까지 커밋(`2
 ## 로컬 개발 (m710q)
 
 - venv: **`~/venv/FcSky`** (CLAUDE.md엔 `FCManager`로 적혀 있으나 실제 디렉터리는 `FcSky` — 불일치).
-- 현재 로컬 `db.sqlite3` = **운영 백업 사본**(테스트용으로 교체함). 원래 dev DB는
-  `db.sqlite3.devbak` 로 백업해 둠. 되돌리려면 `cp db.sqlite3.devbak db.sqlite3`.
-- 테스트 서버는 `DJANGO_ALLOWED_HOSTS='*' python manage.py runserver 0.0.0.0:8000`
-  (LAN/타 기기 접근용, 개발 한정).
+- **테스트 서버는 운영 백업 미러(`~/dev_data/fcmanager/`)를 바라본다** (fsis2026 dev_data 패턴):
+  ```bash
+  source ~/venv/FcSky/bin/activate && ./scripts/run-testserver.sh   # 0.0.0.0:8000
+  ```
+  - `scripts/run-testserver.sh` 가 `DATABASE_PATH`/`MEDIA_ROOT` 를 dev_data 로 지정하고
+    `DEBUG=true`, `ALLOWED_HOSTS=*`(LAN 접근용) 로 기동. settings 는 두 env 미설정 시
+    기본(BASE_DIR) 유지 → 운영 컨테이너 영향 없음.
+  - dev_data 는 **daily 백업이 자동 갱신**: `backup-fcmanager.sh` step 8 이 매일 05시
+    `~/backups/fcmanager/current/{db.sqlite3,media}` → `~/dev_data/fcmanager/` 로 cp/rsync.
+  - 데이터는 repo 가 아니라 dev_data 에 있으므로 **repo 에 db.sqlite3 두지 않는다**(삭제됨,
+    gitignore). 굳이 스크래치 DB 가 필요하면 `python manage.py migrate` 가 빈 repo DB 생성.
 
 ## 알려진 정리거리 (급하지 않음)
 
