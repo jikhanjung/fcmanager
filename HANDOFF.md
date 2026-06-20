@@ -12,26 +12,28 @@ _최종 갱신: 2026-06-20_
 ## 한 줄 요약
 
 Phase 1~4 완료. 중계 콘솔 **전후반 구분 + 길이 설정(대회/부문) + 시계 일시정지/재개**
-추가, 버전 관리 fsis2026 패턴(`config/version.py`+`deploy/build.sh`) 도입.
-이미지 `0.6.2` 빌드·push 완료. **운영(dolfinid) 0.6.2 배포 완료**(2026-06-20, 사이트 정상).
+추가, 버전 관리 fsis2026 패턴(`config/version.py`+`deploy/build.sh`) 도입, 운영 쿠키
+Secure 보안 설정. 이미지 `0.6.3` 빌드·push 완료. **운영(dolfinid) 0.6.3 배포 완료**(2026-06-20, 사이트 정상).
 
 ## 코드 / 브랜치
 
 - 브랜치: `main` (배포도 main 직접 — feature 브랜치 안 씀)
-- 최신 커밋: `2f44e7e` — build: 버전 단일소스 config/version.py + deploy/build.sh (fsis2026 패턴)
-  - 직전: `20b7d60` 일시정지, `fecf828` 대회 편집 폼 길이, `7b8cd75` 전후반 구분·길이
+- 최신 커밋: `9c1f398` — Bump version to 0.6.3
+  - 직전: `889ccf2` devlog 067(쿠키 Secure), `53345b1` 운영 쿠키 Secure 블록, `2f44e7e` 버전 단일소스
 - 작업 트리: clean (단, `db.sqlite3.devbak` 는 추적 안 함 — 아래 "로컬 개발 DB" 참고)
 
 ## 배포 상태
 
 | 위치 | 버전 | 상태 |
 |------|------|------|
-| Docker Hub `honestjung/fcmanager` | **0.6.2** + `latest` | push 완료 (digest `sha256:a9a5e289…`), 매니페스트 정상 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.2** | 배포 완료(2026-06-20). 컨테이너 `fcmanager` Up, `fcmanager.app` 200, navbar `v0.6.2` |
+| Docker Hub `honestjung/fcmanager` | **0.6.3** + `latest` | push 완료 (digest `sha256:629349ab…`), 매니페스트 정상 |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.3** | 배포 완료(2026-06-20). 컨테이너 `fcmanager` Up, `fcmanager.app` 200, navbar `v0.6.3` |
 
-- 운영 0.6.2 배포 완료 — 미완 배포 작업 없음.
-- 0.6.2 는 **마이그레이션 3개 포함**(competitions 0009, matches 0015·0016) — entrypoint 의
-  `migrate` 가 컨테이너 기동 시 적용. 배포 후 사이트 정상 확인됨.
+- 운영 0.6.3 배포 완료 — 미완 배포 작업 없음.
+- 0.6.3 은 **마이그레이션 없음**(운영 비 DEBUG 쿠키 Secure 설정만). DEBUG=false 라
+  `SESSION_COOKIE_SECURE`·`CSRF_COOKIE_SECURE` 활성(devlog 067).
+- (직전) 0.6.2 는 **마이그레이션 3개 포함**(competitions 0009, matches 0015·0016) — entrypoint
+  `migrate` 가 적용 완료.
 - 버전 단일 소스 = `config/version.py`. 다음 릴리스는 **`./deploy/build.sh X.Y.Z`** 로
   (test → version.py bump/commit → build `:X.Y.Z`·`:latest` → push) 일괄 처리.
 - dolfinid 소스 체크아웃(`~/projects/FcSky`)은 GitHub pull 키 없음 → `git pull` 실패할 수 있음.
