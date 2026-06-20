@@ -54,7 +54,8 @@
 - [x] **백업 체계** — 운영 hourly(`backup_db.py`) + m710q daily pull(`backup-fcsky.sh`).
       DB·media·nginx tar 포함. 매뉴얼: `docs/operation_manual/backup.md`.
   - [x] `.env` 백업 — `/srv/fcmanager/.env`에서 pull, m710q 백업 검증 완료(2026-06-17).
-  - [ ] (선택) NAS/dev_data 디렉토리 생성 시 3계층화
+  - [x] NAS 3계층화 — `/nas/JikhanJung/fcmanager_backup/`(90일) 매일 미러 + dev_data 갱신,
+        2026-06-17부터 가동 중(backup.log "NAS 백업 완료" 매일)
 - [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/fcmanager` (devlog 050, 매뉴얼 `deploy.md`)
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [x] 리버스 프록시(Nginx) + HTTPS + 도메인 연결 — `fcmanager.app` 병렬 배포(포트 8004,
