@@ -69,6 +69,8 @@
       `/srv/fcmanager`), certbot HTTPS + HTTP→HTTPS 301 + HSTS, fcsky 레거시 유지 (devlog 063)
   - [x] 신규 인스턴스 백업 — dolfinid hourly cron + m710q daily pull(`backup-fcmanager.sh`) 모두 적용 완료(2026-06-17).
   - [ ] 레거시 fcsky 폐기 시점·절차 결정
+    - [x] nginx `/FcSky/` 301 리다이렉트 제거(2026-06-22, devlog 072 — 이제 404)
+    - [ ] 레거시 fcsky 컨테이너(8003) 폐기 — 현재 롤백용 가동 유지
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 - [x] 버전 관리 단일소스화 (fsis2026 패턴) — `config/version.py` + `deploy/build.sh X.Y.Z`
       (test→bump/commit→build `:X.Y.Z`·`:latest`→push). 0.6.2부터 적용 (devlog 066)
