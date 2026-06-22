@@ -292,11 +292,11 @@ a:hover > .card, .hover-lift:hover {
 .site-footer .brand-wordmark { font-size: 1.3rem; }
 
 /* ── 등장 애니메이션 ──────────────────────────────────── */
-@keyframes fcsky-rise {
+@keyframes fcmanager-rise {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.reveal { animation: fcsky-rise .6s cubic-bezier(.2,.7,.3,1) both; }
+.reveal { animation: fcmanager-rise .6s cubic-bezier(.2,.7,.3,1) both; }
 .reveal-1 { animation-delay: .05s; }
 .reveal-2 { animation-delay: .15s; }
 .reveal-3 { animation-delay: .28s; }
