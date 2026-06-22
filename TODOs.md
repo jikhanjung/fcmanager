@@ -15,11 +15,11 @@
 
 ## ✅ Phase 2 — 공개 조회 페이지 (완료)
 
-- [x] **일정 & 결과 페이지** — 전체 경기 리스트, 대회별·팀별·시즌별 필터, 예정/종료 구분
+- [x] **일정 & 결과 페이지** — 전체 경기 리스트, 대회별·팀별·연도별 필터, 예정/종료 구분
 - [x] **경기 상세 페이지** — 스코어, 득점·카드·교체 타임라인(MatchEvent)
 - [x] **리그 순위표** — 리그별 승점/득실 자동 계산 (승 3·무 1·패 0)
-- [x] **득점 순위** — MatchEvent(GOAL) 집계, 팀/대회/시즌 필터
-- [x] **명예의 전당** — 입상 내역(Award) 시즌·대회별 정리
+- [x] **득점 순위** — MatchEvent(GOAL) 집계, 팀/대회/연도 필터
+- [x] **명예의 전당** — 입상 내역(Award) 연도·대회별 정리
 - [x] **선수 상세 페이지** — 프로필 + 소속 이력 + 득점/도움/카드 + 수상
 - [x] 네비게이션에 위 메뉴 추가
 
@@ -29,7 +29,7 @@
 - [x] 공지사항(Notice) 모델 + 페이지 (목록·상세·홈 노출·admin)
 - [x] 갤러리 (사진/영상 링크 — /gallery/)
 - [x] 통계 자동 집계 (득점왕·도움·팀별 승무패·승률 — `/stats/`)
-- [x] 시즌별 아카이브 화면 (`/seasons/` 목록 + `/seasons/<id>/` 종합 — 클럽 요약·입상·득점/도움 TOP·경기 결과)
+- [x] 연도별 아카이브 화면 (`/years/` 목록 + `/years/<year>/` 종합 — 클럽 요약·입상·득점/도움 TOP·경기 결과)
 
 ## 📡 Phase 4 — 실시간 중계
 
@@ -71,6 +71,10 @@
   - [x] 레거시 fcsky 폐기 (2026-06-22, devlog 072)
     - [x] nginx `/FcSky/` 301 리다이렉트 제거 — 이제 404
     - [x] 레거시 fcsky 컨테이너(8003) stop+rm — 포트 해제. `/srv/FcSky` 데이터·`honestjung/fcsky:0.5.7` 이미지는 콜드백업용 보존
+    - [x] m710q 구 cron `backup-fcsky.sh`(04시) 제거·스크립트 retired (`backup-fcmanager.sh` 05시로 단일화)
+- [x] repo 리네임 FcSky → `fcmanager` (m710q·dolfinid 양쪽 디렉터리·remote, GitHub `jikhanjung/fcmanager`,
+      Dockerfile OCI 라벨) + 프로젝트 문서 현행화(README·CLAUDE.md) (2026-06-22, devlog 070·072·073)
+      · 콜드백업·클럽 슬러그 `fcsky` 는 의도적 유지, 에셋 파일명은 후속 CI 작업 때 정리
 - [x] 관리자 계정 비밀번호 교체 (2026-06-17, 운영 `admin` 비번 변경 완료)
 - [x] 버전 관리 단일소스화 (fsis2026 패턴) — `config/version.py` + `deploy/build.sh X.Y.Z`
       (test→bump/commit→build `:X.Y.Z`·`:latest`→push). 0.6.2부터 적용 (devlog 066)
