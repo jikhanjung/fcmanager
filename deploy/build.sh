@@ -14,7 +14,7 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-VENV="${VENV:-$HOME/venv/FcSky/bin/activate}"
+VENV="${VENV:-$HOME/venv/fcmanager/bin/activate}"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE=honestjung/fcmanager
 
@@ -49,6 +49,6 @@ echo ""
 echo "=== Done: $IMAGE:$VERSION ==="
 echo ""
 echo "다음 단계 (dolfinid):"
-echo "  cd ~/projects/FcSky && git pull"
+echo "  cd ~/projects/fcmanager && git pull"
 echo "  ./deploy/sync_to_srv.sh                  # scripts/*.py + deploy/host/* 동기화"
 echo "  /srv/fcmanager/deploy.sh $VERSION        # 컨테이너 교체 + 즉시 스냅샷"

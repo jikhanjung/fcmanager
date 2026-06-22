@@ -5,7 +5,7 @@
 # 이 디렉토리는 daily 백업(backup-fcmanager.sh step 8)이 매일 운영 미러로 갱신한다.
 # (fsis2026 의 dev_data 패턴과 동일 — 서버는 repo 에서 돌고, 데이터만 분리)
 #
-# 사용: source ~/venv/FcSky/bin/activate && ./scripts/run-testserver.sh [PORT]
+# 사용: source ~/venv/fcmanager/bin/activate && ./scripts/run-testserver.sh [PORT]
 set -euo pipefail
 
 DEV_DATA_DIR="${DEV_DATA_DIR:-/home/jikhanjung/dev_data/fcmanager}"

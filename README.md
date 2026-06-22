@@ -19,7 +19,7 @@ templates/           Bootstrap 기반 템플릿
 
 ## 개발 환경 실행
 ```bash
-source ~/venv/FCManager/bin/activate     # 가상환경
+source ~/venv/fcmanager/bin/activate     # 가상환경
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
