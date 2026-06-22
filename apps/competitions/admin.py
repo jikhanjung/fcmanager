@@ -6,7 +6,8 @@ from .models import Competition, Division, CompetitionEntry, Award
 class DivisionInline(admin.TabularInline):
     model = Division
     extra = 0
-    fields = ["age_group", "name", "half_length_minutes"]
+    fields = ["age_group", "name", "half_length_minutes",
+              "extra_half_minutes", "extra_time_single"]
 
 
 class CompetitionEntryInline(admin.TabularInline):

@@ -65,6 +65,7 @@ class CompetitionFormHalfLengthTest(TestCase):
         data = {
             "name": "컵", "slug": "cup", "kind": Competition.Kind.TOURNAMENT,
             "year": 2026, "half_length_minutes": 30,
+            "extra_half_minutes": 15,
             "organizer": "", "description": "",
             "divisions": ["2030", "50"],
         }

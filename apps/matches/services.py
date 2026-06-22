@@ -143,9 +143,12 @@ def recompute_score(match):
 
     우리 점수 = 우리팀 GOAL + 상대팀 OWN_GOAL,
     상대 점수 = 상대팀 GOAL + 우리팀 OWN_GOAL.
+    승부차기 점수 = 각 팀 PSO_GOAL 수(승부차기 이벤트가 있을 때만 집계, 없으면 None).
     """
     GOAL = MatchEvent.EventType.GOAL
     OWN_GOAL = MatchEvent.EventType.OWN_GOAL
+    PSO_GOAL = MatchEvent.EventType.PSO_GOAL
+    PSO_MISS = MatchEvent.EventType.PSO_MISS
     OUR = MatchEvent.Side.OUR
     OPP = MatchEvent.Side.OPPONENT
     evs = list(match.events.values("event_type", "side"))
@@ -155,14 +158,21 @@ def recompute_score(match):
 
     our_score = count(GOAL, OUR) + count(OWN_GOAL, OPP)
     opp_score = count(GOAL, OPP) + count(OWN_GOAL, OUR)
+    # 승부차기: 킥 이벤트(성공/실패)가 하나라도 있으면 성공 수로 집계, 없으면 None.
+    has_pso = any(e["event_type"] in (PSO_GOAL, PSO_MISS) for e in evs)
+    our_pso = count(PSO_GOAL, OUR) if has_pso else None
+    opp_pso = count(PSO_GOAL, OPP) if has_pso else None
     our = match.our_entry
     if our is None:  # 우리 팀 경기가 아니면 이벤트 기반 재집계 불가
         return
     if our.id == match.home_entry_id:
         match.home_score, match.away_score = our_score, opp_score
+        match.home_pso_score, match.away_pso_score = our_pso, opp_pso
     else:
         match.home_score, match.away_score = opp_score, our_score
-    match.save(update_fields=["home_score", "away_score", "updated_at"])
+        match.home_pso_score, match.away_pso_score = opp_pso, our_pso
+    match.save(update_fields=["home_score", "away_score",
+                              "home_pso_score", "away_pso_score", "updated_at"])
 
 
 def serialize_timeline(match):

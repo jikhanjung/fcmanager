@@ -18,6 +18,13 @@ class Competition(models.Model):
     description = models.TextField("설명", blank=True)
     # 전후반 한 쪽 길이(분). 중계 콘솔 시계·후반 시작점 기준. 부문(Division)에서 덮어쓸 수 있다.
     half_length_minutes = models.PositiveIntegerField("전후반 길이(분)", default=45)
+    # 연장 한 쪽 길이(분). 녹아웃 동점 시 연장 시계 기준.
+    extra_half_minutes = models.PositiveIntegerField("연장 길이(분)", default=15)
+    # 연장을 단일(중간 휴식 없음)로 진행할지. 기본은 전·후반(2개 하프).
+    extra_time_single = models.BooleanField(
+        "연장 단일 진행", default=False,
+        help_text="체크하면 연장을 전·후반 없이 한 번에 진행(휴식 없음).",
+    )
 
     class Meta:
         verbose_name = "대회"
@@ -59,6 +66,15 @@ class Division(models.Model):
     # 부문별 전후반 길이. 비우면 대회(Competition) 기본값을 사용한다.
     half_length_minutes = models.PositiveIntegerField(
         "전후반 길이(분)", null=True, blank=True,
+        help_text="비우면 대회 기본값 사용.",
+    )
+    # 부문별 연장 길이/형식 오버라이드. 비우면 대회 기본값을 사용한다.
+    extra_half_minutes = models.PositiveIntegerField(
+        "연장 길이(분)", null=True, blank=True,
+        help_text="비우면 대회 기본값 사용.",
+    )
+    extra_time_single = models.BooleanField(
+        "연장 단일 진행", null=True, blank=True,
         help_text="비우면 대회 기본값 사용.",
     )
 

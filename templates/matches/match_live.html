@@ -41,8 +41,12 @@
      data-period="{{ match.period }}"
      data-paused="{% if match.paused_at %}1{% endif %}"
      data-half-length="{{ half_length }}"
+     data-knockout="{% if is_knockout %}1{% endif %}"
+     data-extra-single="{% if extra_time_single %}1{% endif %}"
      data-our="{{ match.our_score|default:0 }}"
      data-opp="{{ match.opponent_score|default:0 }}"
+     data-our-pso="{{ match.our_pso_score|default_if_none:'' }}"
+     data-opp-pso="{{ match.opponent_pso_score|default_if_none:'' }}"
      id="live-root">
 
   <!-- 상단 고정 바: 진행 단계 · 시계 · 단계 진행 버튼 -->
@@ -72,22 +76,38 @@
         </div>
         <div class="col"><div class="fw-semibold text-truncate">{{ match.opponent }}</div></div>
       </div>
+      <div class="text-center small text-muted mt-1 d-none" id="pso-line">
+        승부차기 <span id="pso-sb">0 : 0</span>
+      </div>
     </div>
   </div>
 
-  <!-- 주요 동작 -->
-  <div class="row g-2 mb-2">
-    <div class="col-6">
-      <button class="btn btn-primary w-100 act-primary" data-goal="OUR">⚽<br>우리 득점</button>
+  <!-- 주요 동작 (정규/연장 진행 중) -->
+  <div id="normal-actions">
+    <div class="row g-2 mb-2">
+      <div class="col-6">
+        <button class="btn btn-primary w-100 act-primary" data-goal="OUR">⚽<br>우리 득점</button>
+      </div>
+      <div class="col-6">
+        <button class="btn btn-outline-primary w-100 act-primary" data-goal="OPPONENT">⚽<br>상대 득점</button>
+      </div>
     </div>
-    <div class="col-6">
-      <button class="btn btn-outline-primary w-100 act-primary" data-goal="OPPONENT">⚽<br>상대 득점</button>
+    <div class="row g-2 mb-3">
+      <div class="col-4"><button class="btn btn-warning w-100 act-secondary" data-card="YELLOW">🟨 경고</button></div>
+      <div class="col-4"><button class="btn btn-danger w-100 act-secondary" data-card="RED">🟥 퇴장</button></div>
+      <div class="col-4"><button class="btn btn-secondary w-100 act-secondary" data-sub="1">🔄 교체</button></div>
     </div>
   </div>
-  <div class="row g-2 mb-3">
-    <div class="col-4"><button class="btn btn-warning w-100 act-secondary" data-card="YELLOW">🟨 경고</button></div>
-    <div class="col-4"><button class="btn btn-danger w-100 act-secondary" data-card="RED">🟥 퇴장</button></div>
-    <div class="col-4"><button class="btn btn-secondary w-100 act-secondary" data-sub="1">🔄 교체</button></div>
+
+  <!-- 승부차기 패널 (period=PENALTIES 일 때만) -->
+  <div id="pso-panel" class="d-none mb-3">
+    <div class="text-center mb-2"><span class="badge bg-dark fs-6">🥅 승부차기 <span id="pso-big">0 : 0</span></span></div>
+    <div class="row g-2">
+      <div class="col-6"><button class="btn btn-primary w-100 act-secondary" data-pso="OUR" data-ok="1">⚽ 우리 성공</button></div>
+      <div class="col-6"><button class="btn btn-outline-primary w-100 act-secondary" data-pso="OPPONENT" data-ok="1">⚽ 상대 성공</button></div>
+      <div class="col-6"><button class="btn btn-outline-secondary w-100 act-secondary" data-pso="OUR" data-ok="0">❌ 우리 실패</button></div>
+      <div class="col-6"><button class="btn btn-outline-secondary w-100 act-secondary" data-pso="OPPONENT" data-ok="0">❌ 상대 실패</button></div>
+    </div>
   </div>
 
   <!-- 최근 기록 -->
@@ -137,7 +157,8 @@
   var sheetExtra = document.getElementById('sheet-extra');
 
   var ICON = { GOAL:'⚽', OWN_GOAL:'⚽(자책)', YELLOW:'🟨', RED:'🟥',
-               SUB_IN:'🔄 IN', SUB_OUT:'🔄 OUT', ASSIST:'👟' };
+               SUB_IN:'🔄 IN', SUB_OUT:'🔄 OUT', ASSIST:'👟',
+               PSO_GOAL:'⚽(승부차기)', PSO_MISS:'❌(승부차기)' };
 
   function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
 
@@ -299,53 +320,119 @@
     });
   });
 
-  // ── 진행 단계(전반/하프타임/후반/종료) ──
-  // 현재 단계 → 다음 단계 버튼(누르면 보낼 액션). 단계 버튼 하나로 흐름을 진행.
-  var STAGE = {
-    SCHEDULED: { action:'start_first',  label:'▶ 전반 시작', cls:'btn btn-sm btn-danger' },
-    FIRST:     { action:'halftime',     label:'⏸ 하프타임', cls:'btn btn-sm btn-warning' },
-    HALFTIME:  { action:'start_second', label:'▶ 후반 시작', cls:'btn btn-sm btn-danger' },
-    SECOND:    { action:'finish',       label:'⏹ 경기 종료', cls:'btn btn-sm btn-outline-danger' },
-    FINISHED:  { action:'start_first',  label:'↻ 재시작',    cls:'btn btn-sm btn-outline-secondary' }
-  };
+  // ── 진행 단계(전반/하프타임/후반/연장/승부차기/종료) ──
+  var KNOCKOUT  = root.dataset.knockout === '1';
+  var ET_SINGLE = root.dataset.extraSingle === '1';
+  var RUN_PERIODS = ['FIRST','SECOND','ET_FIRST','ET_SECOND'];  // 시계가 흐르는(=정지 가능) 구간
+
   var PERIOD_BADGE = {
-    SCHEDULED: '<span class="badge bg-secondary">예정</span>',
-    FIRST:     '<span class="badge bg-danger">🔴 전반</span>',
-    HALFTIME:  '<span class="badge bg-warning text-dark">하프타임</span>',
-    SECOND:    '<span class="badge bg-danger">🔴 후반</span>',
-    FINISHED:  '<span class="badge bg-secondary">종료</span>'
+    SCHEDULED:   '<span class="badge bg-secondary">예정</span>',
+    FIRST:       '<span class="badge bg-danger">🔴 전반</span>',
+    HALFTIME:    '<span class="badge bg-warning text-dark">하프타임</span>',
+    SECOND:      '<span class="badge bg-danger">🔴 후반</span>',
+    ET_FIRST:    '<span class="badge bg-danger">🔴 연장 전반</span>',
+    ET_HALFTIME: '<span class="badge bg-warning text-dark">연장 휴식</span>',
+    ET_SECOND:   '<span class="badge bg-danger">🔴 연장 후반</span>',
+    PENALTIES:   '<span class="badge bg-dark">🥅 승부차기</span>',
+    FINISHED:    '<span class="badge bg-secondary">종료</span>'
   };
+
+  function isDrawn(){
+    return document.getElementById('our-score').textContent ===
+           document.getElementById('opp-score').textContent;
+  }
+
+  // 현재 단계의 '다음' 동작. 단일 액션이거나, 녹아웃 종료 시점이면 선택지(menu).
+  function stageFor(p){
+    var FIN = { label:'⏹ 경기 종료', action:'finish', cls:'btn btn-sm btn-outline-danger', confirm:'경기를 종료할까요?' };
+    if (p === 'SCHEDULED')   return { label:'▶ 전반 시작', action:'start_first', cls:'btn btn-sm btn-danger' };
+    if (p === 'FIRST')       return { label:'⏸ 하프타임', action:'halftime', cls:'btn btn-sm btn-warning' };
+    if (p === 'HALFTIME')    return { label:'▶ 후반 시작', action:'start_second', cls:'btn btn-sm btn-danger' };
+    if (p === 'ET_HALFTIME') return { label:'▶ 연장 후반', action:'et_start_second', cls:'btn btn-sm btn-danger' };
+    if (p === 'PENALTIES')   return FIN;
+    if (p === 'FINISHED')    return { label:'↻ 재시작', action:'start_first', cls:'btn btn-sm btn-outline-secondary' };
+    if (p === 'ET_FIRST' && !ET_SINGLE) return { label:'⏸ 연장 휴식', action:'et_halftime', cls:'btn btn-sm btn-warning' };
+    // 결정 시점: SECOND · ET_SECOND · 단일연장 ET_FIRST → 녹아웃 동점이면 선택지.
+    if (KNOCKOUT && isDrawn()) {
+      var opts = [];
+      if (p === 'SECOND') opts.push({ label:'➕ 연장 시작', action:'start_et', cls:'btn btn-danger' });
+      opts.push({ label:'🥅 승부차기', action:'penalties', cls:'btn btn-dark' });
+      opts.push({ label:'⏹ 경기 종료', action:'finish', cls:'btn btn-outline-danger', confirm:'경기를 종료할까요?' });
+      return { label:'▾ 다음 단계', cls:'btn btn-sm btn-danger', menu: opts };
+    }
+    return FIN;
+  }
+
+  // 액션 선택 시트(버튼 목록). 선수 타일 시트(showSheet)와 별도.
+  function showActionSheet(title, actions){
+    sheetTitle.textContent = title;
+    sheetRoster.innerHTML = '';
+    sheetExtra.innerHTML = '';
+    actions.forEach(function(a){
+      var b = document.createElement('button');
+      b.className = (a.cls || 'btn btn-outline-primary') + ' mb-2';
+      b.innerHTML = a.label;
+      b.addEventListener('click', function(){
+        sheet.hide();
+        if (a.confirm && !confirm(a.confirm)) return;
+        postAction({ action: a.action });
+      });
+      sheetExtra.appendChild(b);
+    });
+    sheet.show();
+  }
 
   // 단계 진행 버튼
   document.getElementById('toggle-btn').addEventListener('click', function () {
-    var st = STAGE[root.dataset.period] || STAGE.SCHEDULED;
-    if (st.action === 'finish' && !confirm('경기를 종료할까요?')) return;
+    var st = stageFor(root.dataset.period || 'SCHEDULED');
+    if (st.menu) { showActionSheet('다음 단계 선택', st.menu); return; }
+    if (st.confirm && !confirm(st.confirm)) return;
     postAction({ action: st.action });
   });
 
-  // 일시정지 / 재개 버튼 (전·후반 진행 중에만 노출)
+  // 일시정지 / 재개 버튼 (전·후반·연장 진행 중에만 노출)
   document.getElementById('pause-btn').addEventListener('click', function () {
     postAction({ action: paused() ? 'resume' : 'pause' });
   });
 
+  // 승부차기 킥 버튼
+  document.querySelectorAll('[data-pso]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      postAction({ action: btn.dataset.ok === '1' ? 'pso_goal' : 'pso_miss', side: btn.dataset.pso });
+    });
+  });
+
+  // 승부차기 스코어 표시(스코어보드 보조줄 + 패널 큰 글씨)
+  function renderPso(ourP, oppP){
+    var has = (ourP !== null && ourP !== undefined && ourP !== '');
+    document.getElementById('pso-line').classList.toggle('d-none', !has);
+    var txt = (has ? ourP : 0) + ' : ' + (oppP === '' || oppP == null ? 0 : oppP);
+    document.getElementById('pso-sb').textContent = txt;
+    document.getElementById('pso-big').textContent = txt;
+  }
+
   // ── 상태 렌더 ──
   function renderStatusBar() {
     var p = root.dataset.period || 'SCHEDULED';
-    var st = STAGE[p] || STAGE.SCHEDULED;
-    var inHalf = (p === 'FIRST' || p === 'SECOND');
-    document.getElementById('status-badge').innerHTML = paused() && inHalf
+    var st = stageFor(p);
+    var inRun = RUN_PERIODS.indexOf(p) >= 0;
+    document.getElementById('status-badge').innerHTML = paused() && inRun
       ? '<span class="badge bg-secondary">⏸ 일시정지</span>'
       : (PERIOD_BADGE[p] || PERIOD_BADGE.SCHEDULED);
     var tb = document.getElementById('toggle-btn');
-    tb.textContent = st.label; tb.className = st.cls;
-    // 일시정지 버튼: 진행 중에만 보이고, 정지 여부에 따라 라벨/색 전환.
+    tb.innerHTML = st.label; tb.className = st.cls;
+    // 일시정지 버튼: 진행 중에만 노출.
     var pb = document.getElementById('pause-btn');
-    pb.classList.toggle('d-none', !inHalf);
+    pb.classList.toggle('d-none', !inRun);
     if (paused()) {
       pb.textContent = '▶ 재개'; pb.className = 'btn btn-sm btn-success';
     } else {
       pb.textContent = '⏸ 일시정지'; pb.className = 'btn btn-sm btn-outline-secondary';
     }
+    // 승부차기 패널 ↔ 일반 동작 토글.
+    var pso = (p === 'PENALTIES');
+    document.getElementById('pso-panel').classList.toggle('d-none', !pso);
+    document.getElementById('normal-actions').classList.toggle('d-none', pso);
   }
 
   function renderRecent(timeline) {
@@ -379,6 +466,7 @@
     root.dataset.paused = data.paused ? '1' : '';
     document.getElementById('our-score').textContent = data.our_score == null ? 0 : data.our_score;
     document.getElementById('opp-score').textContent = data.opponent_score == null ? 0 : data.opponent_score;
+    renderPso(data.our_pso, data.opponent_pso);
     syncClock(data.elapsed_seconds);
     renderStatusBar();
     renderRecent(data.timeline);
@@ -386,10 +474,11 @@
   }
 
   // 초기 렌더
-  renderStatusBar();
-  renderClock();
   document.getElementById('our-score').textContent = root.dataset.our;
   document.getElementById('opp-score').textContent = root.dataset.opp;
+  renderPso(root.dataset.ourPso, root.dataset.oppPso);
+  renderStatusBar();
+  renderClock();
   renderRecent(JSON.parse(document.getElementById('timeline-data').textContent));
 })();
 </script>

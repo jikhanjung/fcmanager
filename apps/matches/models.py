@@ -49,11 +49,15 @@ class Match(models.Model):
         CANCELLED = "CANCELLED", "취소"
 
     class Period(models.TextChoices):
-        """중계 진행 단계(상태 LIVE 내부의 전·후반 구분)."""
+        """중계 진행 단계(상태 LIVE 내부의 전·후반·연장·승부차기 구분)."""
         SCHEDULED = "SCHEDULED", "시작 전"
         FIRST = "FIRST", "전반"
         HALFTIME = "HALFTIME", "하프타임"
         SECOND = "SECOND", "후반"
+        ET_FIRST = "ET_FIRST", "연장 전반"
+        ET_HALFTIME = "ET_HALFTIME", "연장 휴식"
+        ET_SECOND = "ET_SECOND", "연장 후반"
+        PENALTIES = "PENALTIES", "승부차기"
         FINISHED = "FINISHED", "종료"
 
     class Stage(models.TextChoices):
@@ -127,8 +131,14 @@ class Match(models.Model):
     live_started_at = models.DateTimeField("전반 시작 시각", null=True, blank=True)
     # '후반 시작'을 누른 실제 시각. 후반 시계 = 전후반 길이 + (now - 이 시각).
     second_half_started_at = models.DateTimeField("후반 시작 시각", null=True, blank=True)
-    # 시계 일시정지: 멈춘 시각(정지 중이면 not-null) + 현재 하프에서 누적 정지 초.
-    # 하프 시계에서 paused_seconds 를 빼서 정지 시간만큼 시계가 멈춘 듯 보이게 한다.
+    # 연장 전·후반 시작 시각(녹아웃 동점 시). 시계는 정규 풀타임부터 이어서 흐른다.
+    et_first_started_at = models.DateTimeField("연장 전반 시작 시각", null=True, blank=True)
+    et_second_started_at = models.DateTimeField("연장 후반 시작 시각", null=True, blank=True)
+    # 승부차기 최종 스코어(킥 이벤트 집계). 본점수 동점일 때 승자 판정에 쓰인다.
+    home_pso_score = models.PositiveIntegerField("홈 승부차기", null=True, blank=True)
+    away_pso_score = models.PositiveIntegerField("원정 승부차기", null=True, blank=True)
+    # 시계 일시정지: 멈춘 시각(정지 중이면 not-null) + 현재 구간에서 누적 정지 초.
+    # 구간 시계에서 paused_seconds 를 빼서 정지 시간만큼 시계가 멈춘 듯 보이게 한다.
     paused_at = models.DateTimeField("일시정지 시각", null=True, blank=True)
     paused_seconds = models.PositiveIntegerField("누적 정지(초)", default=0)
 
@@ -211,14 +221,39 @@ class Match(models.Model):
 
     @property
     def winner_entry(self):
-        """승자 entry(무승부/미입력 시 None). 녹아웃 진출 판정용."""
+        """승자 entry. 본점수 우선, 동점이면 승부차기로 판정(둘 다 없으면 None)."""
         if self.home_score is None or self.away_score is None:
             return None
         if self.home_score > self.away_score:
             return self.home_entry
         if self.away_score > self.home_score:
             return self.away_entry
+        # 본점수 동점 → 승부차기 승자.
+        hp, ap = self.home_pso_score, self.away_pso_score
+        if hp is not None and ap is not None and hp != ap:
+            return self.home_entry if hp > ap else self.away_entry
         return None
+
+    @property
+    def decided_by_penalties(self):
+        """본점수 동점인데 승부차기로 승부가 갈렸는지."""
+        return (self.home_score is not None and self.home_score == self.away_score
+                and self.home_pso_score is not None and self.away_pso_score is not None
+                and self.home_pso_score != self.away_pso_score)
+
+    @property
+    def our_pso_score(self):
+        our = self.our_entry
+        if our is None or self.home_pso_score is None:
+            return None
+        return self.home_pso_score if our.id == self.home_entry_id else self.away_pso_score
+
+    @property
+    def opponent_pso_score(self):
+        our = self.our_entry
+        if our is None or self.home_pso_score is None:
+            return None
+        return self.away_pso_score if our.id == self.home_entry_id else self.home_pso_score
 
     @property
     def half_length_minutes(self):
@@ -230,6 +265,29 @@ class Match(models.Model):
     @property
     def half_length_seconds(self):
         return self.half_length_minutes * 60
+
+    @property
+    def extra_half_minutes(self):
+        """연장 한 쪽 길이(분). 부문 오버라이드 → 대회 기본값 순."""
+        if self.division_id and self.division.extra_half_minutes:
+            return self.division.extra_half_minutes
+        return self.competition.extra_half_minutes
+
+    @property
+    def extra_half_seconds(self):
+        return self.extra_half_minutes * 60
+
+    @property
+    def extra_time_total_seconds(self):
+        """연장 전체 길이(초). 단일/전후반 모두 한 쪽 길이의 2배."""
+        return self.extra_half_seconds * 2
+
+    @property
+    def extra_time_single(self):
+        """연장을 단일(중간 휴식 없음)으로 진행할지. 부문 오버라이드 → 대회 기본값 순."""
+        if self.division_id and self.division.extra_time_single is not None:
+            return self.division.extra_time_single
+        return self.competition.extra_time_single
 
     @property
     def is_knockout(self):
@@ -251,6 +309,8 @@ class MatchEvent(models.Model):
         RED = "RED", "퇴장"
         SUB_IN = "SUB_IN", "교체 IN"
         SUB_OUT = "SUB_OUT", "교체 OUT"
+        PSO_GOAL = "PSO_GOAL", "승부차기 성공"
+        PSO_MISS = "PSO_MISS", "승부차기 실패"
 
     class Side(models.TextChoices):
         OUR = "OUR", "우리 팀"

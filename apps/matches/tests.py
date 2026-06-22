@@ -176,6 +176,78 @@ class LivePeriodTest(TestCase):
         self.assertEqual(match.paused_seconds, 0)
         self.assertIsNone(match.paused_at)
 
+    # ── 연장전 / 승부차기 ──
+    # setUpTestData 의 대회는 half_length=30(→정규 60분), extra_half 기본 15분.
+
+    def test_extra_time_flow(self):
+        """후반 → 연장 전반 → 연장 휴식 → 연장 후반 → 승부차기 단계 전환."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.SECOND)
+        self._act(match, action="start_et")
+        match.refresh_from_db()
+        self.assertEqual(match.period, Match.Period.ET_FIRST)
+        self.assertIsNotNone(match.et_first_started_at)
+
+        self._act(match, action="et_halftime")
+        match.refresh_from_db()
+        self.assertEqual(match.period, Match.Period.ET_HALFTIME)
+
+        self._act(match, action="et_start_second")
+        match.refresh_from_db()
+        self.assertEqual(match.period, Match.Period.ET_SECOND)
+        self.assertIsNotNone(match.et_second_started_at)
+
+        self._act(match, action="penalties")
+        match.refresh_from_db()
+        self.assertEqual(match.period, Match.Period.PENALTIES)
+
+    def test_extra_time_clock_continues_from_fulltime(self):
+        """연장 전반 시계는 정규 풀타임(2×30=60분)부터 이어서 흐른다."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.ET_FIRST,
+                            et_first_started_at=timezone.now() - timedelta(minutes=3))
+        self.assertAlmostEqual(_elapsed_seconds(match), 63 * 60, delta=60)
+
+    def test_extra_time_second_half_clock(self):
+        """연장 후반 시계 = 정규(60) + 연장전반(15) + 경과."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.ET_SECOND,
+                            et_second_started_at=timezone.now() - timedelta(minutes=2))
+        self.assertAlmostEqual(_elapsed_seconds(match), 77 * 60, delta=60)
+
+    def test_et_halftime_frozen(self):
+        """연장 휴식엔 시계가 60+15=75분에서 정지."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.ET_HALFTIME,
+                            et_first_started_at=timezone.now() - timedelta(minutes=20))
+        self.assertEqual(_elapsed_seconds(match), 75 * 60)
+
+    def test_event_tagged_extra_time_half(self):
+        """연장 전반 득점은 half=3 으로 태깅."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.ET_FIRST,
+                            et_first_started_at=timezone.now())
+        self._act(match, action="goal", side="OUR", player=self.player.pk, minute="95")
+        goal = match.events.get(event_type=MatchEvent.EventType.GOAL)
+        self.assertEqual(goal.half, 3)
+
+    def test_penalty_shootout_score_and_winner(self):
+        """승부차기 킥 집계 → 본점수 동점 시 승부차기 승자가 경기 승자."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.PENALTIES)
+        self._act(match, action="pso_goal", side="OUR")
+        self._act(match, action="pso_goal", side="OUR")
+        self._act(match, action="pso_goal", side="OPPONENT")
+        self._act(match, action="pso_miss", side="OPPONENT")
+        match.refresh_from_db()
+        # 본점수는 득점 이벤트 없어 0-0(동점), 승부차기 2-1.
+        self.assertEqual(match.our_pso_score, 2)
+        self.assertEqual(match.opponent_pso_score, 1)
+        self.assertTrue(match.decided_by_penalties)
+        self.assertEqual(match.winner_entry, match.home_entry)  # 우리=home
+
+    def test_no_pso_events_means_null_scores(self):
+        """승부차기 이벤트가 없으면 PSO 스코어는 None(집계 안 함)."""
+        match = self._match(status=Match.Status.LIVE, period=Match.Period.SECOND)
+        self._act(match, action="goal", side="OUR", player=self.player.pk, minute="10")
+        match.refresh_from_db()
+        self.assertIsNone(match.home_pso_score)
+        self.assertIsNone(match.away_pso_score)
+
 
 class HalfLengthResolutionTest(TestCase):
     """전후반 길이 해석: 부문(Division) 오버라이드 → 대회 기본값."""

@@ -165,13 +165,14 @@ def match_detail(request, pk):
 
 
 def _current_half(match):
-    """현재 진행 단계의 전/후반 번호(1·2). 시작 전이면 None."""
+    """현재 진행 단계의 하프 번호(1 전반·2 후반·3 연장전반·4 연장후반). 그 외 None."""
     P = Match.Period
-    if match.period in (P.FIRST, P.HALFTIME):
-        return 1
-    if match.period in (P.SECOND, P.FINISHED):
-        return 2
-    return None
+    return {
+        P.FIRST: 1, P.HALFTIME: 1,
+        P.SECOND: 2,
+        P.ET_FIRST: 3, P.ET_HALFTIME: 3,
+        P.ET_SECOND: 4,
+    }.get(match.period)
 
 
 def _elapsed_seconds(match):
@@ -184,21 +185,36 @@ def _elapsed_seconds(match):
     """
     P = Match.Period
     half = match.half_length_seconds
+    ehalf = match.extra_half_seconds
+    reg = half * 2            # 정규 풀타임(연장 시작점)
     # 정지 중이면 멈춘 시각을, 아니면 현재 시각을 기준으로 한다.
     ref = match.paused_at or timezone.now()
+
+    def running(base_offset, started_at):
+        if not started_at:
+            return base_offset
+        return base_offset + int((ref - started_at).total_seconds()) - match.paused_seconds
+
     if match.period == P.FIRST:
         if not match.live_started_at:
             return None
-        return int((ref - match.live_started_at).total_seconds()) - match.paused_seconds
+        return running(0, match.live_started_at)
     if match.period == P.HALFTIME:
         return half
     if match.period == P.SECOND:
-        if not match.second_half_started_at:
-            return half
-        return (half + int((ref - match.second_half_started_at).total_seconds())
-                - match.paused_seconds)
+        return running(half, match.second_half_started_at)
+    if match.period == P.ET_FIRST:
+        return running(reg, match.et_first_started_at)
+    if match.period == P.ET_HALFTIME:
+        return reg + ehalf
+    if match.period == P.ET_SECOND:
+        return running(reg + ehalf, match.et_second_started_at)
+    if match.period == P.PENALTIES:
+        return reg + ehalf * 2 if match.et_first_started_at else reg
     if match.period == P.FINISHED:
-        return half * 2 if match.second_half_started_at else half
+        if match.et_first_started_at:
+            return reg + ehalf * 2     # 연장까지 진행
+        return reg if match.second_half_started_at else half
     # 시작 전(SCHEDULED): 킥오프가 있으면 카운트다운용 경과(음수 가능), 없으면 None.
     base = match.live_started_at or match.kickoff
     if not base:
@@ -219,6 +235,12 @@ def _live_payload(match):
         "our_score": match.our_score,
         "opponent_score": match.opponent_score,
         "result": match.result,
+        # 녹아웃 연장/승부차기 정보(콘솔 단계 흐름·시청자 표시용).
+        "is_knockout": match.is_knockout,
+        "extra_time_single": match.extra_time_single,
+        "our_pso": match.our_pso_score,
+        "opponent_pso": match.opponent_pso_score,
+        "decided_by_penalties": match.decided_by_penalties,
         "timeline": serialize_timeline(match),
         "elapsed_seconds": _elapsed_seconds(match),
         "updated_at": match.updated_at.isoformat(),
@@ -355,6 +377,10 @@ def match_live_console(request, pk):
         "elapsed_seconds": _elapsed_seconds(match),
         # 전후반 길이(분) — 후반 시작점·하프타임 정지 표시 기준.
         "half_length": match.half_length_minutes,
+        # 녹아웃 연장/승부차기 단계 흐름용 설정.
+        "is_knockout": match.is_knockout,
+        "extra_half_length": match.extra_half_minutes,
+        "extra_time_single": match.extra_time_single,
     })
 
 
@@ -399,9 +425,44 @@ def _handle_live_action(request, match, team_players):
         match.save(update_fields=["status", "period", "second_half_started_at",
                                   "paused_at", "paused_seconds", "updated_at"])
         messages.success(request, "후반을 시작했습니다.")
+    elif action == "start_et":
+        # 연장 전반 시작: 시계는 정규 풀타임부터 이어서 흐른다.
+        match.status = Match.Status.LIVE
+        match.period = Match.Period.ET_FIRST
+        match.et_first_started_at = timezone.now()
+        match.et_second_started_at = None
+        match.paused_at = None
+        match.paused_seconds = 0
+        match.save(update_fields=["status", "period", "et_first_started_at",
+                                  "et_second_started_at", "paused_at",
+                                  "paused_seconds", "updated_at"])
+        messages.success(request, "연장 전반을 시작했습니다.")
+    elif action == "et_halftime":
+        match.period = Match.Period.ET_HALFTIME
+        match.paused_at = None
+        match.save(update_fields=["period", "paused_at", "updated_at"])
+        messages.success(request, "연장 휴식입니다.")
+    elif action == "et_start_second":
+        match.status = Match.Status.LIVE
+        match.period = Match.Period.ET_SECOND
+        match.et_second_started_at = timezone.now()
+        match.paused_at = None
+        match.paused_seconds = 0
+        match.save(update_fields=["status", "period", "et_second_started_at",
+                                  "paused_at", "paused_seconds", "updated_at"])
+        messages.success(request, "연장 후반을 시작했습니다.")
+    elif action == "penalties":
+        # 승부차기 시작: 시계는 정지(킥 기록 모드).
+        match.status = Match.Status.LIVE
+        match.period = Match.Period.PENALTIES
+        match.paused_at = None
+        match.save(update_fields=["status", "period", "paused_at", "updated_at"])
+        messages.success(request, "승부차기를 시작했습니다.")
     elif action == "pause":
-        # 일시정지: 진행 중(전·후반)일 때만. 멈춘 시각을 기록해 시계를 동결.
-        if match.period in (Match.Period.FIRST, Match.Period.SECOND) and not match.paused_at:
+        # 일시정지: 전·후반·연장 진행 중일 때만. 멈춘 시각을 기록해 시계를 동결.
+        _RUN = (Match.Period.FIRST, Match.Period.SECOND,
+                Match.Period.ET_FIRST, Match.Period.ET_SECOND)
+        if match.period in _RUN and not match.paused_at:
             match.paused_at = timezone.now()
             match.save(update_fields=["paused_at", "updated_at"])
             messages.success(request, "시계를 일시정지했습니다.")
@@ -459,10 +520,20 @@ def _handle_live_action(request, match, team_players):
                                       side=OUR, player=in_p, minute=minute, half=half)
         if out_p or in_p:
             messages.success(request, "교체를 기록했습니다.")
+    elif action in ("pso_goal", "pso_miss"):
+        # 승부차기 킥: 성공(PSO_GOAL)/실패(PSO_MISS)를 팀별로 기록. 빠른 입력 위해 선수 미지정.
+        side = request.POST.get("side") or MatchEvent.Side.OUR
+        etype = (MatchEvent.EventType.PSO_GOAL if action == "pso_goal"
+                 else MatchEvent.EventType.PSO_MISS)
+        MatchEvent.objects.create(match=match, event_type=etype, side=side)
+        score_changed = True   # 승부차기 성공 수 재집계
+        messages.success(request, "승부차기를 기록했습니다.")
     elif action == "delete":
         ev = match.events.filter(pk=request.POST.get("event_id") or 0).first()
         if ev:
-            score_changed = ev.event_type in (GOAL, MatchEvent.EventType.OWN_GOAL)
+            score_changed = ev.event_type in (
+                GOAL, MatchEvent.EventType.OWN_GOAL,
+                MatchEvent.EventType.PSO_GOAL, MatchEvent.EventType.PSO_MISS)
             ev.delete()  # 연결된 도움(assists)은 CASCADE로 함께 삭제됨
             messages.success(request, "이벤트를 삭제했습니다.")
 

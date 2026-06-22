@@ -73,6 +73,7 @@ class MatchAdmin(admin.ModelAdmin):
         ("중계 진행", {
             "classes": ("collapse",),
             "fields": ("period", ("live_started_at", "second_half_started_at"),
+                       ("et_first_started_at", "et_second_started_at"),
                        ("paused_at", "paused_seconds")),
             "description": "중계 콘솔이 자동으로 채운다. 보정이 필요할 때만 직접 수정.",
         }),
@@ -83,8 +84,10 @@ class MatchAdmin(admin.ModelAdmin):
                            "우리 진출 경기에서 지면 자동으로 '취소'.",
         }),
         ("결과", {
-            "fields": (("home_score", "away_score"),),
-            "description": "최종 스코어 입력 후 아래 <b>경기 이벤트</b>에 득점자·시간을 추가하세요.",
+            "fields": (("home_score", "away_score"),
+                       ("home_pso_score", "away_pso_score")),
+            "description": "최종 스코어 입력 후 아래 <b>경기 이벤트</b>에 득점자·시간을 추가하세요. "
+                           "승부차기 점수는 동점 시 승자 판정에 쓰입니다.",
         }),
         ("비고", {"fields": ("note",), "classes": ("collapse",)}),
     )

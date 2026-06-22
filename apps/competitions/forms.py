@@ -17,7 +17,7 @@ class CompetitionForm(forms.ModelForm):
     class Meta:
         model = Competition
         fields = ["name", "slug", "kind", "year", "half_length_minutes",
-                  "organizer", "description"]
+                  "extra_half_minutes", "extra_time_single", "organizer", "description"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "slug": forms.TextInput(attrs={"class": "form-control",
@@ -26,6 +26,9 @@ class CompetitionForm(forms.ModelForm):
             "year": forms.NumberInput(attrs={"class": "form-control", "min": 2000, "max": 2100}),
             "half_length_minutes": forms.NumberInput(
                 attrs={"class": "form-control", "min": 1, "max": 90}),
+            "extra_half_minutes": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 60}),
+            "extra_time_single": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "organizer": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
@@ -35,6 +38,8 @@ class CompetitionForm(forms.ModelForm):
         self.fields["slug"].required = False
         self.fields["half_length_minutes"].help_text = (
             "전·후반 한 쪽 길이. 중계 콘솔 시계·후반 시작점 기준.")
+        self.fields["extra_half_minutes"].help_text = (
+            "연장 한 쪽 길이(녹아웃 동점 시). 단일 연장이면 이 값의 2배가 전체 연장.")
         # 부문별 길이 오버라이드는 드물어 폼에서 노출하지 않음(필요 시 Admin에서 편집).
         if self.instance.pk:
             self.fields["divisions"].initial = list(

@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ match.our_team }} vs {{ match.opponent }} — {{ current_club.name|default:"FCManager" }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* LIVE 배지 깜박임 */
+  @keyframes liveBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  .live-blink { animation: liveBlink 1s ease-in-out infinite; }
+  .live-clock { font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <div class="card shadow-sm mb-4">
@@ -21,6 +31,9 @@
         {% else %}
           <span id="live-score" class="display-6 text-muted">VS</span>
         {% endif %}
+        {% if match.decided_by_penalties %}
+          <div class="small text-muted">승부차기 {{ match.our_pso_score }} : {{ match.opponent_pso_score }}</div>
+        {% endif %}
       </div>
       <div class="col text-start">
         <h2 class="h4 mb-0">{{ match.opponent }}</h2>
@@ -28,16 +41,23 @@
     </div>
     <div class="mt-3" id="live-status">
       {% if match.status == 'LIVE' %}
-        <span class="badge bg-danger">🔴 LIVE</span>
+        <span class="badge bg-danger live-blink">🔴 LIVE</span>
       {% else %}
         <span class="badge bg-secondary">{{ match.get_status_display }}</span>
       {% endif %}
-      {% if match.result == "W" %}<span class="badge bg-success">승리</span>
+      {% if match.decided_by_penalties %}
+        {% if match.our_pso_score > match.opponent_pso_score %}<span class="badge bg-success">승부차기 승</span>
+        {% else %}<span class="badge bg-danger">승부차기 패</span>{% endif %}
+      {% elif match.result == "W" %}<span class="badge bg-success">승리</span>
       {% elif match.result == "L" %}<span class="badge bg-danger">패배</span>
       {% elif match.result == "D" %}<span class="badge bg-secondary">무승부</span>{% endif %}
     </div>
     {% if match.status == 'LIVE' %}
-      <div class="small text-muted mt-2" id="live-hint">실시간 자동 갱신 중…</div>
+      <div class="mt-2">
+        <span class="badge bg-dark fs-6 live-clock"><span id="live-clock">--:--</span></span>
+        <span class="ms-2 fw-semibold" id="live-period"></span>
+      </div>
+      <div class="small text-muted mt-1" id="live-hint">실시간 자동 갱신 중…</div>
     {% endif %}
   </div>
 </div>
@@ -105,7 +125,28 @@
   var scoreEl = document.getElementById('live-score');
   var timelineEl = document.getElementById('live-timeline');
   var hintEl = document.getElementById('live-hint');
-  var timer = null;
+  var clockEl = document.getElementById('live-clock');
+  var periodEl = document.getElementById('live-period');
+  var timer = null, clockTimer = null;
+
+  // ── 진행 시계 + 갱신 카운트다운 ──
+  var RUN = ['FIRST', 'SECOND', 'ET_FIRST', 'ET_SECOND'];  // 시계가 흐르는 구간
+  var POLL_MS = 3000;
+  function perfNow(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
+  var anchorSec = null, anchorPerf = perfNow(), running = false, nextPollAt = perfNow() + POLL_MS;
+  function fmtClock(s){
+    if (s < 0) s = 0; s = Math.floor(s);
+    var m = Math.floor(s / 60), ss = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+  function curElapsed(){ var s = anchorSec; if (running) s += (perfNow() - anchorPerf) / 1000; return s; }
+  function tick(){
+    if (clockEl) clockEl.textContent = (anchorSec === null) ? '--:--' : fmtClock(curElapsed());
+    if (hintEl) {
+      var r = Math.max(0, Math.ceil((nextPollAt - perfNow()) / 1000));
+      hintEl.textContent = r > 0 ? ('🔄 ' + r + '초 후 갱신') : '🔄 갱신 중…';
+    }
+  }
 
   function esc(s) {
     var d = document.createElement('div');
@@ -141,27 +182,37 @@
         timelineEl.innerHTML = '<div class="list-group-item text-muted">기록된 이벤트가 없습니다.</div>';
       }
     }
-    if (hintEl && data.is_live) {
-      // 진행 단계(전반/하프타임/후반) + 일시정지 여부를 함께 표시.
-      var stage = data.period_display ? data.period_display + (data.paused ? ' (일시정지)' : '') + ' · ' : '';
-      hintEl.textContent = stage + '실시간 자동 갱신 중…';
+    // 진행 시계 동기화(서버 경과 초 기준, 흐르는 구간이면 로컬 보간).
+    if (data.elapsed_seconds === null || data.elapsed_seconds === undefined) {
+      anchorSec = null;
+    } else {
+      anchorSec = data.elapsed_seconds; anchorPerf = perfNow();
     }
+    running = (RUN.indexOf(data.period) >= 0) && !data.paused;
+    if (periodEl) {
+      periodEl.textContent = data.period_display
+        ? (data.period_display + (data.paused ? ' (일시정지)' : '')) : '';
+    }
+    tick();  // 갱신 직후 즉시 반영
     if (!data.is_live) {
-      // 경기 종료 → 폴링 중지 후 새로고침으로 최종 결과(승/무/패 배지 등) 반영.
+      // 경기 종료 → 폴링·시계 중지 후 새로고침으로 최종 결과(승/무/패 배지 등) 반영.
       if (timer) clearInterval(timer);
+      if (clockTimer) clearInterval(clockTimer);
       if (hintEl) hintEl.textContent = '경기가 종료되었습니다. 새로고침합니다…';
       setTimeout(function () { location.reload(); }, 1500);
     }
   }
 
   function poll() {
+    nextPollAt = perfNow() + POLL_MS;   // 갱신 카운트다운 리셋
     fetch(url, { headers: { 'X-Requested-With': 'fetch' }, cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(apply)
       .catch(function () { /* 일시적 실패는 다음 주기에 재시도 */ });
   }
 
-  timer = setInterval(poll, 3000);
+  timer = setInterval(poll, POLL_MS);
+  clockTimer = setInterval(tick, 250);
   poll();
 })();
 </script>
