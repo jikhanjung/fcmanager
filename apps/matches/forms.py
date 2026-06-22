@@ -2,6 +2,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 
+from apps.competitions.models import CompetitionEntry
 from apps.teams.models import Player
 
 from .models import Match, MatchEvent, MatchVideo, extract_youtube_id
@@ -37,10 +38,13 @@ class MatchResultForm(forms.ModelForm):
     class Meta:
         model = Match
         fields = [
-            "stage", "status", "home_score", "away_score",
+            "home_entry", "away_entry", "stage", "status",
+            "home_score", "away_score",
             "went_to_extra_time", "home_pso_score", "away_pso_score", "note",
         ]
         widgets = {
+            "home_entry": forms.Select(attrs={"class": "form-select"}),
+            "away_entry": forms.Select(attrs={"class": "form-select"}),
             "stage": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
             "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
@@ -51,8 +55,29 @@ class MatchResultForm(forms.ModelForm):
             "note": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 홈/원정 참가팀 선택지는 이 경기의 대회(competition)에 등록된 참가팀으로 제한.
+        entries = CompetitionEntry.objects.none()
+        if self.instance and self.instance.competition_id:
+            entries = (
+                CompetitionEntry.objects
+                .filter(competition_id=self.instance.competition_id)
+                .select_related("team", "opponent")
+                .order_by("team__name", "opponent__name")
+            )
+        for fname in ("home_entry", "away_entry"):
+            self.fields[fname].queryset = entries
+            self.fields[fname].required = True
+            # 드롭다운 라벨은 참가팀 이름만(기본 __str__ 의 '이름 - 대회' 대신).
+            self.fields[fname].label_from_instance = lambda e: e.name
+
     def clean(self):
         cleaned = super().clean()
+        home_entry = cleaned.get("home_entry")
+        away_entry = cleaned.get("away_entry")
+        if home_entry and away_entry and home_entry == away_entry:
+            raise forms.ValidationError("홈팀과 원정팀은 서로 다른 팀이어야 합니다.")
         home_pso = cleaned.get("home_pso_score")
         away_pso = cleaned.get("away_pso_score")
         home_score = cleaned.get("home_score")

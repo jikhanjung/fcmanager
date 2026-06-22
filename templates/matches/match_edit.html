@@ -15,12 +15,22 @@
     <div class="card-header fw-semibold">스코어 · 상태</div>
     <div class="card-body">
       <div class="row g-3">
+        <div class="col-6 col-md-6">
+          <label class="form-label">홈팀</label>
+          {{ form.home_entry }}
+          {% if form.home_entry.errors %}<div class="text-danger small">{{ form.home_entry.errors }}</div>{% endif %}
+        </div>
+        <div class="col-6 col-md-6">
+          <label class="form-label">원정팀</label>
+          {{ form.away_entry }}
+          {% if form.away_entry.errors %}<div class="text-danger small">{{ form.away_entry.errors }}</div>{% endif %}
+        </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.home_entry.name }} 득점 <span class="text-muted small">(홈)</span></label>
+          <label class="form-label">홈팀 득점</label>
           {{ form.home_score }}
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.away_entry.name }} 득점 <span class="text-muted small">(원정)</span></label>
+          <label class="form-label">원정팀 득점</label>
           {{ form.away_score }}
         </div>
         <div class="col-6 col-md-3">
@@ -54,11 +64,11 @@
       </div>
       <div class="row g-3">
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.home_entry.name }} 승부차기 <span class="text-muted small">(홈)</span></label>
+          <label class="form-label">홈팀 승부차기</label>
           {{ form.home_pso_score }}
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.away_entry.name }} 승부차기 <span class="text-muted small">(원정)</span></label>
+          <label class="form-label">원정팀 승부차기</label>
           {{ form.away_pso_score }}
         </div>
       </div>
