@@ -119,9 +119,9 @@
 {% block extra_js %}
 <script>
 (function () {
-  var statusEl = document.getElementById('live-status');
-  // LIVE 상태일 때만 폴링 시작(서버 렌더 시 배지로 판단).
-  var isLive = statusEl && statusEl.querySelector('.bg-danger');
+  // LIVE 상태일 때만 폴링 시작(서버 렌더 상태로 직접 판단).
+  // 주의: live-status 안의 결과 배지(패배·승부차기 패 등)도 bg-danger 라 DOM 으로 판별하면 안 됨.
+  var isLive = {% if match.status == 'LIVE' %}true{% else %}false{% endif %};
   if (!isLive) return;
 
   var url = "{% url 'matches:live_json' match.pk %}";
