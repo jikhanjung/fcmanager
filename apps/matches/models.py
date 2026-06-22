@@ -134,6 +134,9 @@ class Match(models.Model):
     # 연장 전·후반 시작 시각(녹아웃 동점 시). 시계는 정규 풀타임부터 이어서 흐른다.
     et_first_started_at = models.DateTimeField("연장 전반 시작 시각", null=True, blank=True)
     et_second_started_at = models.DateTimeField("연장 후반 시작 시각", null=True, blank=True)
+    # 연장전 진행 여부. 최종 스코어(home/away_score)는 연장 골까지 합산한 값이며,
+    # 이 플래그로 '연장 접전'을 공개 페이지에 표시한다(승부차기와 별개로 켤 수 있음).
+    went_to_extra_time = models.BooleanField("연장전 진행", default=False)
     # 승부차기 최종 스코어(킥 이벤트 집계). 본점수 동점일 때 승자 판정에 쓰인다.
     home_pso_score = models.PositiveIntegerField("홈 승부차기", null=True, blank=True)
     away_pso_score = models.PositiveIntegerField("원정 승부차기", null=True, blank=True)

@@ -32,18 +32,44 @@ class OpponentMatchResultForm(forms.ModelForm):
 
 
 class MatchResultForm(forms.ModelForm):
-    """최종 스코어·상태·비고."""
+    """최종 스코어·상태·연장/승부차기·비고."""
 
     class Meta:
         model = Match
-        fields = ["stage", "status", "home_score", "away_score", "note"]
+        fields = [
+            "stage", "status", "home_score", "away_score",
+            "went_to_extra_time", "home_pso_score", "away_pso_score", "note",
+        ]
         widgets = {
             "stage": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
             "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "away_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "went_to_extra_time": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "home_pso_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "away_pso_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "note": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        home_pso = cleaned.get("home_pso_score")
+        away_pso = cleaned.get("away_pso_score")
+        home_score = cleaned.get("home_score")
+        away_score = cleaned.get("away_score")
+        # 승부차기는 한쪽만 입력하면 안 된다(둘 다 입력하거나 둘 다 비움).
+        if (home_pso is None) != (away_pso is None):
+            raise forms.ValidationError(
+                "승부차기 점수는 양 팀 모두 입력하거나 모두 비워 주세요."
+            )
+        # 승부차기는 본점수가 동점일 때만 의미가 있다.
+        if home_pso is not None and away_pso is not None:
+            if home_score is None or away_score is None or home_score != away_score:
+                raise forms.ValidationError(
+                    "승부차기는 정규/연장 종료 시 동점일 때만 입력할 수 있습니다. "
+                    "본점수를 동점으로 맞춰 주세요."
+                )
+        return cleaned
 
 
 class MatchEventForm(forms.ModelForm):

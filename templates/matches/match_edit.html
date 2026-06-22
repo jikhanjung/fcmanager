@@ -16,12 +16,12 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.our_team }} 득점</label>
-          {{ form.our_score }}
+          <label class="form-label">{{ match.home_entry.name }} 득점 <span class="text-muted small">(홈)</span></label>
+          {{ form.home_score }}
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">{{ match.opponent }} 득점</label>
-          {{ form.opponent_score }}
+          <label class="form-label">{{ match.away_entry.name }} 득점 <span class="text-muted small">(원정)</span></label>
+          {{ form.away_score }}
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label">상태</label>
@@ -36,7 +36,37 @@
           {{ form.note }}
         </div>
       </div>
-      {% if form.errors %}<div class="text-danger small mt-2">{{ form.errors }}</div>{% endif %}
+      <div class="form-text mt-2">득점에는 <b>연장전 골까지 포함한 최종 점수</b>를 입력하세요.</div>
+      {% if form.non_field_errors %}<div class="text-danger small mt-2">{{ form.non_field_errors }}</div>{% endif %}
+      {% if form.home_score.errors or form.away_score.errors %}<div class="text-danger small mt-2">{{ form.home_score.errors }}{{ form.away_score.errors }}</div>{% endif %}
+    </div>
+  </div>
+
+  {# ── 연장전 · 승부차기 ── #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">연장전 · 승부차기</div>
+    <div class="card-body">
+      <div class="form-check mb-3">
+        {{ form.went_to_extra_time }}
+        <label class="form-check-label" for="{{ form.went_to_extra_time.id_for_label }}">
+          연장전까지 진행한 경기입니다.
+        </label>
+      </div>
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <label class="form-label">{{ match.home_entry.name }} 승부차기 <span class="text-muted small">(홈)</span></label>
+          {{ form.home_pso_score }}
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">{{ match.away_entry.name }} 승부차기 <span class="text-muted small">(원정)</span></label>
+          {{ form.away_pso_score }}
+        </div>
+      </div>
+      <div class="form-text mt-2">
+        승부차기로 승부가 갈린 경우에만 양 팀의 성공 횟수를 입력하세요.
+        본점수가 동점일 때만 인정되며, 비워 두면 승부차기 없음으로 처리됩니다.
+      </div>
+      {% if form.home_pso_score.errors or form.away_pso_score.errors %}<div class="text-danger small mt-2">{{ form.home_pso_score.errors }}{{ form.away_pso_score.errors }}</div>{% endif %}
     </div>
   </div>
 
