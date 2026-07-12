@@ -14,6 +14,11 @@ urlpatterns = [
     path("manage/competitions/add/", views.competition_create, name="competition_create"),
     path("manage/competitions/<slug:slug>/edit/", views.competition_edit, name="competition_edit"),
     path("manage/competitions/<slug:slug>/delete/", views.competition_delete, name="competition_delete"),
+    # 참가팀·경기 관리(staff)
+    path("manage/competitions/<slug:slug>/entries/add/", views.entry_add, name="entry_add"),
+    path("manage/competitions/<slug:slug>/entries/<int:pk>/edit/", views.entry_edit, name="entry_edit"),
+    path("manage/competitions/<slug:slug>/entries/<int:pk>/delete/", views.entry_delete, name="entry_delete"),
+    path("manage/competitions/<slug:slug>/matches/add/", views.match_add, name="match_add"),
     # 대회 목록·상세 (공개)
     path("competitions/", views.competition_list, name="competition_list"),
     path("competitions/<slug:slug>/", views.competition_detail, name="competition_detail"),

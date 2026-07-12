@@ -2,7 +2,7 @@
 from django import forms
 from django.utils.text import slugify
 
-from .models import Competition, Division
+from .models import Competition, CompetitionEntry, Division
 
 
 class CompetitionForm(forms.ModelForm):
@@ -70,3 +70,82 @@ class CompetitionForm(forms.ModelForm):
         for ag in selected - existing:
             Division.objects.create(competition=comp, age_group=ag)
         comp.divisions.filter(age_group__in=(existing - selected)).delete()
+
+
+class CompetitionEntryForm(forms.Form):
+    """대회 참가팀 추가/편집. 우리 팀(team) 또는 외부팀 이름 중 정확히 하나를 입력.
+
+    외부팀 이름이 기존 Opponent 와 일치하면 연결하고, 없으면 새로 등록한다.
+    (Opponent 는 클럽 간 공유되므로 이름을 바꾸지 않고 항상 이름으로 찾거나 만든다.)
+    """
+
+    division = forms.ModelChoiceField(
+        queryset=Division.objects.none(), label="부문", required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        help_text="부문이 없는 대회면 비워 둔다.",
+    )
+    team = forms.ModelChoiceField(
+        queryset=None, label="우리 팀", required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        help_text="우리 클럽 팀이 참가하는 경우 선택.",
+    )
+    opponent_name = forms.CharField(
+        label="외부팀 이름", required=False, max_length=120,
+        widget=forms.TextInput(attrs={"class": "form-control",
+                                      "list": "opponent-names",
+                                      "placeholder": "예: 서초FC"}),
+        help_text="외부팀이면 이름을 입력(기존 외부팀과 이름이 같으면 자동 연결, 없으면 새로 등록).",
+    )
+    note = forms.CharField(
+        label="비고", required=False, max_length=200,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, competition, club, instance=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.teams.models import Team
+        self.competition = competition
+        self.club = club
+        self.instance = instance
+        self.fields["division"].queryset = competition.divisions.all()
+        self.fields["team"].queryset = Team.objects.filter(club=club)
+        if instance is not None and not self.is_bound:
+            self.initial.update({
+                "division": instance.division_id,
+                "team": instance.team_id,
+                "opponent_name": instance.opponent.name if instance.opponent_id else "",
+                "note": instance.note,
+            })
+
+    def clean(self):
+        cleaned = super().clean()
+        team = cleaned.get("team")
+        opponent_name = (cleaned.get("opponent_name") or "").strip()
+        cleaned["opponent_name"] = opponent_name
+        if bool(team) == bool(opponent_name):
+            raise forms.ValidationError(
+                "'우리 팀' 또는 '외부팀 이름' 중 하나만 입력해 주세요.")
+        # 같은 대회·부문 중복 참가 검사.
+        qs = CompetitionEntry.objects.filter(
+            competition=self.competition, division=cleaned.get("division"))
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        dup = (qs.filter(team=team) if team
+               else qs.filter(opponent__name=opponent_name))
+        if dup.exists():
+            raise forms.ValidationError("이미 이 대회/부문에 등록된 참가팀입니다.")
+        return cleaned
+
+    def save(self):
+        from apps.matches.models import Opponent
+        cd = self.cleaned_data
+        entry = self.instance or CompetitionEntry(competition=self.competition)
+        entry.division = cd.get("division")
+        if cd.get("team"):
+            entry.team, entry.opponent = cd["team"], None
+        else:
+            opponent, _ = Opponent.objects.get_or_create(name=cd["opponent_name"])
+            entry.team, entry.opponent = None, opponent
+        entry.note = cd.get("note") or ""
+        entry.save()
+        return entry

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}경기 추가 — {{ competition.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'competitions:competition_list' %}">모든 대회</a></li>
+    <li class="breadcrumb-item"><a href="{{ competition.get_absolute_url }}">{{ competition.name }}</a></li>
+    <li class="breadcrumb-item active">경기 추가</li>
+  </ol>
+</nav>
+
+<h1 class="h4 mb-1">경기 추가</h1>
+<p class="text-muted small">
+  {{ competition.name }} · 스코어와 득점·카드 이벤트는 저장 후 ‘결과 편집’에서 입력합니다.
+</p>
+
+<form method="post" class="card shadow-sm" novalidate>
+  {% csrf_token %}
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="row g-3">
+      <div class="col-6">
+        <label class="form-label" for="{{ form.home_entry.id_for_label }}">홈팀</label>
+        {{ form.home_entry }}
+        {% if form.home_entry.errors %}<div class="text-danger small">{{ form.home_entry.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="{{ form.away_entry.id_for_label }}">원정팀</label>
+        {{ form.away_entry }}
+        {% if form.away_entry.errors %}<div class="text-danger small">{{ form.away_entry.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="{{ form.division.id_for_label }}">부문</label>
+        {{ form.division }}
+        {% if form.division.help_text %}<div class="form-text">{{ form.division.help_text }}</div>{% endif %}
+        {% if form.division.errors %}<div class="text-danger small">{{ form.division.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="{{ form.stage.id_for_label }}">단계</label>
+        {{ form.stage }}
+        {% if form.stage.errors %}<div class="text-danger small">{{ form.stage.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="{{ form.status.id_for_label }}">상태</label>
+        {{ form.status }}
+        {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="{{ form.kickoff.id_for_label }}">경기 일시</label>
+        {{ form.kickoff }}
+        {% if form.kickoff.errors %}<div class="text-danger small">{{ form.kickoff.errors }}</div>{% endif %}
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="{{ form.venue.id_for_label }}">장소</label>
+        {{ form.venue }}
+        {% if form.venue.errors %}<div class="text-danger small">{{ form.venue.errors }}</div>{% endif %}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.note.id_for_label }}">비고</label>
+        {{ form.note }}
+        {% if form.note.errors %}<div class="text-danger small">{{ form.note.errors }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="form-text mt-2">
+      참가팀이 목록에 없으면 대회 상세의 <b>참가팀 추가</b>로 먼저 등록하세요.
+    </div>
+  </div>
+  <div class="card-footer bg-transparent">
+    <button class="btn btn-primary" type="submit">저장</button>
+    <a href="{{ competition.get_absolute_url }}" class="btn btn-outline-secondary">취소</a>
+  </div>
+</form>
+{% endblock %}

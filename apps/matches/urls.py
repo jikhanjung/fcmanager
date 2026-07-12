@@ -9,6 +9,7 @@ urlpatterns = [
     path("matches/scorers/", views.scorers, name="scorers"),
     path("matches/opponent/<int:pk>/edit/", views.opponent_match_edit, name="opponent_edit"),
     path("matches/<int:pk>/edit/", views.match_edit, name="edit"),
+    path("matches/<int:pk>/delete/", views.match_delete, name="delete"),
     path("matches/<int:pk>/lineup/", views.match_lineup, name="lineup"),
     path("matches/<int:pk>/live/", views.match_live_console, name="live_console"),
     path("matches/<int:pk>/live.json", views.match_live_json, name="live_json"),

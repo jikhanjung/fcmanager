@@ -4,7 +4,8 @@ from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.matches.models import Match, MatchEvent
+from apps.matches.forms import MatchCreateForm
+from apps.matches.models import Match, MatchEvent, Opponent
 from apps.matches.services import (
     club_record,
     event_ranking,
@@ -12,8 +13,8 @@ from apps.matches.services import (
     our_events,
 )
 
-from .forms import CompetitionForm
-from .models import Award, Competition
+from .forms import CompetitionEntryForm, CompetitionForm
+from .models import Award, Competition, CompetitionEntry
 
 
 _AGE_ORDER = {"K7": 0, "40": 1, "50": 2}
@@ -316,3 +317,110 @@ def competition_delete(request, slug):
         "match_count": competition.matches.count(),
         "entry_count": competition.entries.count(),
     })
+
+
+# ── 참가팀(CompetitionEntry) 관리 (staff 전용) ──
+
+def _entry_form_context(request, competition, form, **extra):
+    return {
+        "competition": competition,
+        "form": form,
+        # 외부팀 이름 자동완성(datalist)용.
+        "opponent_names": Opponent.objects.values_list("name", flat=True),
+        **extra,
+    }
+
+
+@staff_required
+def entry_add(request, slug):
+    """대회 상세에서 참가팀(우리 팀/외부팀) 추가."""
+    competition = get_object_or_404(Competition, slug=slug)
+    if request.method == "POST":
+        form = CompetitionEntryForm(
+            request.POST, competition=competition, club=request.club)
+        if form.is_valid():
+            entry = form.save()
+            messages.success(request, f"참가팀 '{entry.name}'을(를) 추가했습니다.")
+            return redirect(competition.get_absolute_url())
+    else:
+        initial = {}
+        div_id = request.GET.get("division") or ""
+        if div_id.isdigit():
+            initial["division"] = div_id
+        form = CompetitionEntryForm(
+            competition=competition, club=request.club, initial=initial)
+    return render(request, "competitions/entry_form.html",
+                  _entry_form_context(request, competition, form, is_create=True))
+
+
+def _get_entry(competition, club, pk):
+    """이 클럽 화면에서 다룰 수 있는 참가팀: 외부팀 entry 또는 우리 클럽 팀 entry."""
+    return get_object_or_404(
+        CompetitionEntry.objects.filter(
+            Q(team__isnull=True) | Q(team__club=club)),
+        pk=pk, competition=competition,
+    )
+
+
+@staff_required
+def entry_edit(request, slug, pk):
+    competition = get_object_or_404(Competition, slug=slug)
+    entry = _get_entry(competition, request.club, pk)
+    if request.method == "POST":
+        form = CompetitionEntryForm(
+            request.POST, competition=competition, club=request.club,
+            instance=entry)
+        if form.is_valid():
+            entry = form.save()
+            messages.success(request, f"참가팀 '{entry.name}' 정보를 저장했습니다.")
+            return redirect(competition.get_absolute_url())
+    else:
+        form = CompetitionEntryForm(
+            competition=competition, club=request.club, instance=entry)
+    return render(request, "competitions/entry_form.html",
+                  _entry_form_context(request, competition, form,
+                                      is_create=False, entry=entry))
+
+
+@staff_required
+def entry_delete(request, slug, pk):
+    """참가팀 삭제(POST 전용). 경기가 연결돼 있으면 막고 안내(CASCADE 방지)."""
+    competition = get_object_or_404(Competition, slug=slug)
+    entry = _get_entry(competition, request.club, pk)
+    if request.method == "POST":
+        if entry.home_matches.exists() or entry.away_matches.exists():
+            messages.error(
+                request,
+                f"'{entry.name}'이(가) 참가한 경기가 있어 삭제할 수 없습니다. "
+                "해당 경기를 먼저 삭제하거나 참가팀을 바꿔 주세요.")
+        else:
+            name = entry.name
+            entry.delete()
+            messages.success(request, f"참가팀 '{name}'을(를) 삭제했습니다.")
+    return redirect(competition.get_absolute_url())
+
+
+# ── 경기 추가 (staff 전용) ──
+
+@staff_required
+def match_add(request, slug):
+    """대회 상세에서 경기 추가(대진·일정). 결과·이벤트는 저장 후 결과 편집에서."""
+    competition = get_object_or_404(Competition, slug=slug)
+    if request.method == "POST":
+        form = MatchCreateForm(request.POST, competition=competition)
+        if form.is_valid():
+            match = form.save(commit=False)
+            match.club = request.club
+            match.competition = competition
+            match.save()
+            messages.success(
+                request, f"경기 '{match}'을(를) 추가했습니다.")
+            return redirect(competition.get_absolute_url())
+    else:
+        initial = {}
+        div_id = request.GET.get("division") or ""
+        if div_id.isdigit():
+            initial["division"] = div_id
+        form = MatchCreateForm(competition=competition, initial=initial)
+    return render(request, "matches/match_form.html",
+                  {"competition": competition, "form": form})

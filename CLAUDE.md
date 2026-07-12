@@ -70,8 +70,9 @@ static/img/          사이트 로고 등 브랜딩 자산
 ## 규칙 / 관례
 
 - 데이터 입력은 대부분 **운영진(클럽 staff) 웹 화면**(`/manage/`·`/teams/`·`/matches/` 등,
-  `@staff_required`)에서 한다. 아직 admin 전용인 것: 참가팀(CompetitionEntry)·입상(Award)·
-  상대팀(Opponent)·출전명단(MatchLineup)·클럽 멤버십(ClubMembership)·부문 시간 오버라이드.
+  `@staff_required`)에서 한다. 참가팀(CompetitionEntry)·경기 추가/삭제는 대회 상세에서
+  웹 관리 가능(외부팀 Opponent 는 참가팀 등록 시 이름으로 자동 생성). 아직 admin 전용인 것:
+  입상(Award)·클럽 멤버십(ClubMembership)·부문 시간 오버라이드.
 - 새 모델은 **admin에도 등록**(검색·필터·autocomplete 포함) — 백업/보조 입력 경로.
 - `autocomplete_fields`를 쓰려면 대상 ModelAdmin에 `search_fields`가 있어야 함.
 - 프론트는 Django Template + Bootstrap 5(현재 CDN). 별도 JS 빌드 도입 안 함.

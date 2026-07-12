@@ -2,10 +2,27 @@
 from django import forms
 from django.forms import inlineformset_factory
 
-from apps.competitions.models import CompetitionEntry
+from apps.competitions.models import CompetitionEntry, Division
 from apps.teams.models import Player
 
 from .models import Match, MatchEvent, MatchVideo, extract_youtube_id
+
+
+def _entry_label(entry):
+    """참가팀 드롭다운 라벨: 이름 (+ 부문이 있으면 부문명)."""
+    if entry.division_id:
+        return f"{entry.name} ({entry.division.label})"
+    return entry.name
+
+
+def _competition_entries(competition_id):
+    """한 대회에 등록된 참가팀 선택지 queryset."""
+    return (
+        CompetitionEntry.objects
+        .filter(competition_id=competition_id)
+        .select_related("team", "opponent", "division")
+        .order_by("division__age_group", "team__name", "opponent__name")
+    )
 
 
 class OpponentMatchResultForm(forms.ModelForm):
@@ -33,20 +50,26 @@ class OpponentMatchResultForm(forms.ModelForm):
 
 
 class MatchResultForm(forms.ModelForm):
-    """최종 스코어·상태·연장/승부차기·비고."""
+    """경기 정보(대진·일시·장소·부문) + 최종 스코어·상태·연장/승부차기·비고."""
 
     class Meta:
         model = Match
         fields = [
-            "home_entry", "away_entry", "stage", "status",
+            "home_entry", "away_entry", "division", "stage", "status",
+            "kickoff", "venue",
             "home_score", "away_score",
             "went_to_extra_time", "home_pso_score", "away_pso_score", "note",
         ]
         widgets = {
             "home_entry": forms.Select(attrs={"class": "form-select"}),
             "away_entry": forms.Select(attrs={"class": "form-select"}),
+            "division": forms.Select(attrs={"class": "form-select"}),
             "stage": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
+            "kickoff": forms.DateTimeInput(
+                attrs={"class": "form-control", "type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M"),
+            "venue": forms.TextInput(attrs={"class": "form-control"}),
             "home_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "away_score": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "went_to_extra_time": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -57,20 +80,19 @@ class MatchResultForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # 홈/원정 참가팀 선택지는 이 경기의 대회(competition)에 등록된 참가팀으로 제한.
+        # 홈/원정 참가팀·부문 선택지는 이 경기의 대회(competition)로 제한.
         entries = CompetitionEntry.objects.none()
+        divisions = Division.objects.none()
         if self.instance and self.instance.competition_id:
-            entries = (
-                CompetitionEntry.objects
-                .filter(competition_id=self.instance.competition_id)
-                .select_related("team", "opponent")
-                .order_by("team__name", "opponent__name")
-            )
+            entries = _competition_entries(self.instance.competition_id)
+            divisions = Division.objects.filter(
+                competition_id=self.instance.competition_id)
+        self.fields["division"].queryset = divisions
         for fname in ("home_entry", "away_entry"):
             self.fields[fname].queryset = entries
             self.fields[fname].required = True
-            # 드롭다운 라벨은 참가팀 이름만(기본 __str__ 의 '이름 - 대회' 대신).
-            self.fields[fname].label_from_instance = lambda e: e.name
+            # 드롭다운 라벨은 참가팀 이름(+부문)만(기본 __str__ 의 '이름 - 대회' 대신).
+            self.fields[fname].label_from_instance = _entry_label
 
     def clean(self):
         cleaned = super().clean()
@@ -94,6 +116,46 @@ class MatchResultForm(forms.ModelForm):
                     "승부차기는 정규/연장 종료 시 동점일 때만 입력할 수 있습니다. "
                     "본점수를 동점으로 맞춰 주세요."
                 )
+        return cleaned
+
+
+class MatchCreateForm(forms.ModelForm):
+    """대회 상세에서 경기 추가(대진·일정). 스코어·이벤트는 저장 후 '결과 편집'에서 입력."""
+
+    class Meta:
+        model = Match
+        fields = ["division", "stage", "home_entry", "away_entry",
+                  "kickoff", "venue", "status", "note"]
+        widgets = {
+            "division": forms.Select(attrs={"class": "form-select"}),
+            "stage": forms.Select(attrs={"class": "form-select"}),
+            "home_entry": forms.Select(attrs={"class": "form-select"}),
+            "away_entry": forms.Select(attrs={"class": "form-select"}),
+            "kickoff": forms.DateTimeInput(
+                attrs={"class": "form-control", "type": "datetime-local"},
+                format="%Y-%m-%dT%H:%M"),
+            "venue": forms.TextInput(attrs={"class": "form-control"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "note": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def __init__(self, *args, competition, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.competition = competition
+        self.fields["division"].queryset = competition.divisions.all()
+        entries = _competition_entries(competition.id)
+        for fname in ("home_entry", "away_entry"):
+            self.fields[fname].queryset = entries
+            self.fields[fname].required = True
+            self.fields[fname].label_from_instance = _entry_label
+        self.fields["division"].help_text = "부문이 있는 대회면 선택(순위표 집계 기준)."
+
+    def clean(self):
+        cleaned = super().clean()
+        home_entry = cleaned.get("home_entry")
+        away_entry = cleaned.get("away_entry")
+        if home_entry and away_entry and home_entry == away_entry:
+            raise forms.ValidationError("홈팀과 원정팀은 서로 다른 팀이어야 합니다.")
         return cleaned
 
 

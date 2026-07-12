@@ -128,6 +128,27 @@ def match_edit(request, pk):
 
 
 @staff_required
+def match_delete(request, pk):
+    """경기 삭제(확인 페이지). 이벤트·출전 명단·영상도 함께 삭제(CASCADE)."""
+    match = get_object_or_404(
+        Match.objects.select_related(
+            "home_entry__team", "home_entry__opponent",
+            "away_entry__team", "away_entry__opponent", "competition"),
+        pk=pk, club=request.club)
+    if request.method == "POST":
+        competition = match.competition
+        name = str(match)
+        match.delete()
+        messages.success(request, f"경기 '{name}'을(를) 삭제했습니다.")
+        return redirect(competition.get_absolute_url())
+    return render(request, "matches/match_confirm_delete.html", {
+        "match": match,
+        "event_count": match.events.count(),
+        "video_count": match.videos.count(),
+    })
+
+
+@staff_required
 def opponent_match_edit(request, pk):
     """상대팀 간 경기(반대편 준결승 등) 결과 입력. 저장 시 연결된 결승 상대가 자동 갱신."""
     om = get_object_or_404(

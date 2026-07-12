@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}경기 삭제 — {{ match }}{% endblock %}
+{% block content %}
+<h1 class="h4 mb-4">경기 삭제</h1>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <p class="mb-2">
+      다음 경기를 삭제할까요?
+    </p>
+    <p class="fw-semibold mb-2">
+      {{ match }} · {{ match.competition.name }}
+      {% if match.kickoff %} · {{ match.kickoff|date:"Y-m-d (D) H:i" }}{% endif %}
+    </p>
+    <p class="text-danger small mb-0">
+      이 경기에 기록된 이벤트 {{ event_count }}건, 영상 {{ video_count }}건과
+      출전 명단도 함께 삭제되며 되돌릴 수 없습니다.
+    </p>
+  </div>
+  <div class="card-footer bg-transparent">
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">삭제</button>
+    </form>
+    <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary">취소</a>
+  </div>
+</div>
+{% endblock %}

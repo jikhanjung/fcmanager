@@ -41,6 +41,20 @@
           <label class="form-label">단계</label>
           {{ form.stage }}
         </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">부문</label>
+          {{ form.division }}
+          {% if form.division.errors %}<div class="text-danger small">{{ form.division.errors }}</div>{% endif %}
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label">경기 일시</label>
+          {{ form.kickoff }}
+          {% if form.kickoff.errors %}<div class="text-danger small">{{ form.kickoff.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label">장소</label>
+          {{ form.venue }}
+        </div>
         <div class="col-12">
           <label class="form-label">비고</label>
           {{ form.note }}
@@ -157,6 +171,7 @@
 
   <button type="submit" class="btn btn-primary">저장</button>
   <a href="{% url 'matches:detail' match.pk %}" class="btn btn-outline-secondary">취소</a>
+  <a href="{% url 'matches:delete' match.pk %}" class="btn btn-outline-danger float-end">경기 삭제</a>
 </form>
 
 <template id="empty-video">

@@ -1,8 +1,33 @@
 {# 한 부문(또는 전체)의 출전팀 · 녹아웃 대진표 · 조별리그 경기. p = 패널 dict #}
+{% if is_club_staff %}
+<div class="d-flex gap-2 mt-3 mb-2">
+  <a href="{% url 'competitions:entry_add' competition.slug %}{% if p.division %}?division={{ p.division.id }}{% endif %}"
+     class="btn btn-outline-primary btn-sm">+ 참가팀 추가</a>
+  <a href="{% url 'competitions:match_add' competition.slug %}{% if p.division %}?division={{ p.division.id }}{% endif %}"
+     class="btn btn-outline-primary btn-sm">+ 경기 추가</a>
+</div>
+{% endif %}
+
 <h2 class="h6 text-muted mt-3 mb-2">출전팀</h2>
 <div class="d-flex flex-wrap gap-2 mb-4">
   {% for e in p.entries %}
-    {% if e.team %}
+    {% if is_club_staff %}
+      <span class="badge bg-light text-dark border p-2 d-inline-flex align-items-center gap-2">
+        {% if e.team %}
+          <a href="{{ e.team.get_absolute_url }}" class="text-dark text-decoration-none">{{ e.name }}</a>
+        {% else %}
+          {{ e.name }}
+        {% endif %}
+        <a href="{% url 'competitions:entry_edit' competition.slug e.pk %}"
+           class="text-decoration-none" title="참가팀 편집">✎</a>
+        <form method="post" action="{% url 'competitions:entry_delete' competition.slug e.pk %}"
+              class="d-inline m-0" onsubmit="return confirm('참가팀 {{ e.name }}을(를) 삭제할까요?');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-link btn-sm p-0 border-0 align-baseline text-danger text-decoration-none"
+                  title="참가팀 삭제">✕</button>
+        </form>
+      </span>
+    {% elif e.team %}
       <a href="{{ e.team.get_absolute_url }}" class="badge bg-light text-dark border text-decoration-none p-2">{{ e.name }}</a>
     {% else %}
       <span class="badge bg-light text-dark border p-2">{{ e.name }}</span>
@@ -31,8 +56,13 @@
           </div>
           <div class="text-muted small mt-1">{% if s.obj.kickoff %}{{ s.obj.kickoff|date:"m/d H:i" }}{% endif %}{% if s.obj.home_score is None %} · {{ s.obj.get_status_display }}{% endif %}</div>
         </a>
-        {% if is_club_staff and not s.obj.is_our_match and s.obj.home_score is None %}
-          <a href="{% url 'matches:opponent_edit' s.obj.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-primary btn-sm py-0 mt-1">결과 입력</a>
+        {% if is_club_staff %}
+          {% if s.obj.is_our_match %}
+            <a href="{% url 'matches:edit' s.obj.pk %}" class="btn btn-outline-secondary btn-sm py-0 mt-1">편집</a>
+          {% else %}
+            <a href="{% url 'matches:opponent_edit' s.obj.pk %}?next={{ request.path|urlencode }}"
+               class="btn btn-outline-{% if s.obj.home_score is None %}primary{% else %}secondary{% endif %} btn-sm py-0 mt-1">{% if s.obj.home_score is None %}결과 입력{% else %}편집{% endif %}</a>
+          {% endif %}
         {% endif %}
       </div>
     {% endfor %}
@@ -53,6 +83,14 @@
           </div>
           <div class="text-muted small mt-1">{% if p.bracket.final.kickoff %}{{ p.bracket.final.kickoff|date:"m/d H:i" }}{% endif %}{% if p.bracket.final.home_score is None %} · {{ p.bracket.final.get_status_display }}{% endif %}</div>
         </a>
+        {% if is_club_staff %}
+          {% if p.bracket.final.is_our_match %}
+            <a href="{% url 'matches:edit' p.bracket.final.pk %}" class="btn btn-outline-secondary btn-sm py-0 mt-1">편집</a>
+          {% else %}
+            <a href="{% url 'matches:opponent_edit' p.bracket.final.pk %}?next={{ request.path|urlencode }}"
+               class="btn btn-outline-secondary btn-sm py-0 mt-1">편집</a>
+          {% endif %}
+        {% endif %}
       </div>
     </div>
   {% endif %}
@@ -62,19 +100,42 @@
 <h2 class="h6 text-muted mb-2">조별리그 경기</h2>
 <div class="list-group shadow-sm">
   {% for m in p.group_matches %}
-    <a href="{{ m.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-      <span>
-        <small class="text-muted me-2">{% if m.kickoff %}{{ m.kickoff|date:"m/d H:i" }}{% endif %}</small>
-        {{ m.home_entry.name }} vs {{ m.away_entry.name }}
-      </span>
-      <span class="fw-bold">
-        {% if m.home_score is not None %}
-          {{ m.home_score }} : {{ m.away_score }}
-        {% else %}
-          <span class="badge bg-light text-muted border">{{ m.get_status_display }}</span>
-        {% endif %}
-      </span>
-    </a>
+    {% if is_club_staff %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <span>
+          <small class="text-muted me-2">{% if m.kickoff %}{{ m.kickoff|date:"m/d H:i" }}{% endif %}</small>
+          <a href="{{ m.get_absolute_url }}" class="text-body text-decoration-none">{{ m.home_entry.name }} vs {{ m.away_entry.name }}</a>
+        </span>
+        <span class="d-flex align-items-center gap-2">
+          <span class="fw-bold">
+            {% if m.home_score is not None %}
+              {{ m.home_score }} : {{ m.away_score }}
+            {% else %}
+              <span class="badge bg-light text-muted border">{{ m.get_status_display }}</span>
+            {% endif %}
+          </span>
+          {% if m.is_our_match %}
+            <a href="{% url 'matches:edit' m.pk %}" class="btn btn-outline-secondary btn-sm py-0">편집</a>
+          {% else %}
+            <a href="{% url 'matches:opponent_edit' m.pk %}?next={{ request.path|urlencode }}" class="btn btn-outline-secondary btn-sm py-0">편집</a>
+          {% endif %}
+        </span>
+      </div>
+    {% else %}
+      <a href="{{ m.get_absolute_url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <span>
+          <small class="text-muted me-2">{% if m.kickoff %}{{ m.kickoff|date:"m/d H:i" }}{% endif %}</small>
+          {{ m.home_entry.name }} vs {{ m.away_entry.name }}
+        </span>
+        <span class="fw-bold">
+          {% if m.home_score is not None %}
+            {{ m.home_score }} : {{ m.away_score }}
+          {% else %}
+            <span class="badge bg-light text-muted border">{{ m.get_status_display }}</span>
+          {% endif %}
+        </span>
+      </a>
+    {% endif %}
   {% empty %}
     <div class="list-group-item text-muted">조별리그 경기가 없습니다.</div>
   {% endfor %}
