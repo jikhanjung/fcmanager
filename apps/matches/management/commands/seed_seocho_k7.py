@@ -37,14 +37,15 @@ OPPONENTS = [
 ]
 OUR_TEAM_FULL_NAME = "서울서초구 FC 스카이축구회"
 
-# 경기: (kickoff KST, 홈 key, 원정 key, 장소). 스카이 vs 시누쓰(7/12 11:30)는 장소 미확인.
+# 경기: (kickoff KST, 홈 key, 원정 key, 장소, 홈 득점, 원정 득점).
+# 득점은 결과를 아는 경기만(None 이면 미입력). 스카이 vs 시누쓰(7/12 11:30)는 장소 미확인.
 MATCHES = [
-    ("2026-06-28 13:40", "스카이", "HUMBLE", "인재개발원"),
-    ("2026-07-12 11:30", "스카이", "시누쓰", ""),
-    ("2026-07-12 12:30", "HUMBLE", "ACI", "인재개발원"),
-    ("2026-08-01 15:50", "HUMBLE", "시누쓰", "양재근린공원"),
-    ("2026-09-05 14:40", "리얼", "HUMBLE", "양재근린공원"),
-    ("2026-09-19 15:50", "오키나와", "HUMBLE", "양재근린공원"),
+    ("2026-06-28 13:40", "스카이", "HUMBLE", "인재개발원", None, None),
+    ("2026-07-12 11:30", "스카이", "시누쓰", "", 2, 0),
+    ("2026-07-12 12:30", "HUMBLE", "ACI", "인재개발원", None, None),
+    ("2026-08-01 15:50", "HUMBLE", "시누쓰", "양재근린공원", None, None),
+    ("2026-09-05 14:40", "리얼", "HUMBLE", "양재근린공원", None, None),
+    ("2026-09-19 15:50", "오키나와", "HUMBLE", "양재근린공원", None, None),
 ]
 
 
@@ -82,8 +83,9 @@ class Command(BaseCommand):
             f"완료{mode}: 대회={comp.name} | 참가팀 {len(entries)}팀 확보 | "
             f"경기 신규 {m_created}·갱신 {m_updated}"))
         self.stdout.write(
-            "※ 지난 경기(6/28, 7/12)는 종료 상태로 만들었고 스코어는 비어 있음 — "
-            "대회 상세의 '편집'에서 결과를 입력하세요. 7/12 11:30 스카이 vs 시누쓰 장소도 미입력.")
+            "※ 스코어 미확보 지난 경기(6/28 스카이-HUMBLE, 7/12 HUMBLE-ACI)는 종료 상태에 "
+            "스코어 비움 — 대회 상세의 '편집'에서 결과를 입력하세요. "
+            "7/12 11:30 스카이 vs 시누쓰(2:0 승) 장소는 미입력.")
 
     # ── 참가팀 ──────────────────────────────────────────────────
     def _seed_entries(self, comp, team):
@@ -115,7 +117,7 @@ class Command(BaseCommand):
     def _seed_matches(self, club, comp, entries):
         now = timezone.now()
         created_n = updated_n = 0
-        for dt_str, home_key, away_key, venue in MATCHES:
+        for dt_str, home_key, away_key, venue, h_score, a_score in MATCHES:
             kickoff = datetime.strptime(dt_str, "%Y-%m-%d %H:%M").replace(tzinfo=KST)
             home, away = entries[home_key], entries[away_key]
             # 같은 대진·같은 날짜의 기존 경기와 매칭(시간이 바뀌었어도 중복 생성 방지).
@@ -132,20 +134,28 @@ class Command(BaseCommand):
                     club=club, competition=comp,
                     home_entry=home, away_entry=away,
                     stage=Match.Stage.GROUP, kickoff=kickoff, venue=venue,
-                    status=status,
+                    status=status, home_score=h_score, away_score=a_score,
                 )
                 created_n += 1
+                score = f" {h_score}:{a_score}" if h_score is not None else ""
                 self.stdout.write(
-                    f"  경기 {label}: 생성 ({Match.Status(status).label})")
+                    f"  경기 {label}: 생성 ({Match.Status(status).label}{score})")
             else:
-                # 일정 정보만 갱신(결과·상태는 건드리지 않음).
+                # 일정 정보 갱신 + 빈 스코어 채움(수동 입력된 결과·상태는 건드리지 않음).
                 changed = []
                 if match.kickoff != kickoff:
                     match.kickoff = kickoff; changed.append("일시")
                 if venue and match.venue != venue:
                     match.venue = venue; changed.append("장소")
+                if (h_score is not None and match.home_score is None
+                        and match.away_score is None):
+                    match.home_score, match.away_score = h_score, a_score
+                    match.status = Match.Status.FINISHED
+                    changed.append(f"스코어 {h_score}:{a_score}")
                 if changed:
-                    match.save(update_fields=["kickoff", "venue", "updated_at"])
+                    match.save(update_fields=[
+                        "kickoff", "venue", "home_score", "away_score",
+                        "status", "updated_at"])
                     updated_n += 1
                 self.stdout.write(
                     f"  경기 {label}: 이미 있음"
