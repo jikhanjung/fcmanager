@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="refresh" content="10">
+<title>업데이트 중 · FCManager</title>
+<style>
+  :root {
+    --navy: #0a1633; --sky: #2f80ff; --gold: #ffce4d;
+    --bg: #eef1f8; --card: #fff; --ink: #0c1a3a; --muted: #61708f; --line: #e4e9f3;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px env(safe-area-inset-right) 24px env(safe-area-inset-left); text-align: center;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(10,22,51,.10);
+    max-width: 380px; width: 100%; padding: 32px 26px;
+  }
+  .brand { color: var(--navy); font-size: 22px; font-weight: 800; letter-spacing: .3px; }
+  .brand-sub { color: var(--sky); font-size: 12px; font-weight: 700; margin-top: 2px;
+    text-transform: uppercase; letter-spacing: 1.2px; }
+  .spinner {
+    width: 44px; height: 44px; margin: 26px auto 22px;
+    border: 4px solid var(--line); border-top-color: var(--sky);
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 19px; margin: 0 0 8px; color: var(--ink); }
+  p { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0; }
+  .en { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#070e21; --card:#0e1c3a; --ink:#e8edf6; --muted:#8a9abc; --line:#1c2c52; }
+    .spinner { border-color: #1c2c52; border-top-color: var(--sky); }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">FCManager</div>
+    <div class="brand-sub">Football Club Manager</div>
+    <div class="spinner" role="status" aria-label="업데이트 중"></div>
+    <h1>시스템 업데이트 중입니다</h1>
+    <p>새 버전을 배포하고 있습니다. 잠시 후 자동으로 다시 연결됩니다.<br>이 페이지는 10초마다 자동 새로고침됩니다.</p>
+    <p class="en">We'll be right back — a new version is being deployed. This page refreshes automatically.</p>
+    <div class="foot">FCManager · 선수단 · 대회 · 일정 · 결과 관리</div>
+  </main>
+</body>
+</html>

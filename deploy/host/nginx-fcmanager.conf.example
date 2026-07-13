@@ -6,10 +6,14 @@
 # 적용:
 #   sudo cp deploy/host/nginx-fcmanager.conf.example /etc/nginx/sites-available/fcmanager
 #   sudo ln -s /etc/nginx/sites-available/fcmanager /etc/nginx/sites-enabled/
+#   sudo mkdir -p /srv/fcmanager/maintenance   # 점검 페이지 위치
+#   sudo cp deploy/host/maintenance.html /srv/fcmanager/maintenance/maintenance.html
 #   sudo nginx -t && sudo systemctl reload nginx
 #   sudo certbot --nginx -d fcmanager.app -d www.fcmanager.app   # HTTPS 자동 구성
 #
 # certbot --nginx 가 아래 80 포트 블록에 TLS(443) 설정을 자동 추가/리다이렉트한다.
+# certbot 이 443 블록을 추가한 뒤에도 아래 error_page/maintenance 블록은 그대로 유지된다.
+# 배포 스왑 중(deploy.sh 의 down~up 사이) 업스트림 502 → nginx 가 점검 페이지를 직접 응답(devlog 023·084).
 
 server {
     listen 80;
@@ -32,6 +36,16 @@ server {
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;   # HTTPS 인식(보안 쿠키·CSRF)
+    }
+
+    # docker 스왑/백엔드 다운 시 점검 페이지 (502/503/504 -> maintenance.html, HTTP 503 유지).
+    # 업스트림(8003/8004)이 죽어도 nginx 가 직접 응답하므로 배포 중 502 대신 점검 안내가 노출된다.
+    error_page 502 503 504 =503 /maintenance.html;
+    location = /maintenance.html {
+        root /srv/fcmanager/maintenance;
+        internal;
+        add_header Retry-After 10 always;
+        add_header Cache-Control "no-store, must-revalidate" always;
     }
 }
 
