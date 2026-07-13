@@ -5,47 +5,50 @@
 > [docs/operation_manual/](docs/operation_manual/) 참고.
 > **갱신 규칙**: 의미 있는 상태 변화(배포·브랜치·미해결 이슈)가 생기면 이 파일을 갱신.
 
-_최종 갱신: 2026-06-22_
+_최종 갱신: 2026-07-13_
 
 ---
 
 ## 한 줄 요약
 
-Phase 1~4 완료. 중계 콘솔 **전후반 + 연장전·승부차기**(녹아웃) + 시계 일시정지, 시청자
-**진행시계·갱신 카운트다운·LIVE 깜박임**. 버전 관리 fsis2026 패턴, 운영 쿠키 Secure.
-이미지 `0.6.4` 빌드·push 완료. **운영(dolfinid) 0.6.4 배포 완료**(2026-06-22, 사이트 정상).
-레거시 진입점(`/2026biennale/`·`biennale.nopeoplestime.info`) → 새 도메인 301
-리다이렉트 정리(devlog 068). **`/FcSky/` 리다이렉트는 폐기**(2026-06-22, devlog 072 — 이제 404).
+Phase 1~4 + SaaS 완료 상태에서 **배포·데이터 계약 정렬 완료**(devlog 082~085):
+매니페스트(`deploy/deploy.toml`, `has_seed=false`)·동사(preflight/build/deploy/smoke/rollback)·
+`/healthz`·`DEPLOY.md`·**git-free self-heal 배포**. `seed_seocho_k7` 은퇴, 소유자/운영진
+역할 분리, 입상·부문 오버라이드·클럽 운영진 웹 관리화. **운영(dolfinid) 0.6.13 배포 완료**
+(2026-07-13, smoke PASS·사이트 정상). 상시 배포 = `./deploy/build.sh X.Y.Z` +
+`./deploy/remote-prod.sh X.Y.Z` 두 줄.
 
 ## 코드 / 브랜치
 
-- 브랜치: `main` (배포도 main 직접 — feature 브랜치 안 씀)
-- 최신 커밋: `d985d9b` — Bump version to 0.6.4
-  - 직전: `38b63e6` 연장전·승부차기·시청자 진행시계(devlog 069), `4ee2a94` 레거시 301(devlog 068)
-- 작업 트리: clean (단, `db.sqlite3.devbak` 는 추적 안 함 — 아래 "로컬 개발 DB" 참고)
+- 브랜치: `main` (배포도 main 직접 — feature 브랜치 안 씀), origin 동기화됨
+- 최신 커밋: `7f3596e` — 점검 페이지 fcmanager.app 배선(devlog 084)
+  - 직전: `f5006ad` Bump 0.6.13, `66d1bb6` DB 게이트 fix, `37d09e5` Track B(devlog 083),
+    `5cb58db` Track A(devlog 082)
+- 작업 트리: clean
 
 ## 배포 상태
 
 | 위치 | 버전 | 상태 |
 |------|------|------|
-| Docker Hub `honestjung/fcmanager` | **0.6.4** + `latest` | push 완료 (digest `sha256:6874cc89…`), 매니페스트 정상 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.4** | 배포 완료(2026-06-22). 컨테이너 `fcmanager` Up, `fcmanager.app` 200, navbar `v0.6.4` |
+| Docker Hub `honestjung/fcmanager` | **0.6.13** + `latest` | push 완료 (digest `sha256:a4baf5e3…`) |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.13** | 배포 완료(2026-07-13). 전 구간(7/7) 자동 완주 — DB게이트 OK·smoke PASS(`club=1, match=28`), `fcmanager.app` v0.6.13 |
 
-- 운영 0.6.4 배포 완료 — 미완 배포 작업 없음.
-- 0.6.4 는 **마이그레이션 2개 포함**(competitions 0010, matches 0017) — entrypoint
-  `migrate` 가 컨테이너 기동 시 적용. 배포 후 사이트 정상 확인됨.
-- (직전) 0.6.3 쿠키 Secure(마이그레이션 없음), 0.6.2 마이그레이션 3개(competitions 0009,
-  matches 0015·0016) 모두 적용 완료.
+- **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
+  `./deploy/remote-prod.sh X.Y.Z` → dolfinid 가 이미지에서 host 파일 추출(self-heal) →
+  스냅샷 → 스왑 → migrate(entrypoint) → DB 바인딩 게이트 → smoke(`/healthz`).
+  롤백: `ssh dolfinid '/srv/fcmanager/rollback.sh <이전>'`. 배포 caveat 는 **`DEPLOY.md`**
+  릴리스 델타 노트가 권위 소스, 배포 전 `./deploy/preflight.sh`.
+- 0.6.12~0.6.13 은 마이그레이션 없음. 운영 포트 `.env HOST_PORT=8004`.
+- 배포 중 다운타임(수 초)은 nginx 점검 페이지(502→503 재기술)로 안내(devlog 084).
 - **레거시 리다이렉트(호스트 nginx, repo 비추적)**: `/2026biennale/`·`biennale.nopeoplestime.info`
   →`biennale.app` (devlog 068). `/FcSky/` 리다이렉트는 **제거됨**(2026-06-22, devlog 072 —
   `sites-available/2026biennale` 에서 블록 삭제, 백업 `.bak-fcsky-removed-20260622`. 이제 404).
   레거시 fcsky 컨테이너(8003)는 **폐기 완료**(2026-06-22, stop+rm — 포트 해제). `/srv/FcSky`
   데이터·`honestjung/fcsky:0.5.7` 이미지는 콜드백업용 보존(복구 필요 시 재기동 가능).
-- 버전 단일 소스 = `config/version.py`. 다음 릴리스는 **`./deploy/build.sh X.Y.Z`** 로
+- 버전 단일 소스 = `config/version.py`. 릴리스는 **`./deploy/build.sh X.Y.Z`** 로
   (test → version.py bump/commit → build `:X.Y.Z`·`:latest` → push) 일괄 처리.
-- dolfinid 소스 체크아웃은 `~/projects/fcmanager`(리네임·remote 갱신 완료, 2026-06-22).
-  GitHub pull 키 없으면 `git pull` 실패할 수 있으나, 앱 코드는 이미지에 포함되어 배포에 지장
-  없음(`sync_to_srv` 는 compose/deploy.sh/백업 스크립트만 복사).
+- dolfinid 소스 체크아웃(`~/projects/fcmanager`)은 **배포 경로에서 완전 이탈** —
+  git-free 전환으로 운영 서버 상시 파일은 `.env` + DB + 백업뿐, 체크아웃은 삭제 가능.
 
 ## 운영 호스트 (요약 — 상세는 메모리/매뉴얼)
 
