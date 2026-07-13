@@ -18,7 +18,8 @@ health_probe = "http://127.0.0.1:8003/healthz"   # HOST_PORT(.env, 기본 8003).
 [verbs]
 preflight = "deploy/preflight.sh [<since-ref>]"             # 빌드 호스트: 위험 표면 diff + seed 냄새 lint + DEPLOY.md
 build     = "deploy/build.sh X.Y.Z"                         # 빌드 호스트: test + bump + build + push
-deploy    = "/srv/fcmanager/deploy-prod.sh X.Y.Z"           # 추출 → 스냅샷 → 스왑 → migrate(entrypoint) → DB게이트 → smoke
+deploy    = "deploy/remote-prod.sh X.Y.Z"                   # 빌드 호스트에서 원격 원터치(= ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z').
+                                                            # 운영 호스트 직접 실행도 동일: 추출 → 스냅샷 → 스왑 → migrate(entrypoint) → DB게이트 → smoke
 seed      = "(없음 — has_seed=false, 운영 데이터는 in-app 입력만)"
 smoke     = "/srv/fcmanager/smoke.sh [X.Y.Z]"               # 대상 호스트: healthz 200 + 버전 일치 + club>0
 rollback  = "/srv/fcmanager/rollback.sh <이전 X.Y.Z>"        # 대상 호스트: 이전 이미지 + pre_deploy 스냅샷 복원
@@ -33,4 +34,4 @@ entry    = "/srv/fcmanager/deploy-prod.sh" # DEPLOY_SNAPSHOT=1 — 스왑 직전
 snapshot = true
 expose   = "127.0.0.1:8003"                # 호스트 8000 은 portainer 점유. nginx 경유 서빙.
 data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pre_deploy), scripts/backup_db.py
-# 원격 원터치: ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
+# 원격 원터치: ./deploy/remote-prod.sh X.Y.Z (= ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z')

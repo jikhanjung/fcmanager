@@ -11,6 +11,8 @@ deploy/
   deploy.toml            배포 매니페스트(선언층) — image·target·db_path·has_seed·verbs
   preflight.sh           [동사] 배포 전 위험 표면 diff + seed 냄새 lint (빌드 호스트)
   build.sh               [동사] test + 버전 bump + docker build/push (빌드 호스트 m710q)
+  remote-prod.sh         빌드 호스트: ssh dolfinid '/srv/fcmanager/deploy-prod.sh …' 얇은 래퍼
+                         (원격 prod 배포). PROD_HOST/PROD_DEPLOY env 로 대상 변경
   sync_to_srv.sh         최초 1회 부트스트랩(host/* → /srv/fcmanager). 상시 배포엔 불필요
   Dockerfile             이미지 정의. COPY . . 로 deploy/host/*·scripts/backup_db.py 도 탑재(git-free 재료)
   Dockerfile.dockerignore
@@ -34,11 +36,11 @@ deploy/
 ./deploy/build.sh X.Y.Z        # test + bump(config/version.py) + build + push
 ```
 
-**운영 호스트 (dolfinid) — repo/git pull 불요:**
+**운영 배포 — 빌드 호스트에서 원격 원터치 (dolfinid 에 repo/git pull 불요):**
 ```bash
-/srv/fcmanager/deploy-prod.sh X.Y.Z     # 이미지 추출 → 스냅샷 → 스왑 → migrate → smoke
-# 원격 원터치: ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
-# 문제 시:     /srv/fcmanager/rollback.sh <이전 X.Y.Z>
+./deploy/remote-prod.sh X.Y.Z           # = ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
+# (운영 호스트에서 직접 실행해도 동일: /srv/fcmanager/deploy-prod.sh X.Y.Z)
+# 문제 시: ssh dolfinid '/srv/fcmanager/rollback.sh <이전 X.Y.Z>'
 ```
 
 최초 도입 1회만: repo 있는 머신에서 `./deploy/sync_to_srv.sh`, 또는 repo 없이

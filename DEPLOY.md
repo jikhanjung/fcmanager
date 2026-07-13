@@ -15,11 +15,11 @@
 ./deploy/preflight.sh          # (선택) 위험 표면 diff + seed 냄새 lint + 이 문서 델타
 ./deploy/build.sh X.Y.Z        # test + bump + build + push
 ```
-**운영 호스트 (dolfinid) — git pull/sync 불요:**
+**운영 배포 — 빌드 호스트에서 원격 원터치 (dolfinid 에 git pull/sync 불요):**
 ```
-/srv/fcmanager/deploy-prod.sh X.Y.Z    # 이미지에서 host 파일 추출 → 스냅샷 → 스왑 → migrate → DB게이트 → smoke
-# 원격 원터치: ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
-# 문제 시:     /srv/fcmanager/rollback.sh <이전 X.Y.Z>
+./deploy/remote-prod.sh X.Y.Z          # = ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
+                                       #   (이미지에서 host 파일 추출 → 스냅샷 → 스왑 → migrate → DB게이트 → smoke)
+# 문제 시: ssh dolfinid '/srv/fcmanager/rollback.sh <이전 X.Y.Z>'
 ```
 모든 host 파일은 이미지 `/app/deploy/host/*`(`COPY . .`)에 실려 배포 시 추출되고 부트스트랩 파일까지
 self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_to_srv.sh`(또는 이미지에서 docker cp).
@@ -85,7 +85,7 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 - `0.6.12(예정)`: **배포 계약 Track A** — /healthz 신설, git-free 배포 전환.
   ① 이 버전을 **구 방식**(`git pull` + `sync_to_srv.sh` + `/srv/fcmanager/deploy.sh 0.6.12`)으로
   마지막 1회 배포하거나, `sync_to_srv.sh` 로 부트스트랩 래퍼(`deploy-prod.sh`·`_extract_and_deploy.sh`)를
-  먼저 심을 것. ② 이후부터는 `/srv/fcmanager/deploy-prod.sh X.Y.Z` 한 줄(git-free).
+  먼저 심을 것. ② 이후부터는 빌드 호스트에서 `./deploy/remote-prod.sh X.Y.Z` 한 줄(git-free).
   ③ nginx 변경 불요(healthz 는 로컬 127.0.0.1:8003 검증).
 - `0.6.9~0.6.11`: 서초 K7 시드(`seed_seocho_k7`) 릴리스 — 운영 반영은 배포 후
   `docker exec fcmanager python manage.py seed_seocho_k7` 수동 실행(위 레인 위반 냄새 참조).
