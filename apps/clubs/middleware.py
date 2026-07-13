@@ -13,7 +13,7 @@ from django.urls import set_script_prefix
 from .models import Club
 
 # 클럽 슬러그로 쓸 수 없는 예약 세그먼트(플랫폼 레벨).
-PLATFORM_SEGMENTS = {"admin", "accounts", "static", "media", "clubs"}
+PLATFORM_SEGMENTS = {"admin", "accounts", "static", "media", "clubs", "healthz"}
 
 
 class TenantMiddleware:

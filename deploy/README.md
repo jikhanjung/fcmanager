@@ -1,73 +1,71 @@
-# 배포 (Docker)
+# 배포 (Docker) — 배포·데이터 계약 구현
 
-FCManager 애플리케이션 컨테이너 이미지 빌드/실행 안내.
+fcmanager 의 빌드/배포 파일 구성. 계약 선언층은 [`deploy.toml`](deploy.toml),
+데이터 안전 경계·릴리스 델타 노트는 루트 [`DEPLOY.md`](../DEPLOY.md),
+표준 규약은 `../devdocs/wiki/deploy-data-contract.md` 참조.
 
-## 빌드
+## 파일 구성
 
-프로젝트 **루트**를 빌드 컨텍스트로 사용한다(코드 전체를 COPY 하기 위함):
-
-```bash
-# 서브패스(/FCManager/) 배포용 — 정적 파일을 접두사에 맞춰 수집하도록 build-arg 지정
-docker build -f deploy/Dockerfile --build-arg DJANGO_URL_PREFIX=FCManager \
-  -t honestjung/fcmanager:0.1.2 -t honestjung/fcmanager:latest .
+```
+deploy/
+  deploy.toml            배포 매니페스트(선언층) — image·target·db_path·has_seed·verbs
+  preflight.sh           [동사] 배포 전 위험 표면 diff + seed 냄새 lint (빌드 호스트)
+  build.sh               [동사] test + 버전 bump + docker build/push (빌드 호스트 m710q)
+  sync_to_srv.sh         최초 1회 부트스트랩(host/* → /srv/fcmanager). 상시 배포엔 불필요
+  Dockerfile             이미지 정의. COPY . . 로 deploy/host/*·scripts/backup_db.py 도 탑재(git-free 재료)
+  Dockerfile.dockerignore
+  docker-entrypoint.sh   컨테이너 기동 시 migrate + superuser 보증 (seed 없음 — DEPLOY.md 불변식)
+  docker-compose.yml     로컬/개발용 compose (build: 포함)
+  host/                  운영 호스트(dolfinid) 파일 — 배포 시 이미지에서 추출(self-heal)
+    deploy-prod.sh         [동사 deploy 진입점] git-free 래퍼 (DEPLOY_SNAPSHOT=1)
+    _extract_and_deploy.sh 이미지에서 host 파일 추출 → deploy.sh 위임 (부트스트랩 파일도 self-heal)
+    deploy.sh              배포 엔진: pull → down → 스냅샷 → up → healthz 대기 → DB게이트 → smoke
+    smoke.sh               [동사] /healthz 200 + 버전 일치 + club>0
+    rollback.sh            [동사] 이전 이미지 태그 + pre_deploy 스냅샷 복원
+    docker-compose.yml     운영 compose (pull 전용, IMAGE_TAG는 .env)
+    nginx-fcmanager.conf.example
 ```
 
-> 루트(`/`)에서 서비스하려면 `--build-arg DJANGO_URL_PREFIX` 를 생략한다.
+## 배포 흐름
 
-## 실행
-
-호스트 8000 포트는 portainer가 점유 중이므로 **8003** 으로 노출한다.
-
+**빌드 호스트 (m710q):**
 ```bash
-docker run --rm -p 8003:8000 \
-  -e DJANGO_URL_PREFIX=FCManager \
-  -e DJANGO_SECRET_KEY="$(openssl rand -base64 48)" \
-  -e DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1" \
-  -e DJANGO_SEED=1 \
-  -e DJANGO_SUPERUSER_USERNAME=admin \
-  -e DJANGO_SUPERUSER_PASSWORD=change-me \
-  -v fcsky-db:/app/db \
-  honestjung/fcmanager:0.1.2
+./deploy/preflight.sh          # (선택) 위험 표면 + seed 냄새 + DEPLOY.md 델타
+./deploy/build.sh X.Y.Z        # test + bump(config/version.py) + build + push
 ```
 
-→ http://localhost:8003/FCManager/  (admin: `/FCManager/admin/`)
+**운영 호스트 (dolfinid) — repo/git pull 불요:**
+```bash
+/srv/fcmanager/deploy-prod.sh X.Y.Z     # 이미지 추출 → 스냅샷 → 스왑 → migrate → smoke
+# 원격 원터치: ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
+# 문제 시:     /srv/fcmanager/rollback.sh <이전 X.Y.Z>
+```
 
-> 권장: `docker compose -f deploy/docker-compose.yml up --build` (포트·접두사·볼륨이
-> 미리 설정됨).
+최초 도입 1회만: repo 있는 머신에서 `./deploy/sync_to_srv.sh`, 또는 repo 없이
+이미지에서 직접 `docker cp`(스크립트 머리말 참조). 이후는 매 배포가 self-heal.
 
-## 환경변수
+## 로컬 실행
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+# → http://localhost:8003/
+```
+
+## 환경변수 (운영 /srv/fcmanager/.env)
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `DJANGO_SECRET_KEY` | (개발용 키) | 운영에선 반드시 지정 |
-| `DJANGO_DEBUG` | `false` (이미지 기본) | `true`/`false` |
-| `DJANGO_URL_PREFIX` | (없음=루트) | 서브패스 배포 접두사. 예: `FCManager` → 사이트가 `/FCManager/` 하위. **빌드 시 동일한 `--build-arg` 도 지정**해야 정적 파일이 맞음 |
-| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,0.0.0.0` | 콤마 구분 |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | (없음) | 콤마 구분, 예: `https://fcsky.example.com` |
-| `DJANGO_SEED` | (없음) | `1` 이면 시작 시 초기 데이터 시드(멱등) |
-| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL` | (없음) | 지정 시 관리자 계정 생성 |
+| `IMAGE_TAG` | `latest` | deploy.sh/rollback.sh 가 갱신 — 손대지 말 것 |
+| `HOST_PORT` | `8003` | 호스트 노출 포트(8000은 portainer 점유). 병렬 운영 시 override |
+| `DJANGO_DEBUG` | `false` | |
+| `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS` | compose 에 지정 | fcmanager.app |
+| `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL` | (없음) | 지정 시 관리자 계정 보증(없을 때만 생성) |
+| `DATABASE_PATH` | (미설정 = `/app/db.sqlite3`) | 설정 시 반드시 `/app/db.sqlite3` — deploy.sh DB 게이트가 검증 |
 
 ## 주의
 
-- 현재 DB는 SQLite(`/app/db.sqlite3`)다. 데이터 영속화는 해당 경로를 볼륨으로
-  마운트하거나, 운영 전 PostgreSQL 전환을 권장(로드맵 Phase 5).
-- 업로드 미디어(`/app/media`)도 영속화하려면 볼륨 마운트 필요.
-- `docker compose -f deploy/docker-compose.yml up` 로도 실행 가능.
-
-## nginx 리버스 프록시 (서브패스 `/FCManager/`)
-
-Django가 `/FCManager/` 접두사를 **직접 라우팅**하므로 nginx는 경로를 자르지 말고
-(`rewrite`/접두사 제거 없이) 그대로 컨테이너로 넘긴다. 정적 파일은 WhiteNoise가
-`/FCManager/static/` 에서 직접 서빙한다.
-
-```nginx
-location /FCManager/ {
-    proxy_pass http://127.0.0.1:8003;   # 경로 그대로 전달(끝에 / 없음 = 접두사 유지)
-    proxy_set_header Host              $host;
-    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;   # HTTPS 인식(보안 쿠키·CSRF)
-}
-```
-
-> HTTPS 도메인을 쓰면 `DJANGO_CSRF_TRUSTED_ORIGINS=https://<도메인>` 과
-> `DJANGO_ALLOWED_HOSTS` 에 도메인을 추가한다.
+- DB 는 SQLite 파일 마운트(`/srv/fcmanager/db.sqlite3` → `/app/db.sqlite3`). 미디어는
+  `/srv/fcmanager/media`. 백업 트랙 3종은 `DEPLOY.md` 백업 지도 참조.
+- HTTPS 리다이렉트는 앞단 nginx 담당 — Django `SECURE_SSL_REDIRECT` 를 켜지 말 것
+  (로컬 healthz/smoke 평문 검증과 충돌, settings.py 주석 참조).

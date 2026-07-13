@@ -10,8 +10,11 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from apps.clubs import views as club_views
+from config import views_health
 
 urlpatterns = [
+    # 배포 계약 smoke 가 찌르는 헬스체크(버전·DB·핵심 행 수). 테넌트 밖 예약 경로.
+    path("healthz", views_health.healthz, name="healthz"),
     path("admin/", admin.site.urls),
     # 플랫폼 로그인(테넌트 밖) — 로그인 후 랜딩으로. (클럽 생성·클럽 선택용)
     path("accounts/login/", auth_views.LoginView.as_view(next_page="/"), name="login"),

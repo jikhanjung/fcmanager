@@ -4,8 +4,8 @@
 #
 # 책임 분리:
 #   - 본 스크립트: 개발기에서 test + bump(config/version.py) + docker build + push(버전·latest)
-#   - 운영 호스트(dolfinid) 측 sync(scripts/*.py + deploy/host/* → /srv/fcmanager/)는
-#     deploy/sync_to_srv.sh 가 담당. dolfinid 에서 git pull 후 별도 실행.
+#   - 운영 호스트(dolfinid) 측은 git-free: deploy-prod.sh 가 이미지에서 host 파일을 추출.
+#     최초 1회 부트스트랩만 deploy/sync_to_srv.sh (DEPLOY.md 참조).
 set -e
 
 VERSION=$1
@@ -48,7 +48,6 @@ docker push "$IMAGE:latest"
 echo ""
 echo "=== Done: $IMAGE:$VERSION ==="
 echo ""
-echo "다음 단계 (dolfinid):"
-echo "  cd ~/projects/fcmanager && git pull"
-echo "  ./deploy/sync_to_srv.sh                  # scripts/*.py + deploy/host/* 동기화"
-echo "  /srv/fcmanager/deploy.sh $VERSION        # 컨테이너 교체 + 즉시 스냅샷"
+echo "다음 단계 (git-free — dolfinid 에 repo/git pull 불요):"
+echo "  ssh dolfinid '/srv/fcmanager/deploy-prod.sh $VERSION'   # 추출→스냅샷→스왑→smoke"
+echo "  (최초 1회만 부트스트랩: deploy/sync_to_srv.sh — DEPLOY.md 참조)"

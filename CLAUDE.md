@@ -77,6 +77,11 @@ static/img/          사이트 로고 등 브랜딩 자산
 - `autocomplete_fields`를 쓰려면 대상 ModelAdmin에 `search_fields`가 있어야 함.
 - 프론트는 Django Template + Bootstrap 5(현재 CDN). 별도 JS 빌드 도입 안 함.
 - 업로드 이미지는 `media/`, 브랜딩 정적 자산은 `static/`.
+- **배포는 배포·데이터 계약을 따른다** (`../devdocs/wiki/deploy-data-contract.md`):
+  매니페스트 `deploy/deploy.toml` + 동사(preflight/build/deploy/smoke/rollback), git-free
+  (운영 서버 repo 불요), 배포 caveat 는 **`DEPLOY.md`** 릴리스 델타 노트에. fcmanager 는
+  시스템 시드 레인 없음(`has_seed=false`) — **운영 데이터를 seed 명령으로 리포에 넣지 말 것**
+  (기존 `seed_seocho_k7` 은 은퇴 대상 냄새, DEPLOY.md 레인 경계 참조).
 
 ## 작업 기록 관례
 

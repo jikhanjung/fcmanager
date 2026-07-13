@@ -85,3 +85,23 @@ class ClubPermissionTest(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(ClubMembership.objects.filter(
             user=u, club__slug="new", role=ClubMembership.Role.OWNER).exists())
+
+
+class HealthzTest(TestCase):
+    """배포 계약 smoke 가 찌르는 /healthz — 테넌트 미들웨어를 통과해 플랫폼 경로로 동작."""
+
+    def test_healthz_ok(self):
+        from config.version import VERSION
+        resp = self.client.get("/healthz")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["version"], VERSION)
+        self.assertTrue(data["db"])
+        self.assertIn("club", data["counts"])
+        self.assertIn("match", data["counts"])
+
+    def test_healthz_not_a_club_slug(self):
+        # PLATFORM_SEGMENTS 예약 — 클럽 슬러그로 해석돼 404 나면 안 된다.
+        Club.objects.create(name="아무클럽", slug="c")
+        self.assertEqual(self.client.get("/healthz").status_code, 200)

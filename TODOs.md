@@ -90,6 +90,17 @@
 - [x] D. 브랜딩 분리 — current_club 기반 로고·이름·타이틀(devlog 060)
 - 비범위(후속): 결제·요금제, 커스텀 도메인/서브도메인, schema/DB-per-tenant, Postgres 전환
 
+## 📦 배포·데이터 계약 (../devdocs/wiki/deploy-data-contract.md)
+
+- [x] **Track A — 배포 계약 retrofit** (2026-07-13, devlog 082): `deploy/deploy.toml` 매니페스트,
+      동사(preflight/smoke/rollback), `/healthz`, `DEPLOY.md`(레인 경계 + 릴리스 델타 노트),
+      git-free 배포(운영 repo 불요, self-heal). 다음 배포 시 최초 1회 부트스트랩 — DEPLOY.md 참조.
+- [ ] **Track B — 데이터 레인 정리** (계약 문서가 지목한 fcmanager 할 일):
+  - [ ] 결과·명단 in-app 배치 입력 UI 완성 (일정 일괄 입력, 기록지 기반 이벤트/출전명단 배치 입력)
+  - [ ] `seed_seocho_k7`·`import_roster`·`import_player_photos` 은퇴 (UI 가 갭을 메우면)
+  - [ ] 역할 분리 (system admin / 클럽 관리자 / 대회 관리자 — `admin` 뭉침 해소),
+        Award·ClubMembership 웹 관리화
+
 ## 🧹 기술 부채 / 개선 메모
 
 - [~] 테스트 코드 작성 (모델·뷰) — 기본 스모크/단위 테스트 완료, 커버리지 확대 필요

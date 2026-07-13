@@ -1,0 +1,36 @@
+# fcmanager 배포 매니페스트 — 배포·데이터 계약 선언층.
+# 프로젝트별 배포 지식을 기억이 아니라 이 파일에 고정한다. 단일 오케스트레이터(또는
+# Claude Code)가 프로젝트 지식 없이 이 매니페스트만 읽고 배포·검증할 수 있게 하는 것이 목표.
+# 근거: ../devdocs/wiki/deploy-data-contract.md · ../DEPLOY.md · deploy/README.md.
+
+instance = "fcmanager"
+image    = "honestjung/fcmanager"          # Docker Hub. build.sh 가 :X.Y.Z + :latest push.
+db_path  = "/srv/fcmanager/db.sqlite3"     # 호스트 DB 파일 → 컨테이너 /app/db.sqlite3 로 바인드(파일 마운트).
+has_seed = false                           # ⚠️ 시스템 시드 레인 없음 — 전 모델이 운영 데이터(운영자 입력).
+                                           # seed_* 관리 명령은 레인 위반 냄새(DEPLOY.md 레인 경계) → 은퇴 대상.
+services = ["web"]                         # compose 단일 서비스(gunicorn). 워커/사이드카 없음.
+
+# 헬스체크. /healthz = 버전 + DB + 핵심 행 수(club·match). smoke 가 소비, deploy.sh 이 자동 호출.
+health_url   = "/healthz"
+health_probe = "http://127.0.0.1:8003/healthz"   # HOST_PORT(.env, 기본 8003). X-Forwarded-Proto: https 헤더로 검증.
+
+# 배포 동사(계약 이름 → 현 구현). deploy 는 git-free — 이미지에서 host 파일 추출.
+[verbs]
+preflight = "deploy/preflight.sh [<since-ref>]"             # 빌드 호스트: 위험 표면 diff + seed 냄새 lint + DEPLOY.md
+build     = "deploy/build.sh X.Y.Z"                         # 빌드 호스트: test + bump + build + push
+deploy    = "/srv/fcmanager/deploy-prod.sh X.Y.Z"           # 추출 → 스냅샷 → 스왑 → migrate(entrypoint) → DB게이트 → smoke
+seed      = "(없음 — has_seed=false, 운영 데이터는 in-app 입력만)"
+smoke     = "/srv/fcmanager/smoke.sh [X.Y.Z]"               # 대상 호스트: healthz 200 + 버전 일치 + club>0
+rollback  = "/srv/fcmanager/rollback.sh <이전 X.Y.Z>"        # 대상 호스트: 이전 이미지 + pre_deploy 스냅샷 복원
+bootstrap = "deploy/sync_to_srv.sh"                         # repo 머신 1회: 호스트 래퍼 설치(이후 self-heal)
+
+# --- 환경 ---
+# 빌드 호스트(m710q)가 이미지를 push, 운영 호스트(dolfinid)가 소비. prod 단일 호스트.
+[targets.prod]
+host     = "dolfinid"                      # GCP. m710q→dolfinid SSH 키 인증(무-passphrase) — 원격 원터치 배포 가능.
+domain   = "fcmanager.app"                 # 앞단 nginx + HTTPS(리다이렉트는 nginx 담당, Django SECURE_SSL_REDIRECT 미사용).
+entry    = "/srv/fcmanager/deploy-prod.sh" # DEPLOY_SNAPSHOT=1 — 스왑 직전 원자적 DB 스냅샷(retention 10).
+snapshot = true
+expose   = "127.0.0.1:8003"                # 호스트 8000 은 portainer 점유. nginx 경유 서빙.
+data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pre_deploy), scripts/backup_db.py
+# 원격 원터치: ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
