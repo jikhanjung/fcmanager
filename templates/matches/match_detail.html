@@ -78,9 +78,11 @@
       <div>
         <strong>{{ item.event.get_event_type_display }}</strong>
         {% if item.event.player %}<span class="ms-1">{{ item.event.player.name }}</span>
-        {% else %}<span class="ms-1 text-muted">{{ item.event.get_side_display }}</span>{% endif %}
-        {% if item.assist %}<span class="ms-1 text-muted">(도움: {% if item.assist.player %}{{ item.assist.player.name }}{% else %}{{ item.assist.get_side_display }}{% endif %})</span>{% endif %}
-        {% if item.event.description %}<div class="small text-muted">{{ item.event.description }}</div>{% endif %}
+        {% elif item.event.description %}<span class="ms-1">{{ item.event.description }}</span>
+        {% elif match.is_our_match %}<span class="ms-1 text-muted">{{ item.event.get_side_display }}</span>
+        {% else %}<span class="ms-1 text-muted">{% if item.event.side == 'OUR' %}{{ match.home_entry.name }}{% else %}{{ match.away_entry.name }}{% endif %}</span>{% endif %}
+        {% if item.assist %}<span class="ms-1 text-muted">(도움: {% if item.assist.player %}{{ item.assist.player.name }}{% elif item.assist.description %}{{ item.assist.description }}{% else %}{{ item.assist.get_side_display }}{% endif %})</span>{% endif %}
+        {% if item.event.player and item.event.description %}<div class="small text-muted">{{ item.event.description }}</div>{% endif %}
       </div>
     </div>
   {% empty %}
