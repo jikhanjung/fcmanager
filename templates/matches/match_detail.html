@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ match.our_team }} vs {{ match.opponent }} — {{ current_club.name|default:"FCManager" }}{% endblock %}
+{% block title %}{{ match }} — {{ current_club.name|default:"FCManager" }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -22,23 +22,24 @@
     </div>
     <div class="row align-items-center">
       <div class="col text-end">
-        <h2 class="h4 mb-0">{{ match.our_team }}</h2>
-        <small class="text-muted">{% if match.is_home %}홈{% else %}원정{% endif %}</small>
+        <h2 class="h4 mb-0 {% if match.is_our_match and match.is_home %}text-primary{% endif %}">{% if match.home_entry %}{{ match.home_entry.name }}{% else %}미정{% endif %}</h2>
+        <small class="text-muted">홈</small>
       </div>
       <div class="col-auto">
-        {% if match.our_score is not None and match.opponent_score is not None %}
-          <span id="live-score" class="display-5 fw-bold">{{ match.our_score }} : {{ match.opponent_score }}</span>
+        {% if match.home_score is not None and match.away_score is not None %}
+          <span id="live-score" class="display-5 fw-bold">{{ match.home_score }} : {{ match.away_score }}</span>
         {% else %}
           <span id="live-score" class="display-6 text-muted">VS</span>
         {% endif %}
         {% if match.decided_by_penalties %}
-          <div class="small text-muted">승부차기 {{ match.our_pso_score }} : {{ match.opponent_pso_score }}</div>
+          <div class="small text-muted">승부차기 {{ match.home_pso_score }} : {{ match.away_pso_score }}</div>
         {% elif match.went_to_extra_time %}
           <div class="small text-muted">연장전</div>
         {% endif %}
       </div>
       <div class="col text-start">
-        <h2 class="h4 mb-0">{{ match.opponent }}</h2>
+        <h2 class="h4 mb-0 {% if match.is_our_match and not match.is_home %}text-primary{% endif %}">{% if match.away_entry %}{{ match.away_entry.name }}{% else %}미정{% endif %}</h2>
+        <small class="text-muted">원정</small>
       </div>
     </div>
     <div class="mt-3" id="live-status">
@@ -48,12 +49,15 @@
         <span class="badge bg-secondary">{{ match.get_status_display }}</span>
       {% endif %}
       {% if match.went_to_extra_time and not match.decided_by_penalties %}<span class="badge bg-info text-dark">연장</span>{% endif %}
-      {% if match.decided_by_penalties %}
-        {% if match.our_pso_score > match.opponent_pso_score %}<span class="badge bg-success">승부차기 승</span>
-        {% else %}<span class="badge bg-danger">승부차기 패</span>{% endif %}
-      {% elif match.result == "W" %}<span class="badge bg-success">승리</span>
-      {% elif match.result == "L" %}<span class="badge bg-danger">패배</span>
-      {% elif match.result == "D" %}<span class="badge bg-secondary">무승부</span>{% endif %}
+      {% if match.is_our_match %}
+        {# 우리 팀 기준 승/무/패 배지(우리 팀이 참가한 경기만) #}
+        {% if match.decided_by_penalties %}
+          {% if match.our_pso_score > match.opponent_pso_score %}<span class="badge bg-success">승부차기 승</span>
+          {% else %}<span class="badge bg-danger">승부차기 패</span>{% endif %}
+        {% elif match.result == "W" %}<span class="badge bg-success">승리</span>
+        {% elif match.result == "L" %}<span class="badge bg-danger">패배</span>
+        {% elif match.result == "D" %}<span class="badge bg-secondary">무승부</span>{% endif %}
+      {% endif %}
     </div>
     {% if match.status == 'LIVE' %}
       <div class="mt-2">
@@ -110,9 +114,13 @@
 
 <a href="{% url 'matches:list' %}" class="btn btn-outline-secondary btn-sm">← 일정·결과로</a>
 {% if is_club_staff %}
-  <a href="{% url 'matches:lineup' match.pk %}" class="btn btn-outline-primary btn-sm">🧑‍🤝‍🧑 출전 명단</a>
-  <a href="{% url 'matches:live_console' match.pk %}" class="btn btn-danger btn-sm">🔴 중계 콘솔</a>
-  <a href="{% url 'matches:edit' match.pk %}" class="btn btn-primary btn-sm">결과 편집</a>
+  {% if match.is_our_match %}
+    <a href="{% url 'matches:lineup' match.pk %}" class="btn btn-outline-primary btn-sm">🧑‍🤝‍🧑 출전 명단</a>
+    <a href="{% url 'matches:live_console' match.pk %}" class="btn btn-danger btn-sm">🔴 중계 콘솔</a>
+    <a href="{% url 'matches:edit' match.pk %}" class="btn btn-primary btn-sm">결과 편집</a>
+  {% else %}
+    <a href="{% url 'matches:opponent_edit' match.pk %}?next={{ request.path|urlencode }}" class="btn btn-primary btn-sm">결과 편집</a>
+  {% endif %}
 {% endif %}
 {% endblock %}
 
@@ -172,10 +180,10 @@
 
   function apply(data) {
     if (scoreEl) {
-      if (data.our_score === null || data.opponent_score === null) {
+      if (data.home_score === null || data.away_score === null) {
         scoreEl.textContent = 'VS';
       } else {
-        scoreEl.textContent = data.our_score + ' : ' + data.opponent_score;
+        scoreEl.textContent = data.home_score + ' : ' + data.away_score;
       }
     }
     if (timelineEl) {

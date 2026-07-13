@@ -41,8 +41,8 @@
   <table class="table table-hover align-middle bg-white shadow-sm">
     <thead class="table-light">
       <tr>
-        <th>일시</th><th>대회</th><th>우리 팀</th><th class="text-center">스코어</th>
-        <th>상대</th><th class="text-center">상태</th><th></th>
+        <th>일시</th><th>대회</th><th class="text-end">홈</th><th class="text-center">스코어</th>
+        <th>원정</th><th class="text-center">상태</th><th></th>
       </tr>
     </thead>
     <tbody>
@@ -50,16 +50,16 @@
         <tr class="match-row" data-href="{{ m.get_absolute_url }}" style="cursor:pointer">
           <td class="text-nowrap small">{{ m.kickoff|date:"Y.m.d (D) H:i" }}</td>
           <td class="small">{{ m.competition }}{% if m.is_knockout %} <span class="badge bg-warning-subtle text-warning-emphasis">{{ m.get_stage_display }}</span>{% endif %}</td>
-          <td>{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</td>
+          <td class="text-end">{% if m.is_home %}<strong>{{ m.home_entry.name }}</strong>{% else %}{{ m.home_entry.name }}{% endif %}</td>
           <td class="text-center fw-bold">
-            {% if m.our_score is not None and m.opponent_score is not None %}
-              {{ m.our_score }} : {{ m.opponent_score }}
+            {% if m.home_score is not None and m.away_score is not None %}
+              {{ m.home_score }} : {{ m.away_score }}
               {% if m.result == "W" %}<span class="badge bg-success">승</span>
               {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
               {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}
             {% else %}<span class="text-muted">-</span>{% endif %}
           </td>
-          <td>{{ m.opponent }}</td>
+          <td>{% if m.is_home %}{{ m.away_entry.name }}{% else %}<strong>{{ m.away_entry.name }}</strong>{% endif %}</td>
           <td class="text-center">
             {% if m.status == 'LIVE' %}<span class="badge bg-danger">🔴 LIVE</span>
             {% else %}<span class="badge bg-light text-muted">{{ m.get_status_display }}</span>{% endif %}
@@ -87,13 +87,13 @@
           {{ m.competition }}{% if m.is_knockout %} · {{ m.get_stage_display }}{% endif %}
         </div>
         <div class="d-flex justify-content-between align-items-center gap-2">
-          <div class="fw-semibold" style="min-width:0">
-            <div class="text-truncate">{{ m.our_team }}{% if m.is_home %} <span class="badge bg-light text-muted">홈</span>{% endif %}</div>
-            <div class="text-muted text-truncate">vs {{ m.opponent }}</div>
+          <div style="min-width:0">
+            <div class="text-truncate {% if m.is_home %}fw-semibold{% endif %}">{{ m.home_entry.name }} <span class="badge bg-light text-muted">홈</span></div>
+            <div class="text-truncate {% if not m.is_home %}fw-semibold{% endif %}">{{ m.away_entry.name }}</div>
           </div>
           <div class="text-end flex-shrink-0">
-            {% if m.our_score is not None and m.opponent_score is not None %}
-              <div class="fw-bold fs-5 lh-1">{{ m.our_score }} : {{ m.opponent_score }}</div>
+            {% if m.home_score is not None and m.away_score is not None %}
+              <div class="fw-bold fs-5 lh-1">{{ m.home_score }} : {{ m.away_score }}</div>
               {% if m.result == "W" %}<span class="badge bg-success">승</span>
               {% elif m.result == "L" %}<span class="badge bg-danger">패</span>
               {% elif m.result == "D" %}<span class="badge bg-secondary">무</span>{% endif %}

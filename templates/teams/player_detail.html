@@ -55,7 +55,7 @@
     <li class="list-group-item d-flex justify-content-between">
       <span>
         <small class="text-muted">{{ e.match.kickoff|date:"Y.m.d" }} · {{ e.match.competition }}</small><br>
-        vs {{ e.match.opponent }}{% if e.minute is not None %} <span class="text-muted">({{ e.minute }}')</span>{% endif %}
+        {{ e.match }}{% if e.minute is not None %} <span class="text-muted">({{ e.minute }}')</span>{% endif %}
       </span>
       <a href="{{ e.match.get_absolute_url }}" class="btn btn-sm btn-outline-primary align-self-center">경기</a>
     </li>

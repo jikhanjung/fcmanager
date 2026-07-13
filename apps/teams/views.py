@@ -37,14 +37,16 @@ from apps.clubs.permissions import club_staff_required as staff_required
 def home(request):
     """홈: 다음 경기 / 최근 결과 / 팀 목록."""
     now = timezone.now()
+    # 우리 팀(team entry)이 참가한 경기만(상대팀 간 경기 제외 — 일정&결과와 동일 기준).
+    ours = Q(home_entry__team__isnull=False) | Q(away_entry__team__isnull=False)
     upcoming = (
-        Match.objects.filter(club=request.club, kickoff__gte=now)
+        Match.objects.filter(ours, club=request.club, kickoff__gte=now)
         .exclude(status=Match.Status.CANCELLED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("kickoff")[:5]
     )
     recent = (
-        Match.objects.filter(club=request.club, status=Match.Status.FINISHED)
+        Match.objects.filter(ours, club=request.club, status=Match.Status.FINISHED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:5]
     )

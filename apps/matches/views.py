@@ -253,6 +253,10 @@ def _live_payload(match):
         "period_display": match.get_period_display(),
         "paused": match.paused_at is not None,
         "half_length": match.half_length_minutes,
+        # 홈/원정 기준 스코어(공개 상세 페이지 표시용).
+        "home_score": match.home_score,
+        "away_score": match.away_score,
+        # 우리 팀 관점(중계 콘솔용 — 콘솔은 우리 팀 기준으로 동작).
         "our_score": match.our_score,
         "opponent_score": match.opponent_score,
         "result": match.result,

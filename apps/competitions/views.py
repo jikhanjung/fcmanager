@@ -165,7 +165,10 @@ def year_detail(request, year):
         .order_by("competition__name", "rank")
     )
     recent = (
-        Match.objects.filter(club=request.club, competition__year=year, status=Match.Status.FINISHED)
+        Match.objects.filter(
+            # 우리 팀이 참가한 경기만(상대팀 간 경기 제외).
+            Q(home_entry__team__isnull=False) | Q(away_entry__team__isnull=False),
+            club=request.club, competition__year=year, status=Match.Status.FINISHED)
         .select_related("home_entry__team", "home_entry__opponent", "away_entry__team", "away_entry__opponent", "competition")
         .order_by("-kickoff")[:10]
     )
