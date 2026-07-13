@@ -81,8 +81,10 @@ echo "=== [6/7] Verify DB binding (host bind mount, not ephemeral image DB) ==="
 # .env 의 DATABASE_PATH 가 이 마운트를 벗어나면 컨테이너가 이미지 내부 빈 DB 로 폴백 →
 # 사이트가 빈 데이터로 뜬다(실데이터는 $ROOT/db.sqlite3 에 안전). 이 게이트가 오배선을 잡는다.
 EXPECT_DB=/app/db.sqlite3
+# manage.py shell 경유 — 컨테이너에 DJANGO_SETTINGS_MODULE env 가 없어 순수 python -c 는
+# ImproperlyConfigured 로 죽는다(0.6.12 배포에서 false-fail 로 드러남).
 DB_NAME=$(docker compose exec -T web \
-    python -c "from django.conf import settings; print(settings.DATABASES['default']['NAME'])" \
+    python manage.py shell -c "from django.conf import settings; print(settings.DATABASES['default']['NAME'])" \
     2>/dev/null | tr -d '\r' | tail -n1)
 if [ "$DB_NAME" = "$EXPECT_DB" ]; then
     echo "  OK: container DB = ${DB_NAME} (host bind mount)"

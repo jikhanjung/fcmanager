@@ -79,6 +79,10 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.12 배포 후기(2026-07-13)`: 배포 성공(smoke PASS, club=1·match=28). 단 **[6/7] DB 게이트가
+  false-fail 로 중단**(컨테이너에 `DJANGO_SETTINGS_MODULE` 없음 → 순수 `python -c` 가
+  ImproperlyConfigured) — `manage.py shell -c` 로 수정, 다음 배포부터 self-heal 반영.
+  운영 `.env` 는 `HOST_PORT=8004`(매니페스트 8003 표기 교정).
 - `0.6.12(예정)`: **데이터 레인 Track B** — `seed_seocho_k7` 은퇴(이미지에 명령 없음 — 운영
   데이터는 이미 운영 DB 에, 이후 입력은 in-app 만). 입상·부문 오버라이드·클럽 운영진 웹 관리화,
   소유자/운영진 역할 분리. 마이그레이션 없음.
