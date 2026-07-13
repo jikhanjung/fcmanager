@@ -54,10 +54,10 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 운영 데이터가 리포/관리 명령을 경유 중인 임시 우회(crutch). in-app 입력 UI 가 갭을 메우면 은퇴한다.
 `preflight` 가 기계적으로 계속 표면화한다.
 
-- `apps/matches/management/commands/seed_seocho_k7.py` — **실제 팀·실경기 결과·이벤트·명단**을
-  리포에 커밋해 배포로 밀어넣음(devlog 078·080·081). 계약 문서가 명시한 그 냄새.
-  멱등(get_or_create)이라 삭제 footgun 은 아니지만 경계 위반. 운영 반영은 배포와 별개로
-  `docker exec fcmanager python manage.py seed_seocho_k7` 수동 실행.
+- ~~`seed_seocho_k7`~~ — **은퇴 완료(2026-07-13, devlog 083)**. 실제 팀·실경기 결과·이벤트·명단을
+  리포에 커밋해 밀어넣던 계약 문서 명시 냄새(devlog 078·080·081). 데이터가 운영 DB 에 반영된 것을
+  확인(v0.6.11, 공개 페이지)한 뒤 명령 삭제 — 코드는 git 이력에, 일정 원본은 `docs/seocho-k7-schedule.md` 에
+  보존. 이후 경기 결과·이벤트·명단은 in-app(경기 편집·중계 콘솔)으로만 입력.
 - `apps/teams/management/commands/import_roster.py` · `import_player_photos.py` — 명단/사진
   일괄 입력 도구(수동 1회성, 배포 파이프라인 밖). in-app 배치 입력 완성 시 함께 은퇴.
 - `apps/teams/management/commands/dedupe_members.py` — 병합 정리 도구(충돌 시 중단 안전장치
@@ -79,6 +79,9 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.12(예정)`: **데이터 레인 Track B** — `seed_seocho_k7` 은퇴(이미지에 명령 없음 — 운영
+  데이터는 이미 운영 DB 에, 이후 입력은 in-app 만). 입상·부문 오버라이드·클럽 운영진 웹 관리화,
+  소유자/운영진 역할 분리. 마이그레이션 없음.
 - `0.6.12(예정)`: **배포 계약 Track A** — /healthz 신설, git-free 배포 전환.
   ① 이 버전을 **구 방식**(`git pull` + `sync_to_srv.sh` + `/srv/fcmanager/deploy.sh 0.6.12`)으로
   마지막 1회 배포하거나, `sync_to_srv.sh` 로 부트스트랩 래퍼(`deploy-prod.sh`·`_extract_and_deploy.sh`)를

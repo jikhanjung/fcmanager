@@ -73,6 +73,9 @@
                 <li><a class="dropdown-item" href="{% url 'teams:player_manage' %}">선수(멤버) 관리</a></li>
                 <li><a class="dropdown-item" href="{% url 'teams:list' %}">팀 관리</a></li>
                 <li><a class="dropdown-item" href="{% url 'competitions:competition_manage' %}">대회 관리</a></li>
+                {% if is_club_owner %}
+                <li><a class="dropdown-item" href="{% url 'clubs:member_manage' %}">클럽 운영진 관리</a></li>
+                {% endif %}
                 {% if user.is_staff %}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/admin/">관리자(Django Admin)</a></li>

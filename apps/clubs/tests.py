@@ -105,3 +105,77 @@ class HealthzTest(TestCase):
         # PLATFORM_SEGMENTS 예약 — 클럽 슬러그로 해석돼 404 나면 안 된다.
         Club.objects.create(name="아무클럽", slug="c")
         self.assertEqual(self.client.get("/healthz").status_code, 200)
+
+
+class MemberManageTest(TestCase):
+    """클럽 운영진(멤버십) 웹 관리 — 소유자 전용 + 마지막 소유자 보호."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        cls.club = Club.objects.create(name="A클럽", slug="a")
+        cls.owner = User.objects.create_user("owner1", password="pw")
+        cls.staff = User.objects.create_user("staff1", password="pw")
+        cls.outsider = User.objects.create_user("outsider", password="pw")
+        cls.m_owner = ClubMembership.objects.create(
+            user=cls.owner, club=cls.club, role=ClubMembership.Role.OWNER)
+        cls.m_staff = ClubMembership.objects.create(
+            user=cls.staff, club=cls.club, role=ClubMembership.Role.STAFF)
+
+    def test_staff_cannot_manage_members(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get("/a/manage/members/").status_code, 403)
+
+    def test_owner_can_manage_members(self):
+        self.client.force_login(self.owner)
+        resp = self.client.get("/a/manage/members/")
+        self.assertContains(resp, "owner1")
+        self.assertContains(resp, "staff1")
+
+    def test_add_member_by_username(self):
+        from apps.clubs.models import ClubMembership
+        self.client.force_login(self.owner)
+        self.client.post("/a/manage/members/", {"username": "outsider", "role": "STAFF"})
+        self.assertTrue(ClubMembership.objects.filter(
+            user=self.outsider, club=self.club, role=ClubMembership.Role.STAFF).exists())
+
+    def test_add_unknown_username_errors(self):
+        from apps.clubs.models import ClubMembership
+        self.client.force_login(self.owner)
+        self.client.post("/a/manage/members/", {"username": "nobody", "role": "STAFF"})
+        self.assertEqual(ClubMembership.objects.filter(club=self.club).count(), 2)
+
+    def test_last_owner_cannot_be_demoted(self):
+        from apps.clubs.models import ClubMembership
+        self.client.force_login(self.owner)
+        self.client.post(f"/a/manage/members/{self.m_owner.pk}/role/", {"role": "STAFF"})
+        self.m_owner.refresh_from_db()
+        self.assertEqual(self.m_owner.role, ClubMembership.Role.OWNER)
+
+    def test_last_owner_cannot_be_removed(self):
+        from apps.clubs.models import ClubMembership
+        self.client.force_login(self.owner)
+        self.client.post(f"/a/manage/members/{self.m_owner.pk}/remove/")
+        self.assertTrue(ClubMembership.objects.filter(pk=self.m_owner.pk).exists())
+
+    def test_promote_then_remove_old_owner(self):
+        from apps.clubs.models import ClubMembership
+        self.client.force_login(self.owner)
+        self.client.post(f"/a/manage/members/{self.m_staff.pk}/role/", {"role": "OWNER"})
+        self.m_staff.refresh_from_db()
+        self.assertEqual(self.m_staff.role, ClubMembership.Role.OWNER)
+        # 소유자가 둘이 됐으니 기존 소유자 제거 가능
+        self.client.post(f"/a/manage/members/{self.m_owner.pk}/remove/")
+        self.assertFalse(ClubMembership.objects.filter(pk=self.m_owner.pk).exists())
+
+    def test_cross_club_membership_404(self):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        b = Club.objects.create(name="B클럽", slug="b")
+        b_owner = User.objects.create_user("bowner", password="pw")
+        bm = ClubMembership.objects.create(user=b_owner, club=b, role=ClubMembership.Role.OWNER)
+        self.client.force_login(self.owner)
+        # A 클럽 경로로 B 클럽 멤버십 조작 → 404
+        self.assertEqual(
+            self.client.post(f"/a/manage/members/{bm.pk}/role/", {"role": "STAFF"}).status_code, 404)

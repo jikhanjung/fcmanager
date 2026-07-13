@@ -2,7 +2,7 @@
 from django import forms
 from django.utils.text import slugify
 
-from .models import Competition, CompetitionEntry, Division
+from .models import Award, Competition, CompetitionEntry, Division
 
 
 class CompetitionForm(forms.ModelForm):
@@ -40,7 +40,7 @@ class CompetitionForm(forms.ModelForm):
             "전·후반 한 쪽 길이. 중계 콘솔 시계·후반 시작점 기준.")
         self.fields["extra_half_minutes"].help_text = (
             "연장 한 쪽 길이(녹아웃 동점 시). 단일 연장이면 이 값의 2배가 전체 연장.")
-        # 부문별 길이 오버라이드는 드물어 폼에서 노출하지 않음(필요 시 Admin에서 편집).
+        # 부문별 길이 오버라이드는 이 폼이 아니라 부문 설정 화면(division_edit)에서 편집.
         if self.instance.pk:
             self.fields["divisions"].initial = list(
                 self.instance.divisions.values_list("age_group", flat=True))
@@ -149,3 +149,59 @@ class CompetitionEntryForm(forms.Form):
         entry.note = cd.get("note") or ""
         entry.save()
         return entry
+
+
+class AwardForm(forms.ModelForm):
+    """입상 내역 추가/수정 (명예의 전당). 팀·선수 선택은 현재 클럽으로 한정."""
+
+    class Meta:
+        model = Award
+        fields = ["title", "competition", "team", "player", "rank",
+                  "date_awarded", "description"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-control",
+                                            "placeholder": "예: 우승, 준우승, 득점왕"}),
+            "competition": forms.Select(attrs={"class": "form-select"}),
+            "team": forms.Select(attrs={"class": "form-select"}),
+            "player": forms.Select(attrs={"class": "form-select"}),
+            "rank": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
+            "date_awarded": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }
+
+    def __init__(self, *args, club=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.teams.models import Player, Team
+        self.fields["competition"].queryset = Competition.objects.order_by("-year", "name")
+        self.fields["team"].queryset = Team.objects.filter(club=club)
+        self.fields["player"].queryset = Player.objects.filter(club=club).order_by("name")
+        self.fields["team"].help_text = "팀 수상이면 선택."
+        self.fields["player"].help_text = "개인 수상이면 선택."
+
+
+class DivisionOverrideForm(forms.ModelForm):
+    """부문 표시명·시간 오버라이드 편집. 비우면 대회(Competition) 기본값을 사용."""
+
+    class Meta:
+        model = Division
+        fields = ["name", "half_length_minutes", "extra_half_minutes", "extra_time_single"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control",
+                                           "placeholder": "비우면 연령 부문 표시명 사용"}),
+            "half_length_minutes": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 90,
+                       "placeholder": "대회 기본값"}),
+            "extra_half_minutes": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 60,
+                       "placeholder": "대회 기본값"}),
+            "extra_time_single": forms.NullBooleanSelect(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # NullBooleanSelect 의 "알 수 없음"을 도메인 언어로 교체.
+        self.fields["extra_time_single"].widget.choices = [
+            ("unknown", "대회 기본값 사용"),
+            ("true", "단일 진행"),
+            ("false", "전·후반 진행"),
+        ]

@@ -100,3 +100,105 @@ class CompetitionFormHalfLengthTest(TestCase):
         m = Match(club=Club.objects.create(name="K", slug="k"),
                   competition=comp, division=d50)
         self.assertEqual(m.half_length_minutes, 25)
+
+
+class AwardManageTest(TestCase):
+    """입상(Award) 웹 관리 — staff 전용, 클럽 스코프."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        cls.club = Club.objects.create(name="A클럽", slug="a")
+        cls.other = Club.objects.create(name="B클럽", slug="b")
+        cls.staff = User.objects.create_user("astaff", password="pw")
+        ClubMembership.objects.create(user=cls.staff, club=cls.club,
+                                      role=ClubMembership.Role.STAFF)
+        cls.comp = Competition.objects.create(
+            name="컵", slug="cup", kind=Competition.Kind.CUP, year=2026)
+        cls.team = Team.objects.create(club=cls.club, name="A팀", slug="ateam", age_group="50")
+
+    def test_anonymous_redirects_login(self):
+        self.assertEqual(self.client.get("/a/manage/awards/add/").status_code, 302)
+
+    def test_staff_can_add_award(self):
+        from .models import Award
+        self.client.force_login(self.staff)
+        resp = self.client.post("/a/manage/awards/add/", {
+            "title": "우승", "competition": self.comp.pk, "team": self.team.pk,
+            "rank": 1, "date_awarded": "", "player": "", "description": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        a = Award.objects.get(title="우승")
+        self.assertEqual(a.club, self.club)   # club 자동 주입
+        self.assertEqual(a.team, self.team)
+
+    def test_edit_and_delete_scoped_to_club(self):
+        from .models import Award
+        other_award = Award.objects.create(
+            club=self.other, title="타클럽우승", competition=self.comp)
+        self.client.force_login(self.staff)
+        # A 클럽 경로로 B 클럽 입상 접근 → 404
+        self.assertEqual(
+            self.client.get(f"/a/manage/awards/{other_award.pk}/edit/").status_code, 404)
+        self.assertEqual(
+            self.client.post(f"/a/manage/awards/{other_award.pk}/delete/").status_code, 404)
+
+    def test_form_limits_team_choices_to_club(self):
+        from .forms import AwardForm
+        Team.objects.create(club=self.other, name="B팀", slug="bteam", age_group="50")
+        form = AwardForm(club=self.club)
+        names = {t.name for t in form.fields["team"].queryset}
+        self.assertIn("A팀", names)
+        self.assertNotIn("B팀", names)
+
+    def test_delete_flow(self):
+        from .models import Award
+        a = Award.objects.create(club=self.club, title="준우승", competition=self.comp)
+        self.client.force_login(self.staff)
+        self.assertContains(self.client.get(f"/a/manage/awards/{a.pk}/delete/"), "준우승")
+        self.client.post(f"/a/manage/awards/{a.pk}/delete/")
+        self.assertFalse(Award.objects.filter(pk=a.pk).exists())
+
+
+class DivisionOverrideTest(TestCase):
+    """부문 시간 오버라이드 웹 편집 — staff 전용, 비우면 대회 기본값."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth.models import User
+        from apps.clubs.models import ClubMembership
+        cls.club = Club.objects.create(name="A클럽", slug="a")
+        cls.staff = User.objects.create_user("astaff", password="pw")
+        ClubMembership.objects.create(user=cls.staff, club=cls.club,
+                                      role=ClubMembership.Role.STAFF)
+        cls.comp = Competition.objects.create(
+            name="컵", slug="cup", kind=Competition.Kind.CUP, year=2026,
+            half_length_minutes=30)
+        cls.d50 = Division.objects.create(competition=cls.comp, age_group="50")
+
+    def test_set_and_clear_override(self):
+        self.client.force_login(self.staff)
+        url = f"/a/manage/competitions/cup/divisions/{self.d50.pk}/edit/"
+        # 오버라이드 설정
+        resp = self.client.post(url, {"name": "", "half_length_minutes": 25,
+                                      "extra_half_minutes": "", "extra_time_single": "true"})
+        self.assertEqual(resp.status_code, 302)
+        self.d50.refresh_from_db()
+        self.assertEqual(self.d50.half_length_minutes, 25)
+        self.assertIs(self.d50.extra_time_single, True)
+        # 비우면 대회 기본값으로 복귀(None)
+        self.client.post(url, {"name": "", "half_length_minutes": "",
+                               "extra_half_minutes": "", "extra_time_single": "unknown"})
+        self.d50.refresh_from_db()
+        self.assertIsNone(self.d50.half_length_minutes)
+        self.assertIsNone(self.d50.extra_time_single)
+
+    def test_division_of_other_competition_404(self):
+        other = Competition.objects.create(
+            name="리그", slug="league", kind=Competition.Kind.LEAGUE, year=2026)
+        d = Division.objects.create(competition=other, age_group="40")
+        self.client.force_login(self.staff)
+        self.assertEqual(
+            self.client.get(f"/a/manage/competitions/cup/divisions/{d.pk}/edit/").status_code,
+            404)

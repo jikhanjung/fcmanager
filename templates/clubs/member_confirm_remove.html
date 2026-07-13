@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}운영진 제거{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">운영진 제거</h1>
+
+{% if last_owner %}
+<div class="alert alert-warning">
+  <strong>{{ membership.user.username }}</strong> 은(는) 이 클럽의 마지막 소유자라 제거할 수 없습니다.
+  먼저 다른 소유자를 지정하세요.
+</div>
+<a href="{% url 'clubs:member_manage' %}" class="btn btn-secondary">돌아가기</a>
+{% else %}
+<p><strong>{{ membership.user.username }}</strong> ({{ membership.get_role_display }}) 을(를)
+'{{ membership.club.name }}' 운영진에서 제거할까요? 계정 자체는 삭제되지 않습니다.</p>
+<form method="post" class="d-inline">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">제거</button>
+  <a href="{% url 'clubs:member_manage' %}" class="btn btn-secondary">취소</a>
+</form>
+{% endif %}
+{% endblock %}

@@ -95,11 +95,13 @@
 - [x] **Track A — 배포 계약 retrofit** (2026-07-13, devlog 082): `deploy/deploy.toml` 매니페스트,
       동사(preflight/smoke/rollback), `/healthz`, `DEPLOY.md`(레인 경계 + 릴리스 델타 노트),
       git-free 배포(운영 repo 불요, self-heal). 다음 배포 시 최초 1회 부트스트랩 — DEPLOY.md 참조.
-- [ ] **Track B — 데이터 레인 정리** (계약 문서가 지목한 fcmanager 할 일):
-  - [ ] 결과·명단 in-app 배치 입력 UI 완성 (일정 일괄 입력, 기록지 기반 이벤트/출전명단 배치 입력)
-  - [ ] `seed_seocho_k7`·`import_roster`·`import_player_photos` 은퇴 (UI 가 갭을 메우면)
-  - [ ] 역할 분리 (system admin / 클럽 관리자 / 대회 관리자 — `admin` 뭉침 해소),
-        Award·ClubMembership 웹 관리화
+- [~] **Track B — 데이터 레인 정리** (계약 문서가 지목한 fcmanager 할 일, devlog 083):
+  - [ ] 결과·명단 in-app 배치 입력 UI (일정 일괄 입력, 기록지 기반 이벤트/출전명단 배치 입력) — 보류
+  - [x] `seed_seocho_k7` 은퇴 (2026-07-13 — 운영 반영 확인 후 삭제, git 이력 보존)
+    - [ ] `import_roster`·`import_player_photos` 은퇴는 배치 입력 UI 완성 후
+  - [x] 역할 분리 — 소유자(OWNER)/운영진(STAFF) 권한 계층(`club_owner_required`),
+        마지막 소유자 보호. Award·부문 오버라이드(staff)·ClubMembership(owner) 웹 관리화.
+        계정 생성만 admin 에 남음. (대회 관리 권한 세분화 — 공유 Competition 편집권 — 은 후속 메모)
 
 ## 🧹 기술 부채 / 개선 메모
 

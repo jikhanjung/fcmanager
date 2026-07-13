@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}명예의 전당 — {{ current_club.name|default:"FCManager" }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">명예의 전당</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">명예의 전당</h1>
+  {% if is_club_staff %}
+  <a href="{% url 'competitions:award_add' %}" class="btn btn-primary btn-sm">+ 입상 추가</a>
+  {% endif %}
+</div>
 
 <form class="row g-2 mb-4" method="get">
   <div class="col-12 col-md-4">
@@ -32,6 +37,12 @@
               {% if a.player %}<a href="{{ a.player.get_absolute_url }}">👤 {{ a.player.name }}</a>{% endif %}
             </div>
             {% if a.description %}<p class="small text-muted mt-2 mb-0">{{ a.description }}</p>{% endif %}
+            {% if is_club_staff %}
+            <div class="mt-2 text-end">
+              <a href="{% url 'competitions:award_edit' a.pk %}" class="btn btn-outline-secondary btn-sm py-0">수정</a>
+              <a href="{% url 'competitions:award_delete' a.pk %}" class="btn btn-outline-danger btn-sm py-0">삭제</a>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>

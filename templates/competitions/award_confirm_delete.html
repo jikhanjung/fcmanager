@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}입상 삭제{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">입상 삭제</h1>
+<p><strong>{{ award.title }}</strong> ({{ award.competition }}{% if award.team %} · {{ award.team }}{% endif %}{% if award.player %} · {{ award.player.name }}{% endif %}) 입상 내역을 삭제할까요?</p>
+<form method="post" class="d-inline">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">삭제</button>
+  <a href="{% url 'competitions:awards' %}" class="btn btn-secondary">취소</a>
+</form>
+{% endblock %}

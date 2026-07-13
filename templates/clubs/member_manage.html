@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}클럽 운영진 관리{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">클럽 운영진 관리</h1>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-sm-5">
+        <label class="form-label mb-1" for="id_username">사용자명</label>
+        <input type="text" name="username" id="id_username" class="form-control"
+               placeholder="기존 계정의 사용자명" required>
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label mb-1" for="id_role">역할</label>
+        <select name="role" id="id_role" class="form-select">
+          {% for value, label in roles %}
+          <option value="{{ value }}" {% if value == "STAFF" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <button type="submit" class="btn btn-primary">+ 운영진 추가</button>
+      </div>
+      <div class="form-text">계정이 없는 사람은 시스템 관리자에게 계정 생성을 요청한 뒤 추가하세요.</div>
+    </form>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr><th>사용자</th><th>역할</th><th>등록일</th><th class="text-end">관리</th></tr>
+    </thead>
+    <tbody>
+      {% for m in members %}
+      <tr>
+        <td>{{ m.user.username }}{% if m.user == user %} <span class="text-muted small">(나)</span>{% endif %}</td>
+        <td>
+          {% if m.role == "OWNER" %}<span class="badge text-bg-primary">{{ m.get_role_display }}</span>
+          {% else %}<span class="badge text-bg-secondary">{{ m.get_role_display }}</span>{% endif %}
+        </td>
+        <td class="text-muted">{{ m.created_at|date:"Y.m.d" }}</td>
+        <td class="text-end text-nowrap">
+          <form method="post" action="{% url 'clubs:member_role' m.pk %}" class="d-inline">
+            {% csrf_token %}
+            {% if m.role == "OWNER" %}
+            <input type="hidden" name="role" value="STAFF">
+            <button type="submit" class="btn btn-outline-secondary btn-sm py-0">운영진으로</button>
+            {% else %}
+            <input type="hidden" name="role" value="OWNER">
+            <button type="submit" class="btn btn-outline-primary btn-sm py-0">소유자로</button>
+            {% endif %}
+          </form>
+          <a href="{% url 'clubs:member_remove' m.pk %}" class="btn btn-outline-danger btn-sm py-0">제거</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-center text-muted py-4">운영진이 없습니다.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="text-muted small mb-0">소유자는 운영진 구성을 관리하고, 운영진은 선수·경기 등 데이터를 입력합니다.
+마지막 소유자는 강등/제거할 수 없습니다.</p>
+{% endblock %}

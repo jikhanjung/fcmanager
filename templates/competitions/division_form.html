@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}부문 설정 — {{ division.label }} ({{ competition.name }}){% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'competitions:competition_manage' %}">대회 관리</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'competitions:competition_edit' competition.slug %}">{{ competition.name }}</a></li>
+    <li class="breadcrumb-item active">{{ division.label }}</li>
+  </ol>
+</nav>
+
+<h1 class="h4 mb-1">부문 설정 — {{ division.label }}</h1>
+<p class="text-muted small mb-4">시간 항목을 비우면 대회 기본값
+(전후반 {{ competition.half_length_minutes }}분 · 연장 {{ competition.extra_half_minutes }}분)을 사용합니다.</p>
+
+<form method="post" class="card shadow-sm" novalidate>
+  {% csrf_token %}
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card-footer bg-transparent">
+    <button class="btn btn-primary" type="submit">저장</button>
+    <a href="{% url 'competitions:competition_edit' competition.slug %}" class="btn btn-outline-secondary">취소</a>
+  </div>
+</form>
+{% endblock %}

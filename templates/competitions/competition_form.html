@@ -42,4 +42,30 @@
     <a href="{% url 'competitions:competition_manage' %}" class="btn btn-outline-secondary">취소</a>
   </div>
 </form>
+
+{% if not is_create and competition.divisions.exists %}
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-transparent">부문별 설정 <span class="text-muted small">(비운 항목은 대회 기본값)</span></div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>부문</th><th>전후반</th><th>연장</th><th>연장 형식</th><th class="text-end">관리</th></tr>
+      </thead>
+      <tbody>
+        {% for d in competition.divisions.all %}
+        <tr>
+          <td>{{ d.label }}</td>
+          <td>{% if d.half_length_minutes %}{{ d.half_length_minutes }}분{% else %}<span class="text-muted">기본값</span>{% endif %}</td>
+          <td>{% if d.extra_half_minutes %}{{ d.extra_half_minutes }}분{% else %}<span class="text-muted">기본값</span>{% endif %}</td>
+          <td>{% if d.extra_time_single is None %}<span class="text-muted">기본값</span>{% elif d.extra_time_single %}단일{% else %}전·후반{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'competitions:division_edit' competition.slug d.pk %}" class="btn btn-outline-secondary btn-sm py-0">설정</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

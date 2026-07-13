@@ -427,3 +427,59 @@ def match_add(request, slug):
         form = MatchCreateForm(competition=competition, initial=initial)
     return render(request, "matches/match_form.html",
                   {"competition": competition, "form": form})
+
+
+# ---- 입상(Award) 관리 — 명예의 전당 웹 입력 (admin 전용 해소) ----
+
+@staff_required
+def award_add(request):
+    from .forms import AwardForm
+    form = AwardForm(request.POST or None, club=request.club)
+    if request.method == "POST" and form.is_valid():
+        award = form.save(commit=False)
+        award.club = request.club
+        award.save()
+        messages.success(request, f"입상 '{award.title}'을(를) 추가했습니다.")
+        return redirect("competitions:awards")
+    return render(request, "competitions/award_form.html",
+                  {"form": form, "is_create": True})
+
+
+@staff_required
+def award_edit(request, pk):
+    from .forms import AwardForm
+    award = get_object_or_404(Award, pk=pk, club=request.club)
+    form = AwardForm(request.POST or None, instance=award, club=request.club)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"입상 '{award.title}'을(를) 수정했습니다.")
+        return redirect("competitions:awards")
+    return render(request, "competitions/award_form.html",
+                  {"form": form, "is_create": False, "award": award})
+
+
+@staff_required
+def award_delete(request, pk):
+    award = get_object_or_404(Award, pk=pk, club=request.club)
+    if request.method == "POST":
+        title = award.title
+        award.delete()
+        messages.success(request, f"입상 '{title}'을(를) 삭제했습니다.")
+        return redirect("competitions:awards")
+    return render(request, "competitions/award_confirm_delete.html", {"award": award})
+
+
+# ---- 부문(Division) 시간 오버라이드 관리 (admin 전용 해소) ----
+
+@staff_required
+def division_edit(request, slug, pk):
+    from .forms import DivisionOverrideForm
+    competition = get_object_or_404(Competition, slug=slug)
+    division = get_object_or_404(competition.divisions, pk=pk)
+    form = DivisionOverrideForm(request.POST or None, instance=division)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"'{division.label}' 부문 설정을 저장했습니다.")
+        return redirect("competitions:competition_edit", slug=slug)
+    return render(request, "competitions/division_form.html",
+                  {"form": form, "competition": competition, "division": division})
