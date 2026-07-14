@@ -83,6 +83,10 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.15(예정)`: compose `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` 파라미터화
+  (`${VAR:-운영기본값}` — 운영 .env 미설정이면 종전과 동일, 테스트 호스트만 .env 로 override).
+  이 compose 는 0.6.15 이미지부터 추출됨 — 테스트 호스트에서 0.6.14 재배포 시 구 compose 로
+  덮이면 tailnet 접속 400(devlog 087 후속 절 참조).
 - `0.6.14`: **계약 외부 검토분 정렬(2026-07-14, cdGTS 0.1.61 동형)** — rollback `--db=keep|restore`
   분리(기본 keep + migration 시 keep 가드), pre-deploy 스냅샷 `.mig` 사이드카, 매니페스트
   `contract_version`/`rollback_db`, self-heal 추출 안전망(`bash -n`+`.previous`). 마이그레이션 없음.

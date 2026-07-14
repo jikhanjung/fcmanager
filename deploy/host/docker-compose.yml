@@ -18,8 +18,10 @@ services:
     environment:
       DJANGO_DEBUG: "false"
       # SaaS: 전용 도메인 루트에서 서비스(플랫폼 / + 클럽 /<slug>/). URL_PREFIX 미사용.
-      DJANGO_ALLOWED_HOSTS: "fcmanager.app,www.fcmanager.app,localhost,127.0.0.1,0.0.0.0,34.64.158.160"
-      DJANGO_CSRF_TRUSTED_ORIGINS: "https://fcmanager.app,https://www.fcmanager.app"
+      # 기본값 = 운영(dolfinid). 테스트 호스트(m710q)는 .env 로 override(tailnet 호스트명 등)
+      # — compose 가 같은 디렉터리 .env 를 치환에 쓰므로 env_file 과 동일 파일로 동작.
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-fcmanager.app,www.fcmanager.app,localhost,127.0.0.1,0.0.0.0,34.64.158.160}"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-https://fcmanager.app,https://www.fcmanager.app}"
       # 관리자 계정은 없을 때만 생성(신규 DB 부트스트랩).
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
