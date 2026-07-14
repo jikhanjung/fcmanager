@@ -128,6 +128,14 @@ DATABASES = {
         # 개발/테스트 서버는 DATABASE_PATH 로 dev_data DB 를 가리킬 수 있음.
         # 미설정 시 운영/기본은 BASE_DIR/db.sqlite3 (기존 동작 유지).
         'NAME': os.environ.get('DATABASE_PATH') or BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 20,
+            'transaction_mode': 'IMMEDIATE',
+            # WAL: reader 가 writer 에 막히지 않게(gunicorn 워커 3개 + 중계 콘솔 동시 쓰기).
+            # -wal/-shm 형제 파일은 디렉터리 마운트(/app/hostdb, devlog 088)로 호스트와 공유되고,
+            # 호스트 백업은 sqlite3 online backup API(backup_db.py)라 WAL-안전. cdGTS 동형.
+            'init_command': 'PRAGMA journal_mode=WAL;',
+        },
     }
 }
 

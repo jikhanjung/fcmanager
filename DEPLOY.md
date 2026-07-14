@@ -83,6 +83,11 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.19`: **SQLite WAL 전환**(settings OPTIONS `init_command: PRAGMA journal_mode=WAL` +
+  `timeout=20`·`transaction_mode=IMMEDIATE`, cdGTS 동형) — reader 가 writer 에 안 막힘.
+  `-wal`/`-shm` 형제 파일은 디렉터리 마운트(0.6.16)로 호스트 공유, hourly 백업은 online
+  backup API 라 WAL-안전, 스냅샷·rollback·daily 미러는 이미 wal/shm 동반 복사. 마이그레이션 없음.
+  WAL 은 DB 파일에 영속 — 이후 구버전으로 롤백해도 WAL 유지(구버전 sqlite 도 읽기 호환).
 - `0.6.18`: **gosu 권한 드롭 도입** — 컨테이너가 root 로 시작해 `/app/hostdb` 마운트의 **소유
   uid 를 런타임 감지** 후 `exec gosu <uid:gid>` 로 드롭, gunicorn 은 비-root 로 돎(cdGTS 동형).
   Dockerfile `USER appuser`(uid 1000 고정) 제거 — **0.6.16 소유권 함정의 근본 해소**(호스트별
