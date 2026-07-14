@@ -24,26 +24,46 @@ docker pull "$IMAGE"
 CID=$(docker create "$IMAGE")
 trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
 
-# 운영 파일 — 매 배포마다 이미지에서 새로 추출.
-for f in docker-compose.yml deploy.sh smoke.sh rollback.sh; do
-    if docker cp "${CID}:/app/deploy/host/${f}" "${ROOT}/${f}" 2>/dev/null; then
-        echo "  extracted ${f}"
-    else
-        echo "  (이미지에 ${f} 없음 — 구버전, 건너뜀)"
+# 안전 추출(계약 self-heal 안전망): 임시로 꺼내 `bash -n` 문법 검사를 통과할 때만 교체하고,
+# 기존 파일은 `<f>.previous` 로 보존한 뒤 원자 rename. 이미지에 실린 새 스크립트가 깨져 있어도
+# 기존(작동하던) 부트스트랩 경로까지 함께 망가지지 않게 하는 최소 안전망.
+safe_extract_sh() {
+    local f="$1" tmp="${ROOT}/.${1}.new"
+    if ! docker cp "${CID}:/app/deploy/host/${f}" "$tmp" 2>/dev/null; then
+        echo "  (이미지에 ${f} 없음 — 구버전, 건너뜀)"; return 0
     fi
-done
+    if ! bash -n "$tmp" 2>/dev/null; then
+        echo "  ✗ ${f}: 추출본 문법 오류(bash -n) — 교체 안 함(기존 유지). 이미지 확인 필요."
+        rm -f "$tmp"; return 0
+    fi
+    chmod +x "$tmp"
+    [ -f "${ROOT}/${f}" ] && cp -p "${ROOT}/${f}" "${ROOT}/${f}.previous" || true
+    mv -f "$tmp" "${ROOT}/${f}"          # 원자 rename(같은 fs)
+    echo "  extracted ${f} (bash -n 통과, 이전본 → ${f}.previous)"
+}
+
+# 운영 스크립트 — bash -n 검증 후 교체.
+for f in deploy.sh smoke.sh rollback.sh; do safe_extract_sh "$f"; done
+# 비스크립트(구문 검사 대상 아님) — 그대로 추출.
+docker cp "${CID}:/app/deploy/host/docker-compose.yml" "${ROOT}/docker-compose.yml" 2>/dev/null \
+    && echo "  extracted docker-compose.yml" || echo "  (이미지에 docker-compose.yml 없음 — 구버전, 건너뜀)"
 # backup_db.py 는 호스트 cron 이 쓰는 유일한 스크립트 — 이미지에서 함께 갱신.
 mkdir -p "${ROOT}/scripts"
 docker cp "${CID}:/app/scripts/backup_db.py" "${ROOT}/scripts/backup_db.py" 2>/dev/null \
     && echo "  extracted scripts/backup_db.py" || true
 
-# 부트스트랩 래퍼 — exec 로 넘어와 안전. 즉시 반영.
-docker cp "${CID}:/app/deploy/host/deploy-prod.sh" "${ROOT}/deploy-prod.sh" 2>/dev/null \
-    && echo "  self-heal deploy-prod.sh" || true
-# 이 스크립트 자신 — 임시파일 후 원자 rename(옛 inode 로 계속 실행, 새 버전은 다음 배포부터).
+# 부트스트랩 래퍼 — exec 로 넘어와 안전하지만, 깨진 걸 심으면 다음 배포가 막히니 bash -n 검증 후 교체.
+safe_extract_sh deploy-prod.sh
+# 이 스크립트 자신 — 임시파일→bash -n→원자 rename(옛 inode 로 계속 실행, 새 버전은 다음 배포부터).
 if docker cp "${CID}:/app/deploy/host/_extract_and_deploy.sh" "${ROOT}/.ead.new" 2>/dev/null; then
-    chmod +x "${ROOT}/.ead.new"; mv -f "${ROOT}/.ead.new" "${ROOT}/_extract_and_deploy.sh"
-    echo "  self-heal _extract_and_deploy.sh (다음 배포부터 반영)"
+    if bash -n "${ROOT}/.ead.new" 2>/dev/null; then
+        chmod +x "${ROOT}/.ead.new"
+        [ -f "${ROOT}/_extract_and_deploy.sh" ] && cp -p "${ROOT}/_extract_and_deploy.sh" "${ROOT}/_extract_and_deploy.sh.previous" || true
+        mv -f "${ROOT}/.ead.new" "${ROOT}/_extract_and_deploy.sh"
+        echo "  self-heal _extract_and_deploy.sh (bash -n 통과, 다음 배포부터 반영)"
+    else
+        echo "  ✗ _extract_and_deploy.sh: 추출본 문법 오류 — 교체 안 함(기존 유지)."; rm -f "${ROOT}/.ead.new"
+    fi
 fi
 
 docker rm -f "$CID" >/dev/null; trap - EXIT

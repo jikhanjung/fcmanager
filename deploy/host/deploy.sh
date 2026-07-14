@@ -37,6 +37,13 @@ fi
 
 echo ""
 echo "=== [3/7] Stop old container ==="
+# rollback keep 가드용: 배포 전(새 이미지의 migrate 실행 전) 적용된 migration 수를 기록.
+# 컨테이너 정지 전에 조회(정지 후엔 exec 불가) — [4/7] 스냅샷의 .mig 사이드카로 저장,
+# rollback.sh 가 현재 적용 수와 비교해 keep 가부를 판정한다.
+PRE_MIG=""
+if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ]; then
+    PRE_MIG=$(docker compose exec -T web python manage.py showmigrations --plan 2>/dev/null | grep -c '\[X\]' || echo "")
+fi
 docker compose down
 
 echo ""
@@ -50,11 +57,12 @@ if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ] && [ -f "$ROOT/db.sqlite3" ]; then
     cp -p "$ROOT/db.sqlite3" "$SNAP"
     [ -f "$ROOT/db.sqlite3-wal" ] && cp -p "$ROOT/db.sqlite3-wal" "${SNAP}-wal" || true
     [ -f "$ROOT/db.sqlite3-shm" ] && cp -p "$ROOT/db.sqlite3-shm" "${SNAP}-shm" || true
-    echo "  snapshot: $SNAP ($(du -h "$SNAP" | cut -f1))"
-    # retention: 최근 10개만 (hourly 12개·m710q daily 와 별개 트랙)
+    [ -n "$PRE_MIG" ] && printf '%s\n' "$PRE_MIG" > "${SNAP}.mig" || true
+    echo "  snapshot: $SNAP ($(du -h "$SNAP" | cut -f1), pre-migration count: ${PRE_MIG:-미상})"
+    # retention: 최근 10개만 (hourly 12개·m710q daily 와 별개 트랙, .mig 사이드카 포함)
     ls -1tr "$SNAP_DIR"/fcmanager_pre_deploy_*.sqlite3 2>/dev/null \
         | head -n -10 \
-        | while read -r f; do rm -f "$f" "$f-wal" "$f-shm"; done
+        | while read -r f; do rm -f "$f" "$f-wal" "$f-shm" "$f.mig"; done
 else
     echo "  (DEPLOY_SNAPSHOT=${DEPLOY_SNAPSHOT:-1} 또는 DB 없음 — 스냅샷 건너뜀)"
 fi
@@ -103,7 +111,7 @@ if [ -x "$ROOT/smoke.sh" ]; then
     if ! "$ROOT/smoke.sh" "$VERSION"; then
         echo ""
         echo "!!! smoke 실패 — 컨테이너는 떴으나 검증 불일치(버전/DB/행수)."
-        echo "!!! 조사 후 필요시 롤백: $ROOT/rollback.sh <이전 X.Y.Z>"
+        echo "!!! 조사 후 필요시 롤백: $ROOT/rollback.sh <이전 X.Y.Z> [--db=keep|restore] (기본 keep=이미지만)"
         exit 1
     fi
 else

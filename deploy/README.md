@@ -8,7 +8,7 @@ fcmanager 의 빌드/배포 파일 구성. 계약 선언층은 [`deploy.toml`](d
 
 ```
 deploy/
-  deploy.toml            배포 매니페스트(선언층) — image·target·db_path·has_seed·verbs
+  deploy.toml            배포 매니페스트(선언층) — contract_version·image·target·db_path·has_seed·rollback_db·verbs
   preflight.sh           [동사] 배포 전 위험 표면 diff + seed 냄새 lint (빌드 호스트)
   build.sh               [동사] test + 버전 bump + docker build/push (빌드 호스트 m710q)
   remote-prod.sh         빌드 호스트: ssh dolfinid '/srv/fcmanager/deploy-prod.sh …' 얇은 래퍼
@@ -20,10 +20,12 @@ deploy/
   docker-compose.yml     로컬/개발용 compose (build: 포함)
   host/                  운영 호스트(dolfinid) 파일 — 배포 시 이미지에서 추출(self-heal)
     deploy-prod.sh         [동사 deploy 진입점] git-free 래퍼 (DEPLOY_SNAPSHOT=1)
-    _extract_and_deploy.sh 이미지에서 host 파일 추출 → deploy.sh 위임 (부트스트랩 파일도 self-heal)
-    deploy.sh              배포 엔진: pull → down → 스냅샷 → up → healthz 대기 → DB게이트 → smoke
+    _extract_and_deploy.sh 이미지에서 host 파일 추출 → deploy.sh 위임 (부트스트랩 파일도 self-heal;
+                           스크립트는 bash -n 통과 시에만 교체, 이전본은 .previous 보존)
+    deploy.sh              배포 엔진: pull → down → 스냅샷(+.mig 사이드카) → up → healthz 대기 → DB게이트 → smoke
     smoke.sh               [동사] /healthz 200 + 버전 일치 + club>0
-    rollback.sh            [동사] 이전 이미지 태그 + pre_deploy 스냅샷 복원
+    rollback.sh            [동사] 코드/DB 분리 — --db=keep(기본, 이미지만 전환)|restore(스냅샷 복원).
+                           keep 가드: 직전 배포에 migration 있으면 차단(.mig vs 현재 비교)
     docker-compose.yml     운영 compose (pull 전용, IMAGE_TAG는 .env)
     nginx-fcmanager.conf.example
 ```
@@ -40,7 +42,7 @@ deploy/
 ```bash
 ./deploy/remote-prod.sh X.Y.Z           # = ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z'
 # (운영 호스트에서 직접 실행해도 동일: /srv/fcmanager/deploy-prod.sh X.Y.Z)
-# 문제 시: ssh dolfinid '/srv/fcmanager/rollback.sh <이전 X.Y.Z>'
+# 문제 시: ssh dolfinid '/srv/fcmanager/rollback.sh <이전 X.Y.Z> [--db=keep|restore]'  (기본 keep=이미지만)
 ```
 
 최초 도입 1회만: repo 있는 머신에서 `./deploy/sync_to_srv.sh`, 또는 repo 없이
