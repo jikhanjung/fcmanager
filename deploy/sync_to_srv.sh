@@ -18,13 +18,14 @@ HOST_DEST="${HOST_DEST:-/srv/fcmanager}"
 HOST_SRC="$PROJECT_DIR/deploy/host"
 
 if [ ! -d "$HOST_DEST" ]; then
-    echo "ERROR: $HOST_DEST 없음 — 이 스크립트는 운영 호스트(dolfinid)에서만 실행." >&2
+    echo "ERROR: $HOST_DEST 없음 — 배포 대상 호스트(운영 dolfinid / 테스트 m710q)에서 디렉터리 생성 후 실행." >&2
     exit 1
 fi
 
 echo "=== bootstrap host/* → $HOST_DEST/ ==="
 # 상시 부트스트랩 파일(호스트에 남는 것) — git-free 배포의 진입점.
 cp -p "$HOST_SRC"/deploy-prod.sh          "$HOST_DEST/"
+cp -p "$HOST_SRC"/deploy-dev.sh           "$HOST_DEST/"
 cp -p "$HOST_SRC"/_extract_and_deploy.sh  "$HOST_DEST/"
 # 나머지는 배포 시 이미지에서 추출되지만, 최초 부트스트랩 편의를 위해 함께 심는다.
 cp -p "$HOST_SRC"/deploy.sh           "$HOST_DEST/"
@@ -34,8 +35,8 @@ cp -p "$HOST_SRC"/docker-compose.yml  "$HOST_DEST/"
 # 호스트 cron 이 쓰는 유일한 스크립트(stdlib only).
 mkdir -p "$HOST_DEST/scripts"
 cp -p "$PROJECT_DIR"/scripts/backup_db.py "$HOST_DEST/scripts/"
-chmod +x "$HOST_DEST"/deploy-prod.sh "$HOST_DEST"/_extract_and_deploy.sh \
+chmod +x "$HOST_DEST"/deploy-prod.sh "$HOST_DEST"/deploy-dev.sh "$HOST_DEST"/_extract_and_deploy.sh \
          "$HOST_DEST"/deploy.sh "$HOST_DEST"/smoke.sh "$HOST_DEST"/rollback.sh
-echo "  bootstrap synced (deploy-prod + _extract_and_deploy + deploy/smoke/rollback/compose + backup_db.py)."
+echo "  bootstrap synced (deploy-{prod,dev} + _extract_and_deploy + deploy/smoke/rollback/compose + backup_db.py)."
 echo ""
 echo "=== 상시 배포(git-free): /srv/fcmanager/deploy-prod.sh X.Y.Z  (이미지 추출 → 스냅샷 → 스왑 → smoke) ==="

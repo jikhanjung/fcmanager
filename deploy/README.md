@@ -20,6 +20,7 @@ deploy/
   docker-compose.yml     로컬/개발용 compose (build: 포함)
   host/                  운영 호스트(dolfinid) 파일 — 배포 시 이미지에서 추출(self-heal)
     deploy-prod.sh         [동사 deploy 진입점] git-free 래퍼 (DEPLOY_SNAPSHOT=1)
+    deploy-dev.sh          테스트(m710q) 진입점 — 스냅샷 없음(DB = dev_data 미러 복사본)
     _extract_and_deploy.sh 이미지에서 host 파일 추출 → deploy.sh 위임 (부트스트랩 파일도 self-heal;
                            스크립트는 bash -n 통과 시에만 교체, 이전본은 .previous 보존)
     deploy.sh              배포 엔진: pull → down → 스냅샷(+.mig 사이드카) → up → healthz 대기 → DB게이트 → smoke

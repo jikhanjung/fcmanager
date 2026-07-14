@@ -53,7 +53,7 @@ docker cp "${CID}:/app/scripts/backup_db.py" "${ROOT}/scripts/backup_db.py" 2>/d
     && echo "  extracted scripts/backup_db.py" || true
 
 # 부트스트랩 래퍼 — exec 로 넘어와 안전하지만, 깨진 걸 심으면 다음 배포가 막히니 bash -n 검증 후 교체.
-safe_extract_sh deploy-prod.sh
+for f in deploy-prod.sh deploy-dev.sh; do safe_extract_sh "$f"; done
 # 이 스크립트 자신 — 임시파일→bash -n→원자 rename(옛 inode 로 계속 실행, 새 버전은 다음 배포부터).
 if docker cp "${CID}:/app/deploy/host/_extract_and_deploy.sh" "${ROOT}/.ead.new" 2>/dev/null; then
     if bash -n "${ROOT}/.ead.new" 2>/dev/null; then

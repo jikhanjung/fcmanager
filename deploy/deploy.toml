@@ -23,6 +23,7 @@ preflight = "deploy/preflight.sh [<since-ref>]"             # 빌드 호스트: 
 build     = "deploy/build.sh X.Y.Z"                         # 빌드 호스트: test + bump + build + push
 deploy    = "deploy/remote-prod.sh X.Y.Z"                   # 빌드 호스트에서 원격 원터치(= ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z').
                                                             # 운영 호스트 직접 실행도 동일: 추출 → 스냅샷 → 스왑 → migrate(entrypoint) → DB게이트 → smoke
+                                                            # 테스트(m710q 로컬): /srv/fcmanager/deploy-dev.sh X.Y.Z (스냅샷 없음)
 seed      = "(없음 — has_seed=false, 운영 데이터는 in-app 입력만)"
 smoke     = "/srv/fcmanager/smoke.sh [X.Y.Z]"               # 대상 호스트: healthz 200 + 버전 일치 + club>0
 rollback  = "/srv/fcmanager/rollback.sh <이전 X.Y.Z> [--db=keep|restore]"  # 코드/DB 분리: keep(기본, 이미지만)·restore(스냅샷 복원). keep 가드=직전 migration 시 차단
@@ -38,3 +39,10 @@ snapshot = true
 expose   = "0.0.0.0:8004"                  # .env HOST_PORT=8004 (8000 portainer·8003 은 과거 병렬 운영 잔재). nginx 경유 서빙.
 data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pre_deploy), scripts/backup_db.py
 # 원격 원터치: ./deploy/remote-prod.sh X.Y.Z (= ssh dolfinid '/srv/fcmanager/deploy-prod.sh X.Y.Z')
+
+[targets.test]
+host     = "m710q"                         # 빌드 호스트가 곧 테스트 서버(cdGTS test target 과 동형).
+domain   = "0.0.0.0:8005"                  # .env HOST_PORT=8005 (8003 은 m710q 에서 fsis 점유). LAN 접근 가능.
+entry    = "/srv/fcmanager/deploy-dev.sh"  # DEPLOY_SNAPSHOT=0 — DB = dev_data(운영 백업 미러) 복사본, 폐기 가능.
+snapshot = false
+data_dir = "/srv/fcmanager"                # 테스트 호스트도 동일 레이아웃(스크립트 ROOT·compose 볼륨 하드코딩과 일치).
