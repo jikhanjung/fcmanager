@@ -69,7 +69,7 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 | 트랙 | 위치 | 주기·보존 |
 |---|---|---|
 | hourly 온라인 백업 | dolfinid `/srv/fcmanager/backup/` (`scripts/backup_db.py`, cron 매시) | 최근 12개 |
-| pre-deploy 스냅샷 | dolfinid `/srv/fcmanager/backup/pre_deploy/` (deploy.sh 가 down 직후) | 최근 10개 |
+| pre-deploy 스냅샷 | dolfinid `/srv/fcmanager/backup/pre_deploy/` (deploy.sh 가 down 직후) | 최근 20개 (3-repo 공통, 2026-07-14 통일) |
 | daily 미러 | m710q `~/backups/fcmanager/` + `~/dev_data/fcmanager/` (backup-fcmanager.sh, 05시) | 스크립트 참조 |
 
 복원은 **컨테이너 정지 후**(SQLite WAL torn-copy 방지) — `rollback.sh --db=restore` 가 표준 경로.

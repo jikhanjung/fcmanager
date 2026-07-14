@@ -70,9 +70,9 @@ if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ] && [ -f "$ROOT/db/db.sqlite3" ]; then
     [ -f "$ROOT/db/db.sqlite3-shm" ] && cp -p "$ROOT/db/db.sqlite3-shm" "${SNAP}-shm" || true
     [ -n "$PRE_MIG" ] && printf '%s\n' "$PRE_MIG" > "${SNAP}.mig" || true
     echo "  snapshot: $SNAP ($(du -h "$SNAP" | cut -f1), pre-migration count: ${PRE_MIG:-미상})"
-    # retention: 최근 10개만 (hourly 12개·m710q daily 와 별개 트랙, .mig 사이드카 포함)
+    # retention: 최근 20개만 (3-repo 공통 수치, 2026-07-14 통일. hourly 12개·m710q daily 와 별개 트랙, .mig 사이드카 포함)
     ls -1tr "$SNAP_DIR"/fcmanager_pre_deploy_*.sqlite3 2>/dev/null \
-        | head -n -10 \
+        | head -n -20 \
         | while read -r f; do rm -f "$f" "$f-wal" "$f-shm" "$f.mig"; done
 else
     echo "  (DEPLOY_SNAPSHOT=${DEPLOY_SNAPSHOT:-1} 또는 DB 없음 — 스냅샷 건너뜀)"

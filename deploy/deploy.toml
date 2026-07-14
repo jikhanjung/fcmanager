@@ -6,7 +6,8 @@
 contract_version = 1                       # 이 매니페스트가 따르는 배포·데이터 계약 판(필드·동사 의미 변경 시 증가).
 instance = "fcmanager"
 image    = "honestjung/fcmanager"          # Docker Hub. build.sh 가 :X.Y.Z + :latest push.
-db_path  = "/srv/fcmanager/db"             # 호스트 DB *디렉터리* → 컨테이너 /app/hostdb (DB=/app/hostdb/db.sqlite3).
+db_path  = "/srv/fcmanager/db/db.sqlite3"  # 호스트 DB 파일 전체 경로(계약 표준 표기, 2026-07-14 3-repo 통일 — 디렉터리는 dirname).
+                                           # 마운트는 디렉터리 단위: dirname(/srv/fcmanager/db) → 컨테이너 /app/hostdb —
                                            # WAL 형제(-wal/-shm) 호스트 공유 위해 파일 아닌 디렉터리 마운트(fsis2026 패턴, 0.6.16).
 has_seed = false                           # ⚠️ 시스템 시드 레인 없음 — 전 모델이 운영 데이터(운영자 입력).
                                            # seed_* 관리 명령은 레인 위반 냄새(DEPLOY.md 레인 경계) → 은퇴 대상.
@@ -35,7 +36,7 @@ bootstrap = "deploy/sync_to_srv.sh"                         # repo 머신 1회: 
 [targets.prod]
 host     = "dolfinid"                      # GCP. m710q→dolfinid SSH 키 인증(무-passphrase) — 원격 원터치 배포 가능.
 domain   = "fcmanager.app"                 # 앞단 nginx + HTTPS(리다이렉트는 nginx 담당, Django SECURE_SSL_REDIRECT 미사용).
-entry    = "/srv/fcmanager/deploy-prod.sh" # DEPLOY_SNAPSHOT=1 — 스왑 직전 원자적 DB 스냅샷(retention 10).
+entry    = "/srv/fcmanager/deploy-prod.sh" # DEPLOY_SNAPSHOT=1 — 스왑 직전 원자적 DB 스냅샷(retention 20, 3-repo 공통).
 snapshot = true
 expose   = "0.0.0.0:8004"                  # .env HOST_PORT=8004 (8000 portainer·8003 은 과거 병렬 운영 잔재). nginx 경유 서빙.
 data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pre_deploy), scripts/backup_db.py
