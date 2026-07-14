@@ -9,11 +9,24 @@ reverse 는 위 규칙의 역(롤백 대비).
 from django.db import migrations
 
 
+def _entry_club_id(entry):
+    """entry 의 소속 클럽 id. 우리 팀(team) entry 면 team.club_id, 외부팀이면 None.
+
+    실모델의 CompetitionEntry.club_id 는 @property 라 historical 모델엔 없다.
+    마이그레이션에선 team FK 로 직접 계산한다.
+    """
+    if entry is None or entry.team_id is None:
+        return None
+    return entry.team.club_id
+
+
 def _our_is_home(match, home, away):
     """우리 팀 entry 가 홈이면 True, 원정이면 False, 상대팀 경기면 None."""
-    if home is not None and home.club_id is not None and home.club_id == match.club_id:
+    home_club = _entry_club_id(home)
+    away_club = _entry_club_id(away)
+    if home_club is not None and home_club == match.club_id:
         return True
-    if away is not None and away.club_id is not None and away.club_id == match.club_id:
+    if away_club is not None and away_club == match.club_id:
         return False
     return None
 
