@@ -83,6 +83,15 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.23`: **`MatchEvent.side` OUR/OPPONENT → HOME/AWAY 데이터 마이그레이션**(0019 alter + 0020
+  RunPython, reverse 제공) — entrypoint `migrate` 가 자동 적용, 스왑 직전 스냅샷이 안전망.
+  변환은 경기별 우리 entry 홈/원정 기준(0020 은 historical 모델이라 `CompetitionEntry.club_id`
+  프로퍼티 대신 team FK 로 계산 — 0.6.22 에서 이 함정으로 migrate crash, 0.6.23 에서 수정).
+  **운영 후속 작업(1회)**: 경기 결과 `.md`(리포 밖 `data/results/`, gitignore) 를 컨테이너에
+  넣어 `import_results *.md --dry-run`→`--apply`. **2026-07-14 실행 완료** — 2026-07-12 K7 서초
+  3경기(#15/#16/#22) 스코어·득점자 반영, `.md` 이벤트 섹션이 그 경기 이벤트의 단일 소스(삭제 후
+  재구성·멱등)라 #15 기존 콘솔 2골은 파일이 포함(14'/21' 로 시간 갱신). `import_results` 는
+  seed 아님(명시 파일 기반 멱등 import) — has_seed=false 불변식과 무관.
 - `0.6.21`: **gosu 드롭 시 `HOME=/tmp`(+`MPLCONFIGDIR`) 명시**(entrypoint, fsis 0.5.82 동형 — 3-repo
   수렴). 미등록 numeric uid 의 HOME 이 비쓰기 경로로 남아 HOME 쓰기 라이브러리 추가 시 잠복 크래시하는 함정의
   선제 차단. 동작 무변화(현 코드는 HOME 미사용), 마이그레이션 없음. 운영 배포 완료(2026-07-14,
