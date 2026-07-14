@@ -37,6 +37,9 @@ source ~/venv/fcmanager/bin/activate
 - 그냥 `runserver` 는 repo 기본 DB(스크래치)를 쓴다. 운영 데이터로 보려면 위 런처를 쓸 것.
 - dev_data 가 비어 있으면(최초) 런처가 안내 메시지 출력 — 다음 백업이 채우거나
   `cp ~/backups/fcmanager/current/db.sqlite3 ~/dev_data/fcmanager/` 로 수동 시드.
+- **배포 파이프라인 자체를 시험**할 때는 runserver 가 아니라 **m710q 도커 테스트 target** 을 쓴다:
+  `/srv/fcmanager/deploy-dev.sh X.Y.Z` (운영과 동일 레이아웃, HOST_PORT=8005, DB = dev_data
+  복사본·폐기 가능. 매니페스트 `[targets.test]`, devlog 087).
 
 ## 구조
 

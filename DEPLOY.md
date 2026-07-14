@@ -83,11 +83,13 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
-- `0.6.14(예정)`: **계약 외부 검토분 정렬(2026-07-14, cdGTS 0.1.61 동형)** — rollback `--db=keep|restore`
+- `0.6.14`: **계약 외부 검토분 정렬(2026-07-14, cdGTS 0.1.61 동형)** — rollback `--db=keep|restore`
   분리(기본 keep + migration 시 keep 가드), pre-deploy 스냅샷 `.mig` 사이드카, 매니페스트
   `contract_version`/`rollback_db`, self-heal 추출 안전망(`bash -n`+`.previous`). 마이그레이션 없음.
-  ⚠️ 운영 반영은 이 버전 배포 시 self-heal 추출로 — 그 전까지 운영 `rollback.sh` 는 구계약
-  (이미지+DB 복원 묶음)이므로, 배포 전에 롤백이 필요하면 그 점을 감안할 것.
+  + **m710q 테스트 target 신설**(`deploy-dev.sh`, HOST_PORT=8005, DB=dev_data 미러 복사본) —
+  전 구간(추출 안전망·`.mig` 61 기록·rollback keep 가드 61=61 통과·smoke)을 테스트 배포로 검증(devlog 087).
+  ⚠️ 운영(dolfinid) 반영은 이 버전 prod 배포 시 self-heal 추출로 — 그 전까지 운영 `rollback.sh` 는
+  구계약(이미지+DB 복원 묶음)이므로, 배포 전에 롤백이 필요하면 그 점을 감안할 것.
 - `0.6.12 배포 후기(2026-07-13)`: 배포 성공(smoke PASS, club=1·match=28). 단 **[6/7] DB 게이트가
   false-fail 로 중단**(컨테이너에 `DJANGO_SETTINGS_MODULE` 없음 → 순수 `python -c` 가
   ImproperlyConfigured) — `manage.py shell -c` 로 수정, 다음 배포부터 self-heal 반영.
