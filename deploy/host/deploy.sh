@@ -107,6 +107,23 @@ DB_NAME=$(docker compose exec -T web \
     2>/dev/null | tr -d '\r' | tail -n1)
 if [ "$DB_NAME" = "$EXPECT_DB" ]; then
     echo "  OK: container DB = ${DB_NAME} (host bind mount)"
+    # 쓰기 프로브 — 디렉터리 마운트에선 컨테이너 uid(1000)가 db/ 디렉터리 쓰기 권한을 가져야
+    # -journal 생성이 된다. 파일 마운트에선 안 걸리던 조건이라 경로 검증만으론 못 잡는다
+    # (0.6.16 dolfinid 실배포: uid 1000=ubuntu ≠ 디렉터리 소유 honestjung → readonly 장애).
+    WRITE_OK=$(docker compose exec -T web python manage.py shell -c "
+from django.db import connection
+c = connection.cursor()
+c.execute('CREATE TABLE IF NOT EXISTS _deploy_write_probe(x INTEGER)')
+c.execute('DROP TABLE _deploy_write_probe')
+print('ok')" 2>/dev/null | tr -d '\r' | tail -n1)
+    if [ "$WRITE_OK" = "ok" ]; then
+        echo "  OK: DB write probe (journal 생성 가능)"
+    else
+        echo "  ✗ FATAL: DB 쓰기 프로브 실패 — 읽기는 되나 쓰기가 readonly 로 죽는 상태."
+        echo "    원인(전형): 컨테이너 uid 1000 에 ${ROOT}/db 디렉터리 쓰기 권한 없음(-journal 생성 불가)."
+        echo "    고치기: sudo chown -R 1000:1000 ${ROOT}/db 후 이 스크립트 재실행."
+        exit 1
+    fi
 else
     echo "  ✗ FATAL: container DB = '${DB_NAME:-<empty>}' — 기대 ${EXPECT_DB} 아님."
     echo "    컨테이너가 마운트되지 않은 이미지 내부 DB 를 쓰고 있다 → 사이트가 빈 데이터로 뜬다."

@@ -89,6 +89,12 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
   hourly `backup_db.py` 는 새 경로 + legacy fallback. **m710q daily 미러(`~/scripts/backup-fcmanager.sh`,
   repo 밖)는 별도 수정 필요**(scp 경로 `db/db.sqlite3` — 2026-07-14 수정 완료). DB 게이트 기대값
   `/app/hostdb/db.sqlite3` 로 변경. 마이그레이션 없음(스키마 무변).
+  **⚠️ 배포 후기**: dolfinid 에서 **쓰기 readonly 장애** — 컨테이너 uid 1000(=ubuntu)이 deploy 가
+  만든 `db/`(honestjung 소유) 디렉터리에 쓰기 불가 → `-journal` 생성 실패. 파일 마운트 시절엔
+  저널이 컨테이너 내부 `/app` 에 생겨 안 걸리던 조건. `sudo chown -R 1000:1000 /srv/fcmanager/db`
+  로 복구(2026-07-14). **디렉터리 마운트 요건: `db/` 는 uid 1000 소유(또는 쓰기 가능)여야 함.**
+- `0.6.17`: DB 게이트에 **쓰기 프로브** 추가 — 경로 검증(읽기)만으로 못 잡는 위 소유권 함정을
+  배포 시점에 기계적으로 적발(CREATE/DROP probe 테이블, readonly 면 배포 실패).
 - `0.6.15`: compose `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` 파라미터화
   (`${VAR:-운영기본값}` — 운영 .env 미설정이면 종전과 동일, 테스트 호스트만 .env 로 override).
   **m710q 테스트 배포 검증 완료(2026-07-14)** — 추출 compose 파라미터화 확인, tailnet 접속 200,
