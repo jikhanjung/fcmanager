@@ -107,10 +107,12 @@ DB_NAME=$(docker compose exec -T web \
     2>/dev/null | tr -d '\r' | tail -n1)
 if [ "$DB_NAME" = "$EXPECT_DB" ]; then
     echo "  OK: container DB = ${DB_NAME} (host bind mount)"
-    # 쓰기 프로브 — 디렉터리 마운트에선 컨테이너 uid(1000)가 db/ 디렉터리 쓰기 권한을 가져야
-    # -journal 생성이 된다. 파일 마운트에선 안 걸리던 조건이라 경로 검증만으론 못 잡는다
-    # (0.6.16 dolfinid 실배포: uid 1000=ubuntu ≠ 디렉터리 소유 honestjung → readonly 장애).
-    WRITE_OK=$(docker compose exec -T web python manage.py shell -c "
+    # 쓰기 프로브 — 서비스 프로세스 uid 가 db/ 디렉터리에 -journal 을 만들 수 있어야 한다.
+    # 파일 마운트에선 안 걸리던 조건이라 경로 검증만으론 못 잡는다(0.6.16 dolfinid readonly 장애).
+    # 0.6.18 gosu 이후 exec 기본 유저는 root 라, entrypoint 와 같은 규칙(마운트 소유 uid)으로
+    # 명시해 서비스 프로세스와 동일 권한으로 프로브한다.
+    PROBE_UID=$(stat -c %u "$ROOT/db" 2>/dev/null || echo 0)
+    WRITE_OK=$(docker compose exec -T -u "${PROBE_UID}" web python manage.py shell -c "
 from django.db import connection
 c = connection.cursor()
 c.execute('CREATE TABLE IF NOT EXISTS _deploy_write_probe(x INTEGER)')
