@@ -35,8 +35,8 @@ class MatchVideoAdmin(admin.ModelAdmin):
 class MatchEventInline(admin.TabularInline):
     """경기 이벤트 인라인 (득점자·어시스트·시간 입력용).
 
-    side(OUR/OPPONENT)는 우리 entry 기준. 우리 팀 이벤트는 선수 지정, 상대 득점은
-    side=상대팀 + 선수 비움.
+    side(HOME/AWAY)는 절대 기준(경기의 홈/원정). 우리 팀 이벤트는 선수 지정,
+    상대 득점은 우리 팀이 아닌 쪽 side + 선수 비움(이름은 설명란).
     """
 
     model = MatchEvent

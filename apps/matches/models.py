@@ -316,15 +316,15 @@ class MatchEvent(models.Model):
         PSO_MISS = "PSO_MISS", "승부차기 실패"
 
     class Side(models.TextChoices):
-        OUR = "OUR", "우리 팀"
-        OPPONENT = "OPPONENT", "상대팀"
+        HOME = "HOME", "홈"
+        AWAY = "AWAY", "원정"
 
     match = models.ForeignKey(
         Match, on_delete=models.CASCADE, related_name="events",
         verbose_name="경기",
     )
     side = models.CharField(
-        "팀 구분", max_length=8, choices=Side.choices, default=Side.OUR
+        "팀 구분", max_length=8, choices=Side.choices, default=Side.HOME
     )
     player = models.ForeignKey(
         "teams.Player", on_delete=models.SET_NULL, related_name="match_events",

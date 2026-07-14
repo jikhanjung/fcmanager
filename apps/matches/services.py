@@ -76,10 +76,13 @@ def club_record(matches):
 
 
 def our_events(year=None, club=None):
-    """우리 팀(선수 지정) 이벤트 쿼리셋. year·club 으로 한정 가능."""
-    ev = MatchEvent.objects.filter(
-        side=MatchEvent.Side.OUR, player__isnull=False
-    )
+    """우리 팀(선수 지정) 이벤트 쿼리셋. year·club 으로 한정 가능.
+
+    side 는 HOME/AWAY(절대 기준)로 우리 팀을 식별하지 못하므로 player FK 로 판정한다.
+    선수 FK 는 우리 클럽 선수에만 링크되므로(상대·미상 득점자는 player=null+description)
+    player__isnull=False 만으로 '우리 팀 이벤트'와 동치다.
+    """
+    ev = MatchEvent.objects.filter(player__isnull=False)
     if club is not None:
         ev = ev.filter(match__club=club)
     if year and str(year).isdigit():
@@ -139,38 +142,31 @@ def build_timeline(events):
 
 
 def recompute_score(match):
-    """이벤트 집계로 경기 점수를 재계산해 저장한다(중계 콘솔 전용).
+    """이벤트 집계로 경기 점수를 재계산해 저장한다.
 
-    우리 점수 = 우리팀 GOAL + 상대팀 OWN_GOAL,
-    상대 점수 = 상대팀 GOAL + 우리팀 OWN_GOAL.
+    side 가 HOME/AWAY(절대 기준)이므로 우리/상대 매핑 없이 그대로 산출한다:
+      홈 점수 = 홈 GOAL + 원정 OWN_GOAL,
+      원정 점수 = 원정 GOAL + 홈 OWN_GOAL.
     승부차기 점수 = 각 팀 PSO_GOAL 수(승부차기 이벤트가 있을 때만 집계, 없으면 None).
+    상대팀 간 경기도 이벤트만 있으면 산출 가능(중계 콘솔은 여전히 우리 경기에만 사용).
     """
     GOAL = MatchEvent.EventType.GOAL
     OWN_GOAL = MatchEvent.EventType.OWN_GOAL
     PSO_GOAL = MatchEvent.EventType.PSO_GOAL
     PSO_MISS = MatchEvent.EventType.PSO_MISS
-    OUR = MatchEvent.Side.OUR
-    OPP = MatchEvent.Side.OPPONENT
+    HOME = MatchEvent.Side.HOME
+    AWAY = MatchEvent.Side.AWAY
     evs = list(match.events.values("event_type", "side"))
 
     def count(etype, side):
         return sum(1 for e in evs if e["event_type"] == etype and e["side"] == side)
 
-    our_score = count(GOAL, OUR) + count(OWN_GOAL, OPP)
-    opp_score = count(GOAL, OPP) + count(OWN_GOAL, OUR)
+    match.home_score = count(GOAL, HOME) + count(OWN_GOAL, AWAY)
+    match.away_score = count(GOAL, AWAY) + count(OWN_GOAL, HOME)
     # 승부차기: 킥 이벤트(성공/실패)가 하나라도 있으면 성공 수로 집계, 없으면 None.
     has_pso = any(e["event_type"] in (PSO_GOAL, PSO_MISS) for e in evs)
-    our_pso = count(PSO_GOAL, OUR) if has_pso else None
-    opp_pso = count(PSO_GOAL, OPP) if has_pso else None
-    our = match.our_entry
-    if our is None:  # 우리 팀 경기가 아니면 이벤트 기반 재집계 불가
-        return
-    if our.id == match.home_entry_id:
-        match.home_score, match.away_score = our_score, opp_score
-        match.home_pso_score, match.away_pso_score = our_pso, opp_pso
-    else:
-        match.home_score, match.away_score = opp_score, our_score
-        match.home_pso_score, match.away_pso_score = opp_pso, our_pso
+    match.home_pso_score = count(PSO_GOAL, HOME) if has_pso else None
+    match.away_pso_score = count(PSO_GOAL, AWAY) if has_pso else None
     match.save(update_fields=["home_score", "away_score",
                               "home_pso_score", "away_pso_score", "updated_at"])
 

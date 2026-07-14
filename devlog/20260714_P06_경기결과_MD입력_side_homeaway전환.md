@@ -85,6 +85,11 @@
 - `match_detail.html`: 이벤트 팀 표기를 **side→entry 이름으로 일원화** —
   `side=='HOME' → home_entry.name`, `AWAY → away_entry.name` (우리/상대 분기 제거).
   L76 정렬 `'OPPONENT'→'AWAY'`, L171 JS `it.side==='AWAY'`.
+- **상대팀 득점자 이름 표시 폴백** (신규): 상대팀 선수는 `player=null`+`description=이름`
+  이므로, 득점자 라벨 표시 우선순위를 **`player.name → description → 팀명(side_display)`** 으로
+  바꾼다. 현재 L82-83 은 상대팀 경기 이벤트를 팀명으로만 찍어 description 을 무시 → 상대 선수
+  이름이 화면에 안 나옴. `serialize_timeline` 은 이미 `description` 을 내보내므로, 템플릿
+  L82-83 과 라이브 JS L171-174 에 이 폴백을 넣는다. (도움 라벨은 L84 에 이미 description 폴백 존재.)
 - `match_live.html`: 버튼 `data-goal="OUR"/"OPPONENT"` **그대로**(콘솔 UX). 라이브 타임라인
   `side_display` 는 serialize 가 채운 값 사용.
 - `match_edit.html`: `f.side` 폼셋 — choices 자동 반영, 변경 불요.
@@ -108,6 +113,7 @@ venue: 인재개발원
 home: HUMBLEFC                   # 시스템 등록명(참가팀 name)
 away: ACI
 score: 4-2                       # home-away
+half_minutes: 30                 # 전/후반 각 분(K7 서초=30). 이벤트 half 파생용
 status: FINISHED                 # 기본 FINISHED
 stage: GROUP                     # 기본 GROUP
 ---
@@ -129,7 +135,13 @@ stage: GROUP                     # 기본 GROUP
   은 `player=null` + `description=선수명`(또는 공란).
 - **유형** = 득점/도움/자책골/경고/퇴장/교체IN/교체OUT ↔ `EventType`.
   자책골은 **범한 팀(side)** 에 기록(예: ACI 심재영 자책 → side=AWAY → 홈 득점 산입).
+- **분** = 킥오프부터 이어지는 **절대 분(연속 표기)**. 파서가 `half_minutes` 로
+  `half = 1 if minute <= half_minutes else 2` 파생(전/후반 컬럼 없음).
+  예: `half_minutes=30` → 40'/58' = 후반, 21'/23' = 전반.
 - **도움** 은 같은 행 득점에 링크(`goal` FK).
+- **선수 이름 처리**: 우리 팀 쪽은 로스터에서 Player 조회해 FK 링크. 상대팀·`(미상)` 은
+  `player=null`+`description=이름`(공란 가능) — 상대 선수 명단은 보유하지 않고 텍스트로만 보존.
+  (득점 순위(scorers)는 `player__isnull=False` 필터라 상대 선수는 리더보드에 안 섞임.)
 - 팀 이름은 **KFA 정식명이 아니라 시스템 등록명**(`스카이 K7`, `HUMBLEFC`, `ACI` …).
 
 ### 매칭 규칙 (기존 픽스처에 결과 채우기)
@@ -194,6 +206,7 @@ python manage.py import_results <file.md> [<file2.md> …] [--apply] [--create]
 | 라이브 콘솔 회귀(우리/상대 번역 버그) | 콘솔 UI 계약 유지 + 기존 테스트 + home/away 번역 헬퍼 단일화 |
 | import 가 콘솔 입력 이벤트 삭제 | 이벤트 섹션 있는 파일만 이벤트 동기화, atomic + dry-run 선검토 |
 | 상대팀 선수는 Player 없음 | player=null + description 로 이름 보존(리더보드 영향 없음) |
+| **Match 15 재import 시 우리 선수(박찬영·동재민) 이름 불일치 → Player FK 유실 → 득점 순위에서 사라짐** | 이벤트 삭제-재생성은 파괴적. `.md` 작성 전 DB 로스터 등록명 대조, dry-run 의 "미해결 선수 경고" 뜨면 apply 금지 |
 | 부분/미상 득점자 | `(미상)` 명시, 스코어는 `score` 라인이 정본 |
 
 ## 7. 작업 체크리스트

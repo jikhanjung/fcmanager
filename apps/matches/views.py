@@ -423,6 +423,20 @@ def _handle_live_action(request, match, team_players):
     half = _current_half(match)
     score_changed = False
 
+    # 콘솔 UI 는 "우리/상대"(POST side=OUR/OPPONENT) UX 를 유지하고, 저장 시 절대 기준
+    # (MatchEvent.side=HOME/AWAY)으로 번역한다. 선수 링크는 우리 쪽에만 세팅.
+    our_is_home = (match.our_entry is not None
+                   and match.our_entry.id == match.home_entry_id)
+
+    def ui_is_our(ui_side):
+        return (ui_side or "OUR") != "OPPONENT"
+
+    def to_side(ui_side):
+        is_our = ui_is_our(ui_side)
+        if is_our:
+            return MatchEvent.Side.HOME if our_is_home else MatchEvent.Side.AWAY
+        return MatchEvent.Side.AWAY if our_is_home else MatchEvent.Side.HOME
+
     if action in ("start_first", "start"):
         # 전반 시작: 누른 시각을 기준으로 전반 시계가 0:00에서 흐른다(킥오프와 무관).
         match.status = Match.Status.LIVE
@@ -505,15 +519,17 @@ def _handle_live_action(request, match, team_players):
         match.save(update_fields=["status", "period", "paused_at", "updated_at"])
         messages.success(request, "경기를 종료했습니다.")
     elif action == "goal":
-        side = request.POST.get("side") or MatchEvent.Side.OUR
+        ui_side = request.POST.get("side") or "OUR"
+        is_our = ui_is_our(ui_side)
+        side = to_side(ui_side)
         player = team_players.filter(pk=request.POST.get("player") or 0).first()
         goal = MatchEvent.objects.create(
             match=match, event_type=GOAL, side=side,
-            player=player if side == MatchEvent.Side.OUR else None,
+            player=player if is_our else None,
             minute=minute, half=half,
         )
         assist = team_players.filter(pk=request.POST.get("assist") or 0).first()
-        if side == MatchEvent.Side.OUR and assist:
+        if is_our and assist:
             MatchEvent.objects.create(
                 match=match, event_type=ASSIST, side=side,
                 player=assist, minute=minute, half=half, goal=goal,
@@ -523,11 +539,13 @@ def _handle_live_action(request, match, team_players):
     elif action == "event":
         etype = request.POST.get("event_type") or ""
         if etype in _LIVE_SIMPLE_EVENTS:
-            side = request.POST.get("side") or MatchEvent.Side.OUR
+            ui_side = request.POST.get("side") or "OUR"
+            is_our = ui_is_our(ui_side)
+            side = to_side(ui_side)
             player = team_players.filter(pk=request.POST.get("player") or 0).first()
             MatchEvent.objects.create(
                 match=match, event_type=etype, side=side,
-                player=player if side == MatchEvent.Side.OUR else None,
+                player=player if is_our else None,
                 minute=minute, half=half,
             )
             score_changed = etype == MatchEvent.EventType.OWN_GOAL
@@ -536,18 +554,18 @@ def _handle_live_action(request, match, team_players):
         # 교체: 나간 선수(SUB_OUT) + 들어온 선수(SUB_IN)를 함께 기록(우리 팀).
         out_p = team_players.filter(pk=request.POST.get("player_out") or 0).first()
         in_p = team_players.filter(pk=request.POST.get("player_in") or 0).first()
-        OUR = MatchEvent.Side.OUR
+        our_side = to_side("OUR")
         if out_p:
             MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_OUT,
-                                      side=OUR, player=out_p, minute=minute, half=half)
+                                      side=our_side, player=out_p, minute=minute, half=half)
         if in_p:
             MatchEvent.objects.create(match=match, event_type=MatchEvent.EventType.SUB_IN,
-                                      side=OUR, player=in_p, minute=minute, half=half)
+                                      side=our_side, player=in_p, minute=minute, half=half)
         if out_p or in_p:
             messages.success(request, "교체를 기록했습니다.")
     elif action in ("pso_goal", "pso_miss"):
         # 승부차기 킥: 성공(PSO_GOAL)/실패(PSO_MISS)를 팀별로 기록. 빠른 입력 위해 선수 미지정.
-        side = request.POST.get("side") or MatchEvent.Side.OUR
+        side = to_side(request.POST.get("side") or "OUR")
         etype = (MatchEvent.EventType.PSO_GOAL if action == "pso_goal"
                  else MatchEvent.EventType.PSO_MISS)
         MatchEvent.objects.create(match=match, event_type=etype, side=side)
@@ -569,9 +587,10 @@ def _handle_live_action(request, match, team_players):
 def scorers(request):
     """선수 순위: 우리 팀 골·도움·공격포인트 집계 + 팀·대회·시즌 필터."""
     ET = MatchEvent.EventType
+    # side 는 HOME/AWAY(절대 기준)라 우리 팀 식별에 못 쓴다. player FK 는 우리 클럽
+    # 선수에만 링크되므로 player__isnull=False 로 우리 팀 이벤트를 식별한다.
     events = MatchEvent.objects.filter(
         match__club=request.club,
-        side=MatchEvent.Side.OUR,
         player__isnull=False,
         event_type__in=[ET.GOAL, ET.ASSIST],
     )

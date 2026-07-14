@@ -73,14 +73,14 @@
 <div class="list-group shadow-sm mb-4" id="live-timeline">
   {% for item in timeline %}
     <div class="list-group-item d-flex align-items-center
-      {% if item.event.side == 'OPPONENT' %}flex-row-reverse text-end{% endif %}">
+      {% if item.event.side == 'AWAY' %}flex-row-reverse text-end{% endif %}">
       <span class="badge bg-light text-dark me-2 ms-2">{% if item.event.minute is not None %}{{ item.event.minute }}'{% else %}-{% endif %}</span>
       <div>
         <strong>{{ item.event.get_event_type_display }}</strong>
         {% if item.event.player %}<span class="ms-1">{{ item.event.player.name }}</span>
         {% elif item.event.description %}<span class="ms-1">{{ item.event.description }}</span>
         {% elif match.is_our_match %}<span class="ms-1 text-muted">{{ item.event.get_side_display }}</span>
-        {% else %}<span class="ms-1 text-muted">{% if item.event.side == 'OUR' %}{{ match.home_entry.name }}{% else %}{{ match.away_entry.name }}{% endif %}</span>{% endif %}
+        {% else %}<span class="ms-1 text-muted">{% if item.event.side == 'HOME' %}{{ match.home_entry.name }}{% else %}{{ match.away_entry.name }}{% endif %}</span>{% endif %}
         {% if item.assist %}<span class="ms-1 text-muted">(도움: {% if item.assist.player %}{{ item.assist.player.name }}{% elif item.assist.description %}{{ item.assist.description }}{% else %}{{ item.assist.get_side_display }}{% endif %})</span>{% endif %}
         {% if item.event.player and item.event.description %}<div class="small text-muted">{{ item.event.description }}</div>{% endif %}
       </div>
@@ -168,12 +168,13 @@
   }
 
   function renderRow(it) {
-    var opp = it.side === 'OPPONENT';
+    var opp = it.side === 'AWAY';
     var min = (it.minute === null || it.minute === undefined) ? '-' : (it.minute + "'");
     var who = it.player ? '<span class="ms-1">' + esc(it.player) + '</span>'
-                        : '<span class="ms-1 text-muted">' + esc(it.side_display) + '</span>';
+                        : (it.description ? '<span class="ms-1">' + esc(it.description) + '</span>'
+                                          : '<span class="ms-1 text-muted">' + esc(it.side_display) + '</span>');
     var assist = it.assist ? '<span class="ms-1 text-muted">(도움: ' + esc(it.assist) + ')</span>' : '';
-    var desc = it.description ? '<div class="small text-muted">' + esc(it.description) + '</div>' : '';
+    var desc = (it.player && it.description) ? '<div class="small text-muted">' + esc(it.description) + '</div>' : '';
     return '<div class="list-group-item d-flex align-items-center' +
            (opp ? ' flex-row-reverse text-end' : '') + '">' +
            '<span class="badge bg-light text-dark me-2 ms-2">' + min + '</span>' +
