@@ -19,6 +19,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# gosu: entrypoint 가 root 로 시작해 마운트(/app/hostdb) 소유 uid 로 권한을 드롭할 때 사용.
+# 호스트마다 uid 매핑이 달라도(m710q=1000·dolfinid 계정 구성 상이) 한 이미지로 커버 —
+# "디렉터리 마운트 소유권 함정"(devlog 088, 계약 §동사 deploy)의 근본 해소. cdGTS 동형.
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* && gosu nobody true
+
 # 의존성 먼저 설치 (레이어 캐시 활용)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -38,10 +44,9 @@ ENV DJANGO_URL_PREFIX=${DJANGO_URL_PREFIX}
 # 정적 파일 수집 (WhiteNoise manifest 생성). 빌드 시 SECRET_KEY 기본값 사용.
 RUN python manage.py collectstatic --noinput
 
-# 비루트 사용자로 실행
-RUN useradd --create-home --uid 1000 appuser \
-    && chown -R appuser:appuser /app
-USER appuser
+# 비루트 실행은 Dockerfile USER 고정이 아니라 entrypoint 의 gosu 드롭으로 —
+# root 로 시작해 /app/hostdb 소유 uid 를 런타임 감지 후 그 uid 로 exec(호스트 무관).
+# 최종 서비스 프로세스(gunicorn)는 비-root, root 는 시작 순간(소유 정리)에만 존재.
 
 EXPOSE 8000
 

@@ -83,6 +83,11 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.18`: **gosu 권한 드롭 도입** — 컨테이너가 root 로 시작해 `/app/hostdb` 마운트의 **소유
+  uid 를 런타임 감지** 후 `exec gosu <uid:gid>` 로 드롭, gunicorn 은 비-root 로 돎(cdGTS 동형).
+  Dockerfile `USER appuser`(uid 1000 고정) 제거 — **0.6.16 소유권 함정의 근본 해소**(호스트별
+  uid 매핑 무관, chown 불요. "db/ 는 uid 1000 소유" 요건 소멸 — 임의 비-root 소유면 됨).
+  entrypoint 가 이전 실행이 남긴 DB 형제 파일 소유도 멱등 정리. 마이그레이션 없음.
 - `0.6.16`: **DB 파일 마운트 → 디렉터리 마운트**(`/srv/fcmanager/db` → `/app/hostdb`,
   `DATABASE_PATH=/app/hostdb/db.sqlite3` compose 고정 — fsis2026 패턴, WAL 형제 파일 호스트 공유).
   구 레이아웃(루트 `db.sqlite3`)은 **deploy.sh 가 down 직후 1회 자동 이행**(db/ 로 mv, wal/shm 포함).
@@ -93,12 +98,13 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
   만든 `db/`(honestjung 소유) 디렉터리에 쓰기 불가 → `-journal` 생성 실패. 파일 마운트 시절엔
   저널이 컨테이너 내부 `/app` 에 생겨 안 걸리던 조건. `sudo chown -R 1000:1000 /srv/fcmanager/db`
   로 복구(2026-07-14). **디렉터리 마운트 요건: `db/` 는 uid 1000 소유(또는 쓰기 가능)여야 함.**
+  → **0.6.18 에서 요건 소멸**(gosu 가 소유 uid 를 감지해 그 uid 로 드롭 — 위 델타 노트).
 - `0.6.17`: DB 게이트에 **쓰기 프로브** 추가 — 경로 검증(읽기)만으로 못 잡는 위 소유권 함정을
   배포 시점에 기계적으로 적발(CREATE/DROP probe 테이블, readonly 면 배포 실패).
 - `0.6.15`: compose `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` 파라미터화
   (`${VAR:-운영기본값}` — 운영 .env 미설정이면 종전과 동일, 테스트 호스트만 .env 로 override).
-  **m710q 테스트 배포 검증 완료(2026-07-14)** — 추출 compose 파라미터화 확인, tailnet 접속 200,
-  smoke PASS. 운영(dolfinid) 반영 대기 — 0.6.14 의 계약 정렬분과 함께 이 버전 prod 배포로 착지.
+  **m710q 테스트 배포 검증 후 운영 배포 완료(2026-07-14)** — 이 배포로 0.6.14 의 계약
+  정렬분(rollback `--db` 분리·`.mig`·추출 안전망)이 운영에 self-heal 착지.
 - `0.6.14`: **계약 외부 검토분 정렬(2026-07-14, cdGTS 0.1.61 동형)** — rollback `--db=keep|restore`
   분리(기본 keep + migration 시 keep 가드), pre-deploy 스냅샷 `.mig` 사이드카, 매니페스트
   `contract_version`/`rollback_db`, self-heal 추출 안전망(`bash -n`+`.previous`). 마이그레이션 없음.
