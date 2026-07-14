@@ -83,6 +83,12 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.16`: **DB 파일 마운트 → 디렉터리 마운트**(`/srv/fcmanager/db` → `/app/hostdb`,
+  `DATABASE_PATH=/app/hostdb/db.sqlite3` compose 고정 — fsis2026 패턴, WAL 형제 파일 호스트 공유).
+  구 레이아웃(루트 `db.sqlite3`)은 **deploy.sh 가 down 직후 1회 자동 이행**(db/ 로 mv, wal/shm 포함).
+  hourly `backup_db.py` 는 새 경로 + legacy fallback. **m710q daily 미러(`~/scripts/backup-fcmanager.sh`,
+  repo 밖)는 별도 수정 필요**(scp 경로 `db/db.sqlite3` — 2026-07-14 수정 완료). DB 게이트 기대값
+  `/app/hostdb/db.sqlite3` 로 변경. 마이그레이션 없음(스키마 무변).
 - `0.6.15`: compose `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` 파라미터화
   (`${VAR:-운영기본값}` — 운영 .env 미설정이면 종전과 동일, 테스트 호스트만 .env 로 override).
   **m710q 테스트 배포 검증 완료(2026-07-14)** — 추출 compose 파라미터화 확인, tailnet 접속 200,

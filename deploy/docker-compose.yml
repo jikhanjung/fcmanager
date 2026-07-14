@@ -20,8 +20,10 @@ services:
       # DJANGO_SECRET_KEY 는 위 env_file(deploy/.env)에서 주입 — 여기에 두지 않음(git 비추적).
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
+      # 운영 compose 와 동일한 디렉터리 마운트 레이아웃(WAL 형제 파일 호스트 공유).
+      DATABASE_PATH: /app/hostdb/db.sqlite3
     volumes:
       # DB·미디어는 호스트 영속 경로(/srv/fcmanager). uid 1000(컨테이너 appuser) 소유여야 쓰기 가능.
-      # 미디어는 nginx가 /FCManager/media/ 로 직접 서빙(아래 디렉터리 alias).
-      - /srv/fcmanager/db.sqlite3:/app/db.sqlite3
+      # DB 는 파일이 아닌 디렉터리 마운트(-wal/-shm 형제 파일 공유, 운영 compose 주석 참조).
+      - /srv/fcmanager/db:/app/hostdb
       - /srv/fcmanager/media:/app/media

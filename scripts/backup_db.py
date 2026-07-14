@@ -18,8 +18,12 @@ from datetime import datetime
 from pathlib import Path
 
 BACKUP_DIR = Path('/srv/fcmanager/backup')
+# 디렉터리 마운트 레이아웃(0.6.16): 정본 = /srv/fcmanager/db/db.sqlite3.
+# 구 레이아웃(루트 파일)은 deploy.sh 가 1회 이행하지만, 이행 전 cron 이 돌 수 있어 fallback 유지.
+_DB_NEW = Path('/srv/fcmanager/db/db.sqlite3')
+_DB_LEGACY = Path('/srv/fcmanager/db.sqlite3')
 SOURCES = [
-    ('fcmanager', Path('/srv/fcmanager/db.sqlite3')),
+    ('fcmanager', _DB_NEW if _DB_NEW.exists() else _DB_LEGACY),
 ]
 DATA_DIRS = [
     ('dolfinid_nginx', Path('/etc/nginx/sites-available')),

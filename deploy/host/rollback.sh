@@ -65,9 +65,10 @@ if [ "$DB_MODE" = restore ]; then
     docker compose down
     if [ -n "$SNAP" ]; then
         echo "  restore DB ← ${SNAP} (컨테이너 정지 후 — SQLite WAL torn-copy 방지)"
-        cp -p "$SNAP" "$ROOT/db.sqlite3"
-        [ -f "${SNAP}-wal" ] && cp -p "${SNAP}-wal" "$ROOT/db.sqlite3-wal" || rm -f "$ROOT/db.sqlite3-wal"
-        [ -f "${SNAP}-shm" ] && cp -p "${SNAP}-shm" "$ROOT/db.sqlite3-shm" || rm -f "$ROOT/db.sqlite3-shm"
+        mkdir -p "$ROOT/db"    # 디렉터리 마운트 레이아웃(0.6.16) — 스냅샷 출처와 무관하게 정본 위치는 db/
+        cp -p "$SNAP" "$ROOT/db/db.sqlite3"
+        [ -f "${SNAP}-wal" ] && cp -p "${SNAP}-wal" "$ROOT/db/db.sqlite3-wal" || rm -f "$ROOT/db/db.sqlite3-wal"
+        [ -f "${SNAP}-shm" ] && cp -p "${SNAP}-shm" "$ROOT/db/db.sqlite3-shm" || rm -f "$ROOT/db/db.sqlite3-shm"
     else
         echo "  (pre_deploy 스냅샷 없음 — DB 복원 건너뜀; 최초 배포?)"
     fi

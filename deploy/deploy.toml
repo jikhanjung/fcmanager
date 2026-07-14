@@ -6,7 +6,8 @@
 contract_version = 1                       # 이 매니페스트가 따르는 배포·데이터 계약 판(필드·동사 의미 변경 시 증가).
 instance = "fcmanager"
 image    = "honestjung/fcmanager"          # Docker Hub. build.sh 가 :X.Y.Z + :latest push.
-db_path  = "/srv/fcmanager/db.sqlite3"     # 호스트 DB 파일 → 컨테이너 /app/db.sqlite3 로 바인드(파일 마운트).
+db_path  = "/srv/fcmanager/db"             # 호스트 DB *디렉터리* → 컨테이너 /app/hostdb (DB=/app/hostdb/db.sqlite3).
+                                           # WAL 형제(-wal/-shm) 호스트 공유 위해 파일 아닌 디렉터리 마운트(fsis2026 패턴, 0.6.16).
 has_seed = false                           # ⚠️ 시스템 시드 레인 없음 — 전 모델이 운영 데이터(운영자 입력).
                                            # seed_* 관리 명령은 레인 위반 냄새(DEPLOY.md 레인 경계) → 은퇴 대상.
 services = ["web"]                         # compose 단일 서비스(gunicorn). 워커/사이드카 없음.

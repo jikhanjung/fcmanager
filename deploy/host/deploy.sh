@@ -46,17 +46,28 @@ if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ]; then
 fi
 docker compose down
 
+# 파일→디렉터리 마운트 전환(0.6.16) 1회 자동 이행 — down 직후(writer 없음) 루트 DB 를 db/ 로 이동.
+# compose 가 /srv/fcmanager/db 디렉터리를 /app/hostdb 로 마운트하므로 이 위치가 유일한 정본.
+if [ -f "$ROOT/db.sqlite3" ] && [ ! -f "$ROOT/db/db.sqlite3" ]; then
+    echo "  (레이아웃 이행) $ROOT/db.sqlite3 → $ROOT/db/ (파일→디렉터리 마운트, WAL 형제 포함)"
+    mkdir -p "$ROOT/db"
+    mv "$ROOT/db.sqlite3" "$ROOT/db/db.sqlite3"
+    [ -f "$ROOT/db.sqlite3-wal" ] && mv "$ROOT/db.sqlite3-wal" "$ROOT/db/db.sqlite3-wal" || true
+    [ -f "$ROOT/db.sqlite3-shm" ] && mv "$ROOT/db.sqlite3-shm" "$ROOT/db/db.sqlite3-shm" || true
+fi
+mkdir -p "$ROOT/db"    # 신규 호스트(빈 DB 부트스트랩)도 마운트 대상 디렉터리는 있어야 함
+
 echo ""
 echo "=== [4/7] (prod) Pre-deploy DB 스냅샷 (롤백 안전망) ==="
 # compose down 직후 — writer 없어 cp 안전. WAL/SHM 도 함께 보존.
-if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ] && [ -f "$ROOT/db.sqlite3" ]; then
+if [ "${DEPLOY_SNAPSHOT:-1}" = "1" ] && [ -f "$ROOT/db/db.sqlite3" ]; then
     SNAP_DIR="$ROOT/backup/pre_deploy"
     mkdir -p "$SNAP_DIR"
     TS=$(date -u +%Y%m%d_%H%M%S)
     SNAP="$SNAP_DIR/fcmanager_pre_deploy_${VERSION}_${TS}.sqlite3"
-    cp -p "$ROOT/db.sqlite3" "$SNAP"
-    [ -f "$ROOT/db.sqlite3-wal" ] && cp -p "$ROOT/db.sqlite3-wal" "${SNAP}-wal" || true
-    [ -f "$ROOT/db.sqlite3-shm" ] && cp -p "$ROOT/db.sqlite3-shm" "${SNAP}-shm" || true
+    cp -p "$ROOT/db/db.sqlite3" "$SNAP"
+    [ -f "$ROOT/db/db.sqlite3-wal" ] && cp -p "$ROOT/db/db.sqlite3-wal" "${SNAP}-wal" || true
+    [ -f "$ROOT/db/db.sqlite3-shm" ] && cp -p "$ROOT/db/db.sqlite3-shm" "${SNAP}-shm" || true
     [ -n "$PRE_MIG" ] && printf '%s\n' "$PRE_MIG" > "${SNAP}.mig" || true
     echo "  snapshot: $SNAP ($(du -h "$SNAP" | cut -f1), pre-migration count: ${PRE_MIG:-미상})"
     # retention: 최근 10개만 (hourly 12개·m710q daily 와 별개 트랙, .mig 사이드카 포함)
@@ -85,10 +96,10 @@ done
 
 echo ""
 echo "=== [6/7] Verify DB binding (host bind mount, not ephemeral image DB) ==="
-# compose 는 host db.sqlite3 를 /app/db.sqlite3 로 바인드한다(docker-compose.yml).
-# .env 의 DATABASE_PATH 가 이 마운트를 벗어나면 컨테이너가 이미지 내부 빈 DB 로 폴백 →
-# 사이트가 빈 데이터로 뜬다(실데이터는 $ROOT/db.sqlite3 에 안전). 이 게이트가 오배선을 잡는다.
-EXPECT_DB=/app/db.sqlite3
+# compose 는 host 디렉터리 $ROOT/db 를 /app/hostdb 로 바인드하고 DATABASE_PATH 를
+# environment 로 고정한다(docker-compose.yml). 이 값이 어긋나면 컨테이너가 이미지 내부
+# 빈 DB 로 폴백 → 사이트가 빈 데이터로 뜬다(실데이터는 $ROOT/db/db.sqlite3 에 안전).
+EXPECT_DB=/app/hostdb/db.sqlite3
 # manage.py shell 경유 — 컨테이너에 DJANGO_SETTINGS_MODULE env 가 없어 순수 python -c 는
 # ImproperlyConfigured 로 죽는다(0.6.12 배포에서 false-fail 로 드러남).
 DB_NAME=$(docker compose exec -T web \
@@ -99,8 +110,8 @@ if [ "$DB_NAME" = "$EXPECT_DB" ]; then
 else
     echo "  ✗ FATAL: container DB = '${DB_NAME:-<empty>}' — 기대 ${EXPECT_DB} 아님."
     echo "    컨테이너가 마운트되지 않은 이미지 내부 DB 를 쓰고 있다 → 사이트가 빈 데이터로 뜬다."
-    echo "    실데이터는 ${ROOT}/db.sqlite3 에 안전. 고칠 곳: ${ROOT}/.env 의"
-    echo "    DATABASE_PATH(설정했다면 ${EXPECT_DB} 여야 함) 확인 후 (cd ${ROOT} && docker compose up -d --force-recreate web)"
+    echo "    실데이터는 ${ROOT}/db/db.sqlite3 에 안전. compose 의 environment DATABASE_PATH 가"
+    echo "    ${EXPECT_DB} 인지(구 compose 로 덮였는지) 확인 후 (cd ${ROOT} && docker compose up -d --force-recreate web)"
     exit 1
 fi
 

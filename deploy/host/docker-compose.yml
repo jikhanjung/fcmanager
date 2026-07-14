@@ -25,7 +25,14 @@ services:
       # 관리자 계정은 없을 때만 생성(신규 DB 부트스트랩).
       # 비번은 .env(DJANGO_SUPERUSER_PASSWORD)에서 주입 — 평문 커밋 금지.
       DJANGO_SUPERUSER_USERNAME: "admin"
+      # 디렉터리 마운트 안의 DB — env_file 보다 우선(compose environment)이라 .env 오배선 무해.
+      # deploy.sh DB 게이트가 이 값을 검증한다.
+      DATABASE_PATH: /app/hostdb/db.sqlite3
     volumes:
-      # DB·미디어는 호스트 영속 경로(/srv/fcmanager). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
-      - /srv/fcmanager/db.sqlite3:/app/db.sqlite3
+      # WAL 을 위해 파일이 아닌 *디렉터리* 를 마운트 — -wal/-shm 형제 파일이 호스트에 남아야
+      # 호스트 백업(backup_db.py hourly·m710q daily 미러)이 최신 커밋을 본다(파일만 마운트하면
+      # 컨테이너 사설 레이어에 갇힘). DB 전용 하위 디렉터리만 마운트(fsis2026 패턴 — .env·backup
+      # 비노출, cdGTS 는 루트 전체 마운트). uid 1000(컨테이너 appuser) 쓰기 가능해야 함.
+      # 구 레이아웃(/srv/fcmanager/db.sqlite3 파일)은 deploy.sh 가 1회 자동 이행(0.6.16).
+      - /srv/fcmanager/db:/app/hostdb
       - /srv/fcmanager/media:/app/media

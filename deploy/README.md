@@ -66,11 +66,12 @@ docker compose -f deploy/docker-compose.yml up --build
 | `DJANGO_DEBUG` | `false` | |
 | `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS` | compose 에 지정 | fcmanager.app |
 | `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL` | (없음) | 지정 시 관리자 계정 보증(없을 때만 생성) |
-| `DATABASE_PATH` | (미설정 = `/app/db.sqlite3`) | 설정 시 반드시 `/app/db.sqlite3` — deploy.sh DB 게이트가 검증 |
+| `DATABASE_PATH` | compose environment 가 `/app/hostdb/db.sqlite3` 로 고정 | .env 값은 무시됨(environment 우선). deploy.sh DB 게이트가 검증 |
 
 ## 주의
 
-- DB 는 SQLite 파일 마운트(`/srv/fcmanager/db.sqlite3` → `/app/db.sqlite3`). 미디어는
-  `/srv/fcmanager/media`. 백업 트랙 3종은 `DEPLOY.md` 백업 지도 참조.
+- DB 는 SQLite **디렉터리 마운트**(`/srv/fcmanager/db` → `/app/hostdb`, DB=`/app/hostdb/db.sqlite3`)
+  — WAL 형제 파일(-wal/-shm)을 호스트와 공유해 호스트 백업이 최신 커밋을 본다(0.6.16,
+  fsis2026 패턴). 미디어는 `/srv/fcmanager/media`. 백업 트랙 3종은 `DEPLOY.md` 백업 지도 참조.
 - HTTPS 리다이렉트는 앞단 nginx 담당 — Django `SECURE_SSL_REDIRECT` 를 켜지 말 것
   (로컬 healthz/smoke 평문 검증과 충돌, settings.py 주석 참조).
