@@ -83,6 +83,9 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.21`: **gosu 드롭 시 `HOME=/tmp`(+`MPLCONFIGDIR`) 명시**(entrypoint, fsis 0.5.82 동형 — 3-repo
+  수렴). 미등록 numeric uid 의 HOME 이 비쓰기 경로로 남아 HOME 쓰기 라이브러리 추가 시 잠복 크래시하는 함정의
+  선제 차단. 동작 무변화(현 코드는 HOME 미사용), 마이그레이션 없음. 빌드·push 만 — 운영 배포는 다음 접점에.
 - `0.6.19`: **SQLite WAL 전환**(settings OPTIONS `init_command: PRAGMA journal_mode=WAL` +
   `timeout=20`·`transaction_mode=IMMEDIATE`, cdGTS 동형) — reader 가 writer 에 안 막힘.
   `-wal`/`-shm` 형제 파일은 디렉터리 마운트(0.6.16)로 호스트 공유, hourly 백업은 online
