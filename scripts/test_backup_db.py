@@ -24,19 +24,40 @@ PAGE_SIZE = 4096
 SESSION_KEY = 'zz9tokenzz9tokenzz9tokenzz9token42'   # 파일 바이트에서 찾기 쉬운 표식
 
 
-def make_db(path: Path, rows: int = 500, wal: bool = False, sessions: int = 3):
+def make_db(path: Path, rows: int = 500, wal: bool = False, sessions: int = 3,
+            expired_sessions: int = 0, writer_secure_delete: str = 'ON'):
     """실제 sqlite DB 를 만든다. wal=True 면 운영과 같은 WAL 모드(-wal/-shm 형제 생성).
 
     운영 스키마를 흉내내 `django_session` 도 만든다 — 반출 위생의 대상.
+
+    `expired_sessions` 는 **과거에 지워진 세션**을 재현한다(로그아웃·만료 정리·로그인 시 회전).
+    이게 운영 DB 의 실제 모양이고 **위생의 진짜 대상**이다 — 그 잔류는 free page 에 남고
+    `backup()` 이 페이지 단위로 스냅샷에 옮기므로, 이미 행이 아니라서 `DELETE` 가 못 닿는다.
+    `writer_secure_delete='OFF'` 면 그 잔류가 바이트로 남는다(= VACUUM 없이는 반출된다).
+
+    ⚠️ 이 두 인자가 없던 초판 픽스처는 세션을 만들고 **그 자리에서** 지우는 경로만 밟아
+    "DELETE 만으로도 지워진다"는 오진을 낳았다(devlog 095 §4 정정 / 096 §2). 픽스처가
+    재현하지 않는 조건은 테스트가 반증도 입증도 못 한다.
     """
     conn = sqlite3.connect(str(path))
+    conn.execute(f'PRAGMA secure_delete={writer_secure_delete}')
     if wal:
         conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)')
     conn.executemany('INSERT INTO t (v) VALUES (?)', [(f'row-{i}' * 20,) for i in range(rows)])
-    if sessions:
+    if sessions or expired_sessions:
         conn.execute('CREATE TABLE django_session (session_key TEXT PRIMARY KEY, '
                      'session_data TEXT, expire_date TEXT)')
+    if expired_sessions:
+        # 과거 세대: 넣었다가 지운다 → 잔류가 free page 로 간다(라이브 DB 의 실제 이력).
+        conn.executemany(
+            'INSERT INTO django_session VALUES (?, ?, ?)',
+            [(f'{SESSION_KEY}old{i}', 'z' * 200, '2020-01-01') for i in range(expired_sessions)],
+        )
+        conn.commit()
+        conn.execute('DELETE FROM django_session')
+        conn.commit()
+    if sessions:
         # session_data 에 부피를 준다: 소량이면 한 페이지에 들어가 DELETE 해도 페이지가
         # 해제되지 않아(루트 페이지는 테이블에 남는다) freelist 단언이 공허해진다(실측).
         conn.executemany(
@@ -195,21 +216,38 @@ class TestSanitizeExport(BackupTestCase):
     def test_token_bytes_are_gone_from_file(self):
         """행 수 0 은 위생의 증거가 아니다 — 파일을 통째로 grep 해 **우리가 원하는 속성**을 본다.
 
-        ⚠️ 이 단언은 VACUUM 의 증거가 **아니다**: 이 빌드는 `secure_delete` 컴파일 기본값이 1 이라
-        DELETE 만으로도 바이트가 지워져 VACUUM 을 빼도 통과한다(변이 테스트로 확인, 2026-07-15).
-        VACUUM 이 돌았음은 아래 `test_snapshot_has_no_free_pages` 가 못 박는다.
+        ⚠️ 살아있는 세션만 있는 픽스처에선 이 단언이 VACUUM 을 검증하지 **못한다**: 지금 지우는
+        행은 `secure_delete`(이 빌드 기본값 1)가 덮어줘 VACUUM 을 빼도 통과한다(변이 테스트로
+        확인). 운영 조건을 재현해 VACUUM 을 못 박는 건 아래 `test_..._from_expired_sessions`.
         """
         make_db(self.src, sessions=200)
         dest = backup_db.backup_one('fcmanager', self.src)
         self.assertNotIn(SESSION_KEY.encode(), dest.read_bytes(), 'free page 에 토큰이 남아 있다')
 
+    def test_token_bytes_are_gone_from_expired_sessions(self):
+        """★ 운영의 실제 조건 — **과거에** 지워진 세션의 free page 잔류까지 반출되지 않는가.
+
+        여기가 위생의 진짜 대상이다. 라이브 DB 는 로그아웃·만료·회전으로 세션을 계속 지워왔고,
+        그 writer 의 `secure_delete` 가 0 이었으면 잔류가 free page 에 남는다. `backup()` 은
+        페이지 단위 복사라 그걸 스냅샷으로 옮기고, **이미 행이 아니므로 `DELETE` 는 물론
+        `secure_delete=ON` 도 닿지 못한다** — `VACUUM`(재구축)만이 없앤다.
+
+        그래서 이 단언은 **환경 기본값에 기대지 않는다**: writer 를 `OFF` 로 고정해 잔류를
+        *반드시* 만들어 놓고 본다. VACUUM 을 빼면 실패한다(변이 테스트 확인: 442개 잔존).
+        실측 근거는 devlog 096 §2.
+        """
+        make_db(self.src, sessions=3, expired_sessions=200, writer_secure_delete='OFF')
+        self.assertIn(SESSION_KEY.encode(), self.src.read_bytes(),
+                      '픽스처가 재현 조건을 못 만들었다 — 라이브에 free page 잔류가 있어야 한다')
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertNotIn(SESSION_KEY.encode(), dest.read_bytes(),
+                         '과거에 지워진 세션의 잔류가 스냅샷으로 반출됐다 — VACUUM 이 빠졌나')
+
     def test_snapshot_has_no_free_pages(self):
         """VACUUM 이 실제로 돌았는가 — `freelist_count == 0`(파일이 재작성돼 freed page 가 없다).
 
-        왜 이 단언이 필요한가: 위 grep 은 `secure_delete=1`(현 빌드 기본값)이 대신 해준 일까지
-        통과시킨다. 그건 **주변 환경의 기본값에 기댄 것이지 계약이 아니다** — `secure_delete=0`
-        빌드에선 DELETE 만으론 토큰이 free page 에 남는다(실측). 그래서 환경 기본값과 무관한
-        보장(VACUUM 실행) 자체를 고정한다.
+        위 두 grep 이 "토큰이 없다"는 *결과*를 본다면, 이건 **수단**(파일 재작성)을 고정한다 —
+        토큰 외의 잔류(예: 앞으로 위생 대상에 추가될 테이블)까지 같은 보장을 받게.
         """
         # 페이지를 여러 장 쓸 만큼 실어야 DELETE 가 실제로 free page 를 만든다 — 그래야
         # 이 단언이 VACUUM 을 검증한다(3행짜리 픽스처론 freelist 가 0 이라 공허했다).

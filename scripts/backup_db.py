@@ -129,13 +129,17 @@ def sanitize_export(path: Path) -> tuple[bool, int]:
             conn.execute(f'DELETE FROM {table}')
             removed += n
         conn.commit()
-        # VACUUM 으로 파일을 재작성한다. ⚠️ 흔히 "DELETE 만으론 free page 에 토큰이 남는다"고
-        # 하지만 **그건 빌드에 달렸다** — dolfinid·m710q 둘 다 `PRAGMA secure_delete` 컴파일
-        # 기본값이 **1** 이라 DELETE 만으로도 바이트가 지워진다(2026-07-15 실측, sqlite 3.45/3.46).
-        # 즉 지금 VACUUM 을 빼도 토큰은 안 남는다. 그래도 두는 이유: 그건 **주변 환경의 기본값에
-        # 기댄 것이지 계약이 아니다** — `secure_delete=0` 빌드에선 DELETE 만 하면 토큰 문자열이
-        # free page 에 그대로 남는 것을 실측으로 확인했다(OFF 로 두고 grep). VACUUM 은 그 기본값과
-        # 무관하게 free page 자체를 없앤다(+ 부수적으로 파일 축소). VACUUM 은 트랜잭션 안에서 못 도니 commit 후.
+        # ★ VACUUM 은 선택이 아니다 — DELETE 로는 **구조적으로 못 닿는 잔류**가 있다.
+        # 위 DELETE 는 *지금 있는 행*만 지운다. 그런데 운영 DB 는 **과거에도** 세션을 지웠고
+        # (로그아웃·만료 정리·로그인 시 회전) 그 잔류는 free page 에 남는다. backup() 은 페이지
+        # 단위 복사라 **free page 를 그대로 스냅샷에 옮긴다** — 이미 행이 아니므로 DELETE 도,
+        # `secure_delete=ON` 도 닿지 못한다. 실측(2026-07-15, sqlite 3.45.1): 라이브 writer 가
+        # secure_delete=OFF 였으면 스냅샷 토큰 543개 → secure_delete=ON+DELETE 후에도 **442개
+        # 잔존** → VACUUM 후 **0**. 즉 노출은 위생을 실행하는 이 코드의 빌드가 아니라 **그 DB 를
+        # 평생 건드린 모든 writer(= 호스트가 아니라 컨테이너)의 빌드**에 걸리고, 그 이력은 되짚을
+        # 수 없다. VACUUM(재구축)만이 이력을 수선한다. VACUUM 은 트랜잭션 안에서 못 도니 commit 후.
+        # (초판 주석은 "secure_delete 기본값 1 이라 사실 불필요하지만 보험으로 둔다"고 적었다 —
+        #  픽스처가 '과거에 지워진 세션'을 재현하지 않아 나온 오진. devlog 095 §4 정정 / 096 §2)
         conn.execute('VACUUM')
         return True, removed
     except sqlite3.DatabaseError as e:
