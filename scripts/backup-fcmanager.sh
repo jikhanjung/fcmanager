@@ -115,14 +115,32 @@ fi
 # 대상은 우리가 방금 받은 임시 파일이지 라이브 DB 가 아니므로 rw 로 여는 게 맞다: 마지막 커넥션이
 # 정상 종료하면 sqlite 가 -wal/-shm 을 스스로 지우고, journal_mode=DELETE 로 내려 **아카이브가
 # 운영 코드 버전과 무관하게 항상 단일 파일**이 되게 한다.
-INTEGRITY=$(python3 -c "
+# 여기서 **반출 위생도 한 번 더** 건다(방어적, 0.6.25): 운영 backup_db.py 가 이미 django_session 을
+# 지우고 내보내지만, 그건 **상대 코드 버전에 기댄 가정**이다(구버전 운영·수동 스냅샷·타 호스트).
+# 이 스크립트가 바로 그 사본을 NAS(0777·90일)와 테스트 컨테이너로 밀어넣는 당사자라, 신뢰 경계를
+# 넘기 직전인 여기서 자기 책임으로 확인한다. 이미 깨끗하면 0행 삭제 = 무해.
+# (오늘의 교훈 동형: "생산자만 고치면 끝이 아니다" — 소비자도 자기 보장을 가져야 한다.)
+# 출력 규약 = 마지막 줄 `<integrity>|<제거행수>`. 2>&1 로 예외 메시지를 잡으므로 **파이썬이
+# stdout/stderr 에 다른 걸 찍으면 안 된다**(찍으면 그 잡음이 그대로 판정 문자열이 된다).
+SANITIZE_OUT=$(python3 -c "
 import sqlite3
 conn = sqlite3.connect('${DB_SNAPSHOT}.tmp')
 result = conn.execute('PRAGMA integrity_check').fetchone()[0]
+removed = 0
 if result == 'ok':
+    has = conn.execute(\"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='django_session'\").fetchone()[0]
+    if has:
+        removed = conn.execute('SELECT count(*) FROM django_session').fetchone()[0]
+        if removed:
+            conn.execute('DELETE FROM django_session')
+            conn.commit()
     conn.execute('PRAGMA journal_mode=DELETE')   # 아카이브에 동시 writer 는 없다 — WAL 일 이유가 없다
+    conn.execute('VACUUM')                       # free page 제거(secure_delete 기본값에 기대지 않는 보장)
 conn.close()
-print(result)" 2>&1) || INTEGRITY="열기/PRAGMA 실패: ${INTEGRITY}"
+print(f'{result}|{removed}')" 2>&1) || SANITIZE_OUT="열기/PRAGMA 실패: ${SANITIZE_OUT}|0"
+LAST_LINE=${SANITIZE_OUT##*$'\n'}
+INTEGRITY=${LAST_LINE%%|*}
+SESSIONS_REMOVED=${LAST_LINE##*|}
 rm -f "${DB_SNAPSHOT}.tmp-wal" "${DB_SNAPSHOT}.tmp-shm"   # 위가 중간에 죽었을 때의 안전망
 if [ "${INTEGRITY}" != "ok" ]; then
     rm -f "${DB_SNAPSHOT}.tmp"
@@ -132,7 +150,7 @@ fi
 mv -f "${DB_SNAPSHOT}.tmp" "${DB_SNAPSHOT}"
 # 구 실행(라이브 scp 시절)이 남긴 형제 파일 제거 — 남겨두면 새 본체에 낡은 -wal 이 얹힌 꼴이 된다.
 rm -f "${DB_SNAPSHOT}-wal" "${DB_SNAPSHOT}-shm"
-log "DB 스냅샷 완료: ${DB_SNAPSHOT} (integrity ok, 단일 파일)"
+log "DB 스냅샷 완료: ${DB_SNAPSHOT} (integrity ok, 단일 파일, 반출 위생: 세션 ${SESSIONS_REMOVED}행 제거)"
 
 DELETED=$(cleanup_tiered "${DB_HISTORY_DIR}" "db_*.sqlite3" "db_" "sqlite3" ${LOCAL_DAILY_DAYS})
 [ "${DELETED}" -gt 0 ] && log "로컬 DB 정리: ${DELETED}개 삭제 (${LOCAL_DAILY_DAYS}일 초과, 월초/연말 보존)"

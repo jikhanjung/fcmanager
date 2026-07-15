@@ -21,13 +21,28 @@ from scripts import backup_db
 PAGE_SIZE = 4096
 
 
-def make_db(path: Path, rows: int = 500, wal: bool = False):
-    """실제 sqlite DB 를 만든다. wal=True 면 운영과 같은 WAL 모드(-wal/-shm 형제 생성)."""
+SESSION_KEY = 'zz9tokenzz9tokenzz9tokenzz9token42'   # 파일 바이트에서 찾기 쉬운 표식
+
+
+def make_db(path: Path, rows: int = 500, wal: bool = False, sessions: int = 3):
+    """실제 sqlite DB 를 만든다. wal=True 면 운영과 같은 WAL 모드(-wal/-shm 형제 생성).
+
+    운영 스키마를 흉내내 `django_session` 도 만든다 — 반출 위생의 대상.
+    """
     conn = sqlite3.connect(str(path))
     if wal:
         conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)')
     conn.executemany('INSERT INTO t (v) VALUES (?)', [(f'row-{i}' * 20,) for i in range(rows)])
+    if sessions:
+        conn.execute('CREATE TABLE django_session (session_key TEXT PRIMARY KEY, '
+                     'session_data TEXT, expire_date TEXT)')
+        # session_data 에 부피를 준다: 소량이면 한 페이지에 들어가 DELETE 해도 페이지가
+        # 해제되지 않아(루트 페이지는 테이블에 남는다) freelist 단언이 공허해진다(실측).
+        conn.executemany(
+            'INSERT INTO django_session VALUES (?, ?, ?)',
+            [(f'{SESSION_KEY}{i}', 'x' * 200, '2099-01-01') for i in range(sessions)],
+        )
     conn.commit()
     conn.close()
 
@@ -155,6 +170,98 @@ class TestBackupOne(BackupTestCase):
             dest = backup_db.backup_one('fcmanager', self.src)
         self.assertIsNone(dest)
         self.assertEqual(self.snapshots(), [])
+
+
+class TestSanitizeExport(BackupTestCase):
+    """반출 위생 — 스냅샷은 호스트를 떠난다(NAS 0777·90일). bearer 토큰을 싣지 않는다."""
+
+    def sessions_in(self, path: Path) -> int:
+        conn = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
+        n = conn.execute('SELECT count(*) FROM django_session').fetchone()[0]
+        conn.close()
+        return n
+
+    def test_sessions_are_stripped_from_snapshot(self):
+        make_db(self.src, sessions=3)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertEqual(self.sessions_in(dest), 0)
+
+    def test_live_db_is_never_touched(self):
+        """★ 라이브 DB 는 읽기만 — 로그인한 사람이 튕기면 안 된다."""
+        make_db(self.src, sessions=3)
+        backup_db.backup_one('fcmanager', self.src)
+        self.assertEqual(self.sessions_in(self.src), 3, '라이브 DB 의 세션이 지워졌다')
+
+    def test_token_bytes_are_gone_from_file(self):
+        """행 수 0 은 위생의 증거가 아니다 — 파일을 통째로 grep 해 **우리가 원하는 속성**을 본다.
+
+        ⚠️ 이 단언은 VACUUM 의 증거가 **아니다**: 이 빌드는 `secure_delete` 컴파일 기본값이 1 이라
+        DELETE 만으로도 바이트가 지워져 VACUUM 을 빼도 통과한다(변이 테스트로 확인, 2026-07-15).
+        VACUUM 이 돌았음은 아래 `test_snapshot_has_no_free_pages` 가 못 박는다.
+        """
+        make_db(self.src, sessions=200)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertNotIn(SESSION_KEY.encode(), dest.read_bytes(), 'free page 에 토큰이 남아 있다')
+
+    def test_snapshot_has_no_free_pages(self):
+        """VACUUM 이 실제로 돌았는가 — `freelist_count == 0`(파일이 재작성돼 freed page 가 없다).
+
+        왜 이 단언이 필요한가: 위 grep 은 `secure_delete=1`(현 빌드 기본값)이 대신 해준 일까지
+        통과시킨다. 그건 **주변 환경의 기본값에 기댄 것이지 계약이 아니다** — `secure_delete=0`
+        빌드에선 DELETE 만으론 토큰이 free page 에 남는다(실측). 그래서 환경 기본값과 무관한
+        보장(VACUUM 실행) 자체를 고정한다.
+        """
+        # 페이지를 여러 장 쓸 만큼 실어야 DELETE 가 실제로 free page 를 만든다 — 그래야
+        # 이 단언이 VACUUM 을 검증한다(3행짜리 픽스처론 freelist 가 0 이라 공허했다).
+        make_db(self.src, sessions=200)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        conn = sqlite3.connect(f'file:{dest}?mode=ro', uri=True)
+        try:
+            self.assertEqual(conn.execute('PRAGMA freelist_count').fetchone()[0], 0)
+        finally:
+            conn.close()
+
+    def test_other_data_survives(self):
+        """위생은 세션만 — 도메인 데이터·해시는 백업의 존재 이유다."""
+        make_db(self.src, rows=500, sessions=3)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        conn = sqlite3.connect(f'file:{dest}?mode=ro', uri=True)
+        self.assertEqual(conn.execute('SELECT count(*) FROM t').fetchone()[0], 500)
+        conn.close()
+
+    def test_missing_session_table_is_not_a_failure(self):
+        """지울 토큰이 없는 것은 실패가 아니다 — 백업은 그대로 채택된다."""
+        make_db(self.src, sessions=0)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertIsNotNone(dest)
+        self.assertTrue(dest.exists())
+
+    def test_hygiene_failure_blocks_adoption(self):
+        """위생 못 한 사본은 내보내지 않는다 — 토큰 실린 스냅샷보다 결번이 낫다."""
+        make_db(self.src, sessions=3)
+        with mock.patch.object(backup_db, 'sanitize_export', return_value=(False, 0)):
+            dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertIsNone(dest)
+        self.assertEqual(self.snapshots(), [])
+        self.assertEqual(list(self.backup_dir.glob('*.tmp')), [])
+
+    def test_snapshot_stays_single_file_after_vacuum(self):
+        """VACUUM 이 저널 모드를 되돌리지 않는지 — 단일 파일 계약은 유지돼야 한다."""
+        make_db(self.src, wal=True, sessions=3)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertEqual([p.name for p in self.backup_dir.iterdir()], [dest.name])
+        conn = sqlite3.connect(f'file:{dest}?mode=ro', uri=True)
+        self.assertEqual(conn.execute('PRAGMA journal_mode').fetchone()[0], 'delete')
+        conn.close()
+
+    def test_corrupt_source_reports_corruption_not_hygiene(self):
+        """손상이면 '위생 실패'가 아니라 **센티넬(손상 진단)** 로 가야 한다 — 사인이 정확해야."""
+        make_db(self.src, sessions=3)
+        corrupt_db(self.src)
+        dest = backup_db.backup_one('fcmanager', self.src)
+        self.assertIsNone(dest)
+        self.assertTrue(self.sentinel.exists(), '손상인데 센티넬이 안 떴다')
+        self.assertTrue((self.backup_dir / 'fcmanager_INTEGRITY_FAIL.corrupt').exists())
 
 
 class TestBackupData(BackupTestCase):

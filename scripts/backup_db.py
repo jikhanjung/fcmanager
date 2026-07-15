@@ -4,8 +4,10 @@
 fsis2026 의 backup_db.py 를 FCManager 규모에 맞게 단순화한 것.
   - DB: sqlite3 online backup API (컨테이너가 쓰는 중에도 안전)
   - 스냅샷마다 PRAGMA integrity_check → **실패하면 채택도 prune 도 하지 않는다**(아래 참조)
+  - **반출 위생**: 스냅샷에서 `django_session`(bearer 토큰) 제거 + VACUUM — 이 파일은 호스트를
+    떠난다(daily 미러 → NAS 0777·90일 · 테스트 컨테이너). 라이브 DB 는 안 건드린다(§EXPORT_STRIP_TABLES).
   - nginx: /etc/nginx/sites-available/ tar.gz (전체 호스트 복원용). 채택 전 `tar -tzf` 로 검증.
-  - 소스별 최근 RETAIN_COUNT 개만 유지(오래된 것부터 삭제)
+  - 소스별 최근 RETAIN_COUNT 개만 유지(24 = daily 오프사이트 간격을 덮는 유도값)
   - pre_deploy 스냅샷 retention 은 deploy.sh 가 단독 관리(20개) — 여기서 건드리지 않는다
     (fsis 에서 두 곳이 다른 수치로 같은 디렉터리를 prune 하던 충돌 교훈, 2026-07-14).
   - 배포 시 이미지에서 self-heal 추출(deploy/host/_extract_and_deploy.sh).
@@ -17,7 +19,7 @@ fsis 와 달리 ghdb·data JSON 트랙 없음. DB 가 작아(<5MB) 부담 없음
 무결성 검사를 왜 여기 두나 (0.6.24, devlog 094 — cdGTS 0.1.68/devlog 150 포팅)
 --------------------------------------------------------------------------------
 목적은 **탐지가 아니라 로테이션 오염 방지**다. `backup()` 은 소스 페이지를 충실히 복사하므로 소스가
-깨져 있으면 스냅샷도 조용히 깨진 채 만들어지고, RETAIN_COUNT=12(매시) 라 **12시간이면 성한 스냅샷이
+깨져 있으면 스냅샷도 조용히 깨진 채 만들어지고, 매시 로테이션이라 **RETAIN_COUNT 시간이면 성한 스냅샷이
 전부 prune 된다.** 손상을 늦게 알아차리는 것보다 이쪽이 훨씬 위험하다 — 복구 대상 자체가 사라지므로.
 그래서 규칙은 두 줄이다:
 
@@ -54,11 +56,33 @@ SOURCES = [
 DATA_DIRS = [
     ('dolfinid_nginx', Path('/etc/nginx/sites-available')),
 ]
-RETAIN_COUNT = 12      # 매시 1개 → 최근 12시간 유지
+# 매시 1개 → 최근 24시간 유지. **튜닝값이 아니라 유도값**(계약 §백업 레인 "창을 덮는다", 0.6.25):
+# 세밀 트랙(hourly)의 창이 성긴 트랙(daily 오프사이트, 05시)의 간격을 덮어야 한다 —
+#   RETAIN_COUNT × 주기 ≥ 오프사이트 간격 → 12×1h = 12h < 24h ✗ / 24×1h = 24h ≥ 24h ✓
+# 12 이면 05시 daily 와 그 12시간 뒤(17시) 사이에 **granularity 갭**이 생겨, 하루의 절반은
+# 시간 단위 복원이 안 되고 어제치 daily 로만 돌아간다. 디스크는 0.45MB × 24 ≈ 11MB.
+RETAIN_COUNT = 24
 MIN_FREE_GB = 2        # 백업 디렉토리 여유가 이 미만이면 abort (디스크 풀 방지)
 
 # DB 디렉터리(= 컨테이너의 /app/hostdb)에 놓는 손상 플래그. config/views_health.py 가 stat 한다.
 SENTINEL_NAME = 'INTEGRITY_FAIL'
+
+# --- 반출 위생 (0.6.25, 계약 §규범 MUST — cdGTS devlog 151 동형) ---
+# 이 스냅샷은 호스트를 떠난다(daily 미러 → m710q 30일 · NAS 90일 **0777** · 테스트 컨테이너).
+# `django_session.session_key` 는 **쿠키에 담기는 값 그 자체(bearer 토큰)** 다 — 사본을 읽은 사람이
+# 그걸 **운영에** 되제시하면 운영이 자기 DB 에서 행을 찾아 자기 SECRET_KEY 로 디코드해 그 사용자로
+# 로그인된다. ⚠️ **SECRET_KEY 가 달라도 못 막는다**: 키 차이는 "받는 쪽이 session_data 를 해독하는 것"만
+# 막고, 이 공격은 해독을 하지 않는다. 해시는 뚫어야 쓰지만 세션 키는 그냥 쓰면 된다.
+# 대칭적으로 그 세션은 테스트에선 무용지물(서명 검증 실패) = **테스트엔 쓸모없고 운영엔 위험한 순수 손해**.
+#
+# 왜 여기(hourly)인가 — cdGTS 는 sync 스크립트에 넣었는데(그쪽은 sync 가 자기 스냅샷을 직접 뜬다),
+# fcmanager 의 daily 는 **이 스냅샷을 소비**한다(0.6.24). 그래서 초크포인트가 상류로 옮겨왔다:
+# 여기서 지우면 daily·NAS·테스트 타깃·수동 scp 까지 **전부 구조적으로** 깨끗해진다.
+# ★ 라이브 운영 DB 는 읽기만 한다 — 로그인한 사람은 영향 없다(백업 API 는 소스를 안 건드린다).
+# 복원 시 세션이 없어 재로그인이 필요하지만, rollback 경로는 pre_deploy 스냅샷(정지 후 cp, 호스트를
+# 떠나지 않음)이라 그쪽은 세션이 온전하다. hourly 는 재해 복구용 = 재로그인은 무시할 만한 비용.
+# 해시(auth_user.password)는 **남긴다** — 강하고(pbkdf2), 지우면 테스트 로그인이 막힌다(성질이 다르다).
+EXPORT_STRIP_TABLES = ['django_session']
 
 
 def log(msg: str):
@@ -83,6 +107,45 @@ def integrity_check(path: Path) -> list[str]:
         if conn is not None:
             conn.close()
     return [r[0] for r in rows if r and r[0] != 'ok']
+
+
+def sanitize_export(path: Path) -> tuple[bool, int]:
+    """스냅샷에서 bearer 토큰을 지운다 — **사본만**, 라이브 DB 는 절대 안 건드린다.
+
+    반환 `(ok, removed)`. ok=False 면 호출자가 **채택을 중단**한다(위생 못 한 사본을 내보내느니
+    이번 시각 백업을 거르는 게 낫다 — 계약의 "검증 실패면 채택 안 함"과 같은 모양).
+    테이블이 없으면 지울 토큰도 없으므로 ok(0).
+    """
+    removed = 0
+    conn = None
+    try:
+        conn = sqlite3.connect(str(path))
+        for table in EXPORT_STRIP_TABLES:
+            try:
+                n = conn.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+            except sqlite3.OperationalError:
+                log(f'반출 위생: {table} 테이블 없음 — 지울 토큰 없음')
+                continue
+            conn.execute(f'DELETE FROM {table}')
+            removed += n
+        conn.commit()
+        # VACUUM 으로 파일을 재작성한다. ⚠️ 흔히 "DELETE 만으론 free page 에 토큰이 남는다"고
+        # 하지만 **그건 빌드에 달렸다** — dolfinid·m710q 둘 다 `PRAGMA secure_delete` 컴파일
+        # 기본값이 **1** 이라 DELETE 만으로도 바이트가 지워진다(2026-07-15 실측, sqlite 3.45/3.46).
+        # 즉 지금 VACUUM 을 빼도 토큰은 안 남는다. 그래도 두는 이유: 그건 **주변 환경의 기본값에
+        # 기댄 것이지 계약이 아니다** — `secure_delete=0` 빌드에선 DELETE 만 하면 토큰 문자열이
+        # free page 에 그대로 남는 것을 실측으로 확인했다(OFF 로 두고 grep). VACUUM 은 그 기본값과
+        # 무관하게 free page 자체를 없앤다(+ 부수적으로 파일 축소). VACUUM 은 트랜잭션 안에서 못 도니 commit 후.
+        conn.execute('VACUUM')
+        return True, removed
+    except sqlite3.DatabaseError as e:
+        # 손상 소스면 여기서 죽는다 — 호출자는 이걸 무시하고 integrity_check 로 넘어가
+        # 센티넬 경로를 타게 한다(손상 진단이 위생 실패보다 정확한 사인이다).
+        log(f'반출 위생 실패: {e}')
+        return False, removed
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def raise_sentinel(db_dir: Path, problems: list[str]):
@@ -145,6 +208,11 @@ def backup_one(name: str, src: Path) -> Path | None:
                 if conn is not None:
                     conn.close()
 
+        # 반출 위생을 **integrity_check 앞**에 둔다 — 그래야 검사가 *실제로 채택할 산출물*(VACUUM 후)을
+        # 본다. 손상 소스면 여기서 DatabaseError 로 실패하지만 그냥 흘려보내고 아래 게이트가 판정하게
+        # 한다: "손상"이 "위생 실패"보다 정확한 진단이고, 센티넬 경로도 그쪽에 달려 있다.
+        hygiene_ok, removed = sanitize_export(tmp)
+
         # 채택 전 게이트 — 깨진 스냅샷은 로테이션에 들어가지 않는다(docstring "로테이션 오염 방지").
         problems = integrity_check(tmp)
         if problems:
@@ -163,10 +231,17 @@ def backup_one(name: str, src: Path) -> Path | None:
             raise_sentinel(src.parent, problems)
             return None
 
+        # 소스는 성한데 위생만 실패한 경우 — 위생 못 한 사본은 내보내지 않는다. 이 스냅샷이
+        # daily 미러를 거쳐 NAS(0777·90일)와 테스트 컨테이너로 나가기 때문(계약 §규범 MUST).
+        if not hygiene_ok:
+            log(f'{name}: !! 반출 위생 실패 — 스냅샷 미채택(토큰 실린 사본을 내보내지 않는다)')
+            tmp.unlink()
+            return None
+
         tmp.replace(dest)
         clear_sentinel(src.parent)
         size_mb = dest.stat().st_size / (1024 * 1024)
-        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB, integrity ok)')
+        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB, integrity ok, 세션 {removed}행 제거)')
         return dest
     except Exception as e:
         log(f'{name}: ERROR {e}')

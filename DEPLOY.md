@@ -68,7 +68,7 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 | 트랙 | 위치 | 주기·보존 |
 |---|---|---|
-| hourly 온라인 백업 | dolfinid `/srv/fcmanager/backup/` (`scripts/backup_db.py`, cron 매시) | 최근 12개 |
+| hourly 온라인 백업 | dolfinid `/srv/fcmanager/backup/` (`scripts/backup_db.py`, cron 매시) | 최근 **24개**(= daily 간격을 덮는 유도값, 0.6.25). **세션 토큰 제거된 사본** |
 | pre-deploy 스냅샷 | dolfinid `/srv/fcmanager/backup/pre_deploy/` (deploy.sh 가 down 직후) | 최근 20개 (3-repo 공통, 2026-07-14 통일) |
 | daily 미러 | m710q `~/backups/fcmanager/` (backup-fcmanager.sh, 05시) → NAS `/nas/JikhanJung/fcmanager_backup/` | 로컬 30일 계층 / NAS 90일 |
 | (파생) 테스트 타깃 | m710q `/srv/fcmanager/db` — daily step 8 이 갱신(백업 아님, 미러) | 매일 덮어씀 |
@@ -98,6 +98,20 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.25`: **반출 위생(세션 토큰) + hourly 보존 12 → 24**(cdGTS 151·0.1.69 반영, devlog 095).
+  마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 로 갱신된다.
+  - **hourly 스냅샷에서 `django_session` 제거 + VACUUM**. 이 스냅샷은 호스트를 떠난다(daily 미러 →
+    NAS **0777**·90일 · 테스트 컨테이너). `session_key` 는 **쿠키 값 그 자체(bearer 토큰)** 라 사본을
+    읽은 사람이 **운영에** 되제시하면 로그인된다 — **`SECRET_KEY` 가 달라도 안 막힌다**(그 공격은
+    해독을 하지 않는다). ★ **라이브 DB 는 읽기만** — 로그인 세션 무영향(실측 34행·유효 2개 불변).
+  - ⚠️ **hourly 로 복원하면 전원 재로그인**(세션이 없다). **`rollback.sh --db=restore` 는 pre_deploy
+    스냅샷**(정지 후 cp, 호스트 비반출)이라 **세션 온전** — 롤백 경로는 무영향.
+  - **`RETAIN_COUNT` 12 → 24**(유도값): `RETAIN × 주기 ≥ 오프사이트 간격` — 12 면 05시 daily 와 17시
+    사이에 granularity 갭(하루 절반이 시간 단위 복원 불가). 디스크 +6MB.
+  - **소급 정리 완료**(2026-07-15): 이미 반출된 **62벌에서 세션 1,992행 제거**(m710q 30일·NAS 90일·
+    테스트 타깃·dev_data 잔존분). 새 사본만 고쳐선 안 닫힌다.
+  - daily 미러(`~/scripts/backup-fcmanager.sh` — **호스트 복사 필요**)에도 방어적 위생 1겹.
+  - ⚠️ 남은 것: **NAS 0777**(무엇을 내보내나는 고쳤고 어디 두나는 그대로 — 3-repo 공용, 별건).
 - `0.6.24`: **hourly 백업 무결성 게이트 + `/healthz` degraded**(cdGTS 0.1.68 포팅, devlog 094).
   마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 추출로 갱신된다.
   **배포 후기(2026-07-15)**: 7/7 완주·smoke PASS. self-heal 갱신 확인 + 운영 라이브 DB 실행 =
