@@ -70,7 +70,22 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 |---|---|---|
 | hourly 온라인 백업 | dolfinid `/srv/fcmanager/backup/` (`scripts/backup_db.py`, cron 매시) | 최근 12개 |
 | pre-deploy 스냅샷 | dolfinid `/srv/fcmanager/backup/pre_deploy/` (deploy.sh 가 down 직후) | 최근 20개 (3-repo 공통, 2026-07-14 통일) |
-| daily 미러 | m710q `~/backups/fcmanager/` + `~/dev_data/fcmanager/` (backup-fcmanager.sh, 05시) | 스크립트 참조 |
+| daily 미러 | m710q `~/backups/fcmanager/` (backup-fcmanager.sh, 05시) → NAS `/nas/JikhanJung/fcmanager_backup/` | 로컬 30일 계층 / NAS 90일 |
+| (파생) 테스트 타깃 | m710q `/srv/fcmanager/db` — daily step 8 이 갱신(백업 아님, 미러) | 매일 덮어씀 |
+
+**백업의 유효성은 계약이다**(0.6.24, 계약 §백업 레인 — "검증되지 않은 백업은 안전망이 아니라
+안전망의 사본"). 세 규칙이 코드로 강제된다:
+1. **채택 전 검증** — hourly 는 스냅샷마다 `PRAGMA integrity_check`(nginx tar 는 `tar -tzf`),
+   daily 는 pull 한 스냅샷을 로컬에서 재검증. 통과 못 하면 로테이션에 넣지 않는다.
+2. **실패 시 prune 금지** — 새 아티팩트가 없으면 과거를 지우지 않는다(안 그러면 "백업 실패 +
+   과거 삭제"가 겹쳐 12시간이면 성한 스냅샷이 0개가 된다).
+3. **사람에게 닿는 경로** — 손상 시 `db/INTEGRITY_FAIL` → `/healthz` degraded → **smoke**(배포 때).
+   + daily 의 **스냅샷 신선도 2h 게이트 → telegram**(매일, 배포와 무관). crontab 에 MAILTO 가
+   없어 로그는 아무도 안 읽는다.
+
+**스냅샷은 일관된 단일 파일**(`journal_mode=DELETE`) — `-wal`/`-shm` 형제가 없다. 이걸 전제로
+daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽기 전용 검사 커넥션이 `-shm` 을
+만들어놓고 못 치워 고아가 영구 누적된다 — cdGTS devlog 150 §10, fcmanager 도 실측 재현.)
 
 복원은 **컨테이너 정지 후**(SQLite WAL torn-copy 방지) — `rollback.sh --db=restore` 가 표준 경로.
 `rollback.sh` 기본은 `--db=keep`(코드만 롤백) — 복원이 배포 후 운영 입력분까지 지우면 rollback
