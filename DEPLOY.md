@@ -100,6 +100,9 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
 
 - `0.6.25`: **반출 위생(세션 토큰) + hourly 보존 12 → 24**(cdGTS 151·0.1.69 반영, devlog 095).
   마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 로 갱신된다.
+  **배포 후기(2026-07-15)**: 7/7·smoke PASS. 운영 라이브 실행 = `세션 34행 제거`·integrity ok,
+  스냅샷 `django_session` **0행**·`freelist_count` **0**(VACUUM 증거)·데이터 무사(28경기, 해시 보존),
+  ★ 라이브 DB **34행·유효 2개 불변**(무영향).
   - **hourly 스냅샷에서 `django_session` 제거 + VACUUM**. 이 스냅샷은 호스트를 떠난다(daily 미러 →
     NAS **0777**·90일 · 테스트 컨테이너). `session_key` 는 **쿠키 값 그 자체(bearer 토큰)** 라 사본을
     읽은 사람이 **운영에** 되제시하면 로그인된다 — **`SECRET_KEY` 가 달라도 안 막힌다**(그 공격은
