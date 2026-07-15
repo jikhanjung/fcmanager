@@ -3,12 +3,36 @@
 
 fsis2026 의 backup_db.py 를 FCManager 규모에 맞게 단순화한 것.
   - DB: sqlite3 online backup API (컨테이너가 쓰는 중에도 안전)
-  - nginx: /etc/nginx/sites-available/ tar.gz (전체 호스트 복원용, 권한 없으면 skip)
+  - 스냅샷마다 PRAGMA integrity_check → **실패하면 채택도 prune 도 하지 않는다**(아래 참조)
+  - nginx: /etc/nginx/sites-available/ tar.gz (전체 호스트 복원용). 채택 전 `tar -tzf` 로 검증.
   - 소스별 최근 RETAIN_COUNT 개만 유지(오래된 것부터 삭제)
-  - cron 으로 매시 정각 실행 (dolfinid devops crontab):
+  - pre_deploy 스냅샷 retention 은 deploy.sh 가 단독 관리(20개) — 여기서 건드리지 않는다
+    (fsis 에서 두 곳이 다른 수치로 같은 디렉터리를 prune 하던 충돌 교훈, 2026-07-14).
+  - 배포 시 이미지에서 self-heal 추출(deploy/host/_extract_and_deploy.sh).
+  - cron 으로 매시 정각 실행 (dolfinid honestjung crontab):
       0 * * * * /usr/bin/python3 /srv/fcmanager/scripts/backup_db.py >> /srv/fcmanager/backup/backup.log 2>&1
 
 fsis 와 달리 ghdb·data JSON 트랙 없음. DB 가 작아(<5MB) 부담 없음.
+
+무결성 검사를 왜 여기 두나 (0.6.24, devlog 094 — cdGTS 0.1.68/devlog 150 포팅)
+--------------------------------------------------------------------------------
+목적은 **탐지가 아니라 로테이션 오염 방지**다. `backup()` 은 소스 페이지를 충실히 복사하므로 소스가
+깨져 있으면 스냅샷도 조용히 깨진 채 만들어지고, RETAIN_COUNT=12(매시) 라 **12시간이면 성한 스냅샷이
+전부 prune 된다.** 손상을 늦게 알아차리는 것보다 이쪽이 훨씬 위험하다 — 복구 대상 자체가 사라지므로.
+그래서 규칙은 두 줄이다:
+
+  1. 스냅샷이 검사에 걸리면 **채택하지 않는다**(로테이션에 안 들어감) + **prune 을 건너뛴다**(과거 성한 것 보존).
+  2. DB 디렉터리에 센티넬 파일을 남긴다 → /healthz 가 stat 만 해서 degraded 반환 → **배포마다 도는 smoke 가 잡는다.**
+
+(1) 이 본체다 — 아무도 안 보고 있어도 자동으로 성한 스냅샷을 지킨다. (2) 는 사람에게 닿는 경로.
+dolfinid crontab 에 **MAILTO 가 없어** cron 실패는 backup/backup.log 에만 남고 아무도 안 읽는다.
+읽히지 않는 검사는 연극이라, 사람이 이미 보는 경로(배포마다 도는 smoke)에 물린다.
+
+센티넬이 backup/ 아닌 db/ 에 있는 이유: 컨테이너가 보는 건 `/srv/fcmanager/db` → `/app/hostdb` 뿐이다
+(0.6.16 디렉터리 마운트 — .env·backup 은 blast radius 축소를 위해 의도적으로 비노출). 마운트를 되돌리지
+않고, 의미상으로도 "DB 가 깨졌다" 플래그는 DB 옆이 맞다.
+⚠️ cron 사용자(honestjung)가 db/ 에 쓸 수 있어야 한다 — 현 운영은 db/ 가 `ubuntu:ubuntu` drwxrwxr-x 이고
+honestjung 이 ubuntu 그룹 소속이라 성립(2026-07-15 실측). 못 쓰면 (1)은 그대로 동작하고 (2)만 로그 경고.
 """
 import shutil
 import sqlite3
@@ -20,6 +44,8 @@ from pathlib import Path
 BACKUP_DIR = Path('/srv/fcmanager/backup')
 # 디렉터리 마운트 레이아웃(0.6.16): 정본 = /srv/fcmanager/db/db.sqlite3.
 # 구 레이아웃(루트 파일)은 deploy.sh 가 1회 이행하지만, 이행 전 cron 이 돌 수 있어 fallback 유지.
+# ⚠️ 구 레이아웃으로 폴백하면 센티넬이 /srv/fcmanager/ 에 떨어져 컨테이너가 못 본다(healthz 는
+#    /app/hostdb 만 본다) — prune 보존은 유효하나 degraded 경로는 죽는다. 이행 완료된 운영은 해당 없음.
 _DB_NEW = Path('/srv/fcmanager/db/db.sqlite3')
 _DB_LEGACY = Path('/srv/fcmanager/db.sqlite3')
 SOURCES = [
@@ -31,10 +57,59 @@ DATA_DIRS = [
 RETAIN_COUNT = 12      # 매시 1개 → 최근 12시간 유지
 MIN_FREE_GB = 2        # 백업 디렉토리 여유가 이 미만이면 abort (디스크 풀 방지)
 
+# DB 디렉터리(= 컨테이너의 /app/hostdb)에 놓는 손상 플래그. config/views_health.py 가 stat 한다.
+SENTINEL_NAME = 'INTEGRITY_FAIL'
+
 
 def log(msg: str):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f'[{ts}] {msg}', flush=True)
+
+
+def integrity_check(path: Path) -> list[str]:
+    """PRAGMA integrity_check — 통과면 [], 실패면 문제 문자열 목록(빈 목록이 아니면 손상).
+
+    읽기 전용 URI 로 연다: 검사 대상은 방금 만든 스냅샷이지 라이브 DB 가 아니다.
+    라이브 소스 대신 스냅샷을 검사하는 이유 — (a) 소스가 깨졌으면 backup() 이 그대로 복사하므로
+    스냅샷 손상 ⇒ 소스 손상이 성립하고, (b) 라이브 DB 에 긴 read 트랜잭션을 걸지 않는다.
+    """
+    conn = None
+    try:
+        conn = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
+        rows = conn.execute('PRAGMA integrity_check').fetchall()
+    except sqlite3.DatabaseError as e:
+        return [f'열기/PRAGMA 실패: {e}']      # 헤더부터 깨진 경우 — 손상으로 취급
+    finally:
+        if conn is not None:
+            conn.close()
+    return [r[0] for r in rows if r and r[0] != 'ok']
+
+
+def raise_sentinel(db_dir: Path, problems: list[str]):
+    """DB 디렉터리에 손상 플래그를 남긴다 → /healthz degraded → smoke 실패(사람이 본다)."""
+    body = [
+        f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} backup_db.py: PRAGMA integrity_check 실패.',
+        '이 파일이 있는 한 /healthz 는 degraded 이고 smoke 는 실패한다.',
+        '백업 로테이션 prune 은 중단됐다 — backup/ 의 과거 스냅샷이 복구 후보다.',
+        '조치 후(예: rollback.sh --db=restore) 다음 정시 검사가 통과하면 자동으로 지워진다.',
+        '',
+        *problems[:20],
+    ]
+    try:
+        (db_dir / SENTINEL_NAME).write_text('\n'.join(body) + '\n')
+    except OSError as e:
+        log(f'경고: 센티넬 기록 실패 ({db_dir / SENTINEL_NAME}: {e}) — smoke 가 못 잡는다')
+
+
+def clear_sentinel(db_dir: Path):
+    """검사 통과 시 자기 해제. 손상이 고쳐졌는데 degraded 로 남아 있으면 안 된다."""
+    sentinel = db_dir / SENTINEL_NAME
+    if sentinel.exists():
+        try:
+            sentinel.unlink()
+            log(f'integrity OK — 센티넬 해제({sentinel})')
+        except OSError as e:
+            log(f'경고: 센티넬 해제 실패 ({sentinel}: {e})')
 
 
 def backup_one(name: str, src: Path) -> Path | None:
@@ -46,22 +121,70 @@ def backup_one(name: str, src: Path) -> Path | None:
     dest = BACKUP_DIR / f'{name}_{stamp}.sqlite3'
     tmp = dest.with_suffix('.sqlite3.tmp')
     try:
-        with sqlite3.connect(str(src)) as source_conn, sqlite3.connect(str(tmp)) as dest_conn:
-            source_conn.backup(dest_conn)
+        # `with sqlite3.connect(...)` 를 쓰지 않는다 — 그건 **트랜잭션** 컨텍스트지 close 가 아니다
+        # (파이썬 sqlite3 의 고전적 함정). 종전 코드는 이 관용구를 썼지만 cron 단명 프로세스라
+        # 종료 시 GC 가 닫아주며 체크포인트했다 → 실해는 없었다(cdGTS 가 prod backup/ 실측으로 확인).
+        # 그래도 명시적으로 닫는다: GC 타이밍에 기대는 정합성은 계약이 아니고, 아래 integrity_check 가
+        # 정적인 파일을 봐야 하기 때문.
+        source_conn = dest_conn = None
+        try:
+            source_conn = sqlite3.connect(str(src))
+            dest_conn = sqlite3.connect(str(tmp))
+            source_conn.backup(dest_conn)       # online backup API — writer 상주해도 일관 스냅샷
+            # backup 은 소스의 저널 모드까지 복사 → 스냅샷이 WAL 로 뜬다(운영 settings.py 가
+            # init_command 로 WAL). **아카이브는 WAL 일 이유가 없다**(동시 writer 가 없다).
+            # DELETE 로 내려 -wal/-shm 이 아예 존재하지 않게 만든다:
+            #   (a) 아래 integrity_check 는 mode=ro 로 여는데 **읽기 전용 커넥션은 WAL DB 의 -shm 을
+            #       만들어놓고 치울 권한이 없다** → DELETE 가 아니면 검사가 매시 고아 2개를 남기고,
+            #       prune 의 glob `*.sqlite3` 에 안 걸려 영구 누적된다(cdGTS 0.1.68 테스트서버 실측).
+            #   (b) 본체만 rename 하면 -wal 에 있던 내용이 스냅샷에서 조용히 누락된다.
+            # "스냅샷 = 일관된 단일 파일" 은 daily 미러(backup-fcmanager.sh)가 이미 전제하는 계약이다.
+            dest_conn.execute('PRAGMA journal_mode=DELETE')
+        finally:
+            for conn in (dest_conn, source_conn):
+                if conn is not None:
+                    conn.close()
+
+        # 채택 전 게이트 — 깨진 스냅샷은 로테이션에 들어가지 않는다(docstring "로테이션 오염 방지").
+        problems = integrity_check(tmp)
+        if problems:
+            log(f'{name}: !! INTEGRITY FAIL — 스냅샷 미채택. 라이브 DB({src}) 손상으로 간주.')
+            for p in problems[:5]:
+                log(f'{name}:    {p}')
+            # 증거는 하나만 남긴다: 최초 손상이 가장 정보가 많고, 매시 쌓이면 디스크가 샌다.
+            # 확장자가 .sqlite3 가 아니므로 prune_old() 의 glob 에도 안 걸린다.
+            evidence = BACKUP_DIR / f'{name}_INTEGRITY_FAIL.corrupt'
+            if evidence.exists():
+                tmp.unlink()
+                log(f'{name}: 증거 사본 이미 있음({evidence.name}) — 이번 것은 버림')
+            else:
+                tmp.replace(evidence)
+                log(f'{name}: 증거 사본 보존 → {evidence.name}')
+            raise_sentinel(src.parent, problems)
+            return None
+
         tmp.replace(dest)
+        clear_sentinel(src.parent)
         size_mb = dest.stat().st_size / (1024 * 1024)
-        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB)')
+        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB, integrity ok)')
         return dest
     except Exception as e:
         log(f'{name}: ERROR {e}')
         if tmp.exists():
-            try: tmp.unlink()
-            except OSError: pass
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
         return None
 
 
 def backup_data(name: str, src_dir: Path) -> Path | None:
-    """data 디렉토리 tar.gz. DB 와 동일 retention 트랙."""
+    """data 디렉토리 tar.gz. DB 와 동일 retention 트랙.
+
+    DB 와 같은 원칙으로 **채택 전에 검증한다.** tar 트랙에서 integrity_check 의 대응물은 `tar -tzf`
+    (gzip CRC + 아카이브 구조 확인) — 깨진 아카이브를 로테이션에 넣어 성한 과거를 밀어내지 않는다.
+    센티넬은 올리지 않는다: nginx conf 아카이브 손상은 앱 서빙 상태(degraded)와 무관하다.
+    """
     if not src_dir.is_dir():
         log(f'{name}: source dir not found ({src_dir}) — skip')
         return None
@@ -74,15 +197,18 @@ def backup_data(name: str, src_dir: Path) -> Path | None:
             ['tar', '-czf', str(tmp), '-C', str(src_dir.parent), src_dir.name],
             check=True, capture_output=True,
         )
+        subprocess.run(['tar', '-tzf', str(tmp)], check=True, capture_output=True)
         tmp.replace(dest)
         size_mb = dest.stat().st_size / (1024 * 1024)
-        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB)')
+        log(f'{name}: backup OK ({dest.name}, {size_mb:.1f} MB, tar ok)')
         return dest
     except Exception as e:
         log(f'{name}: ERROR {e}')
         if tmp.exists():
-            try: tmp.unlink()
-            except OSError: pass
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
         return None
 
 
@@ -125,12 +251,23 @@ def check_disk_space() -> bool:
 def main():
     if not check_disk_space():
         sys.exit(1)
+    failed = False
+    # 새 스냅샷을 못 만들었으면(디스크/IO/무결성) **prune 하지 않는다** — 새것 없이 과거를 지우면
+    # 보관 창이 소리 없이 줄어든다. 종전 코드는 backup_*() 의 반환값을 버리고 무조건 prune 했다
+    # (계약 §백업 레인 — 5개 프로젝트 공통 결함이었다).
     for name, src in SOURCES:
-        backup_one(name, src)
+        if backup_one(name, src) is None:
+            failed = True
+            log(f'{name}: prune 건너뜀(스냅샷 미채택) — 과거 스냅샷 보존')
+            continue
         prune_old(name)
     for name, src_dir in DATA_DIRS:
-        backup_data(name, src_dir)
+        if backup_data(name, src_dir) is None:
+            failed = True
+            log(f'{name}: prune 건너뜀(아카이브 미채택) — 과거 아카이브 보존')
+            continue
         prune_old(name, suffix='.tar.gz')
+    sys.exit(1 if failed else 0)
 
 
 if __name__ == '__main__':

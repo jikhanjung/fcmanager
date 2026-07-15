@@ -33,7 +33,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 |------|------|------|
 | Docker Hub `honestjung/fcmanager` | **0.6.18** + `latest` | push 완료 |
 | 운영 dolfinid `/srv/fcmanager` | **0.6.18** | 배포 완료(2026-07-14). DB게이트+쓰기프로브 OK·smoke PASS(`club=1, match=28`), gunicorn 비-root(uid 1000) |
-| 테스트 m710q `/srv/fcmanager` | **0.6.18** | 도커 테스트 target(devlog 087) — `:8005`, DB=dev_data 복사본, 랜딩(:80) 카드 |
+| 테스트 m710q `/srv/fcmanager` | **0.6.23** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드 |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
   `./deploy/remote-prod.sh X.Y.Z` → dolfinid 가 이미지에서 host 파일 추출(self-heal, bash -n
@@ -59,28 +59,27 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 
 - dolfinid `honestjung@34.64.158.160`, 도메인 `fcmanager.app`(루트=플랫폼, `/fcsky/`=클럽).
 - 런타임은 `/srv/fcmanager/`(컨테이너 `fcmanager`, 포트 8004). 소스 체크아웃은 런타임 아님.
-- 백업 2계층: dolfinid hourly(`/srv/fcmanager/scripts/backup_db.py` — 트랙 `fcmanager`+`dolfinid_nginx`)
-  + m710q daily 05시(`~/scripts/backup-fcmanager.sh` → `~/backups/fcmanager/`).
+- 백업 2계층: dolfinid hourly(`/srv/fcmanager/scripts/backup_db.py` — 트랙 `fcmanager`+`dolfinid_nginx`,
+  **채택 전 integrity 검증·실패 시 prune 금지**, 0.6.24) + m710q daily 05시(`~/scripts/backup-fcmanager.sh`
+  → `~/backups/fcmanager/` + NAS 90일). daily 는 라이브 DB 가 아니라 **검증된 hourly 스냅샷을 pull**
+  하고, 스냅샷이 2시간 넘게 낡으면(= hourly 중단/무결성 차단) telegram 으로 알린다.
   레거시 fcsky 백업(dolfinid hourly `/srv/FcSky/...` cron, m710q `backup-fcsky.sh` 04시)은
   모두 폐기 완료(2026-06-22, devlog 072).
 
 ## 로컬 개발 (m710q)
 
 - venv: **`~/venv/fcmanager`** (디렉터리 재생성 완료, 구 `~/venv/FcSky` 제거됨).
-- **테스트 서버는 운영 백업 미러(`~/dev_data/fcmanager/`)를 바라본다** (fsis2026 dev_data 패턴):
-  ```bash
-  source ~/venv/fcmanager/bin/activate && ./scripts/run-testserver.sh   # 0.0.0.0:8000
-  ```
-- **배포 파이프라인 시험은 도커 테스트 target**(devlog 087): `/srv/fcmanager/deploy-dev.sh
-  X.Y.Z` — 운영 동일 레이아웃, `:8005`, DB=dev_data **복사본**(자동 갱신 안 됨 — 필요 시
-  `cp ~/dev_data/fcmanager/db.sqlite3 /srv/fcmanager/db/`), m710q 랜딩(:80) 카드로 접근.
-  - `scripts/run-testserver.sh` 가 `DATABASE_PATH`/`MEDIA_ROOT` 를 dev_data 로 지정하고
-    `DEBUG=true`, `ALLOWED_HOSTS=*`(LAN 접근용) 로 기동. settings 는 두 env 미설정 시
-    기본(BASE_DIR) 유지 → 운영 컨테이너 영향 없음.
-  - dev_data 는 **daily 백업이 자동 갱신**: `backup-fcmanager.sh` step 8 이 매일 05시
-    `~/backups/fcmanager/current/{db.sqlite3,media}` → `~/dev_data/fcmanager/` 로 cp/rsync.
-  - 데이터는 repo 가 아니라 dev_data 에 있으므로 **repo 에 db.sqlite3 두지 않는다**(삭제됨,
-    gitignore). 굳이 스크래치 DB 가 필요하면 `python manage.py migrate` 가 빈 repo DB 생성.
+- **테스트는 도커 테스트 target 하나로 일원화**(0.6.24 — `~/dev_data` + `scripts/run-testserver.sh`
+  런처는 은퇴. 미러가 둘이면 드리프트만 늘고, 실제로 드리프트했다):
+  `/srv/fcmanager/deploy-dev.sh X.Y.Z` — 운영 동일 레이아웃, `:8005`, m710q 랜딩(:80) 카드로 접근.
+  - DB 는 **daily 백업이 매일 05시 운영 스냅샷으로 자동 갱신**(`backup-fcmanager.sh` step 8 —
+    integrity 검증된 hourly 스냅샷 → 컨테이너 정지 → 교체 → 재기동). "운영 데이터로 확인"과
+    "배포 파이프라인 시험"이 같은 곳에서 된다.
+  - ⚠️ **손으로 DB 를 갈아끼울 땐 컨테이너를 먼저 내린다** — WAL 로 쥔 채 파일을 갈면 btree 가
+    깨진다(cdGTS devlog 149). `docker compose down`(서비스명 없이) → 교체 + `rm -f db/db.sqlite3-{wal,shm}`
+    → `up -d`.
+  - **repo 에 db.sqlite3 두지 않는다**(gitignore). 스크래치 DB 가 필요하면 `python manage.py migrate`
+    가 빈 repo DB 를 만든다 — 운영 데이터와 무관.
 
 ## 알려진 정리거리 (급하지 않음)
 

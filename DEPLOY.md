@@ -83,6 +83,27 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.24`: **hourly 백업 무결성 게이트 + `/healthz` degraded**(cdGTS 0.1.68 포팅, devlog 094).
+  마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 추출로 갱신된다.
+  - **`smoke` 가 실패할 새 사유가 생겼다**: `status=degraded`(HTTP **200**) = hourly 백업이 운영 DB
+    손상을 발견해 `db/INTEGRITY_FAIL` 센티넬을 올린 상태. **배포 문제가 아니고, 반사적 롤백은 답이
+    아닐 수 있다** — `--db=keep` 은 손상을 그대로 두고, `--db=restore` 는 스냅샷이 성한지 사람이
+    판단해야 한다. 배포를 멈추고 `backup/` 의 과거 스냅샷·`backup/fcmanager_INTEGRITY_FAIL.corrupt`
+    (증거 사본)를 먼저 볼 것. 해제는 자동(다음 정시 검사 통과 시) 또는 `rm db/INTEGRITY_FAIL`.
+  - `/healthz` 의 실패 `status` 값이 `error` → **`unhealthy`** 로 바뀜(계약 3종 이름 정렬). 소비자는
+    smoke 뿐이고 판정은 `== "ok"` 라 무영향.
+  - 요건: cron 사용자(honestjung)가 `db/` 에 쓸 수 있어야 센티넬이 선다(현재 `ubuntu:ubuntu` g+w +
+    honestjung 이 ubuntu 그룹 → 성립, 2026-07-15 실측). 못 써도 **로테이션 보존은 동작**하고 degraded
+    경로만 죽는다.
+- `0.6.24`: **m710q daily 미러 정합성**(repo 밖 `~/scripts/backup-fcmanager.sh` — **호스트에 복사해야
+  반영됨**, self-heal 없음. 2026-07-15 설치·실행 검증 완료).
+  - 라이브 DB scp(torn copy 위험) → **운영 hourly 스냅샷 pull + 로컬 integrity 재검증**. 검증 실패 시
+    30일/90일 계층 정리를 건너뛴다. 최신 스냅샷이 **2h 초과로 낡으면 실패 + telegram** (= hourly 중단
+    또는 무결성 게이트가 채택 차단 중 → 운영 DB 손상 신호. **배포와 무관하게 매일 도는 탐지 경로**).
+  - **`~/dev_data` 은퇴** — daily step 8 이 m710q 테스트 타깃 `/srv/fcmanager/db` 를 직접 갱신
+    (`run-testserver.sh` 삭제, 테스트는 `:8005` 도커 타깃으로 일원화). ⚠️ 테스트 컨테이너가 DB 를 WAL 로
+    쥐므로 **`docker compose down`(서비스명 없이) → 교체 + `-wal`/`-shm` 제거 → `up -d`** 로 직렬화하고
+    정지 실패 시 교체하지 않는다(라이브 교체 = btree 손상, cdGTS devlog 149).
 - `0.6.23`: **`MatchEvent.side` OUR/OPPONENT → HOME/AWAY 데이터 마이그레이션**(0019 alter + 0020
   RunPython, reverse 제공) — entrypoint `migrate` 가 자동 적용, 스왑 직전 스냅샷이 안전망.
   변환은 경기별 우리 entry 홈/원정 기준(0020 은 historical 모델이라 `CompetitionEntry.club_id`

@@ -63,6 +63,15 @@
   - [x] `.env` 백업 — `/srv/fcmanager/.env`에서 pull, m710q 백업 검증 완료(2026-06-17).
   - [x] NAS 3계층화 — `/nas/JikhanJung/fcmanager_backup/`(90일) 매일 미러 + dev_data 갱신,
         2026-06-17부터 가동 중(backup.log "NAS 백업 완료" 매일)
+  - [x] **백업 유효성 = 계약**(0.6.24, devlog 094 — cdGTS 0.1.68 포팅): hourly 채택 전
+        `integrity_check`(+ nginx tar 는 `tar -tzf`), 실패 시 prune 금지 → 로테이션 오염 방지.
+        센티넬 → `/healthz` degraded → smoke. daily 는 라이브 scp(torn) 대신 검증된 hourly 스냅샷
+        pull + 신선도 2h 게이트(telegram). dev_data 은퇴 → 테스트 타깃 직접 갱신.
+  - [ ] **`rollback.sh --db=restore` 가 복원할 스냅샷을 검사하지 않는다** — 오염된 로테이션에서
+        고르면 손상을 되살린다. 복원 직전 `integrity_check` 1회(값싼 방어). 계약 §백업 레인의
+        미해결 항목 — **3-repo(cdGTS·fcmanager·fsis2026) 공통**이라 한 판에 정렬하는 게 낫다.
+  - [ ] `backup-fcmanager.sh` self-heal 부재 — 실행본 `~/scripts/` vs 정본 repo 가 실제로
+        드리프트했다(0.6.24 에서 흡수). m710q 는 이미지 소비 호스트가 아니라 구조가 다름 — 별도 설계.
 - [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/fcmanager` (devlog 050, 매뉴얼 `deploy.md`)
   - [x] dolfinid 1회 마이그레이션 실행 — `fcsky` 컨테이너 `/srv` 런타임 기동, `.env` 이전 완료(2026-06-17)
 - [x] 리버스 프록시(Nginx) + HTTPS + 도메인 연결 — `fcmanager.app` 병렬 배포(포트 8004,

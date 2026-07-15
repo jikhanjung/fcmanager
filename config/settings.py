@@ -125,7 +125,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        # 개발/테스트 서버는 DATABASE_PATH 로 dev_data DB 를 가리킬 수 있음.
+        # 컨테이너는 DATABASE_PATH 로 호스트 마운트 DB 를 가리킨다(운영·테스트 공통).
         # 미설정 시 운영/기본은 BASE_DIR/db.sqlite3 (기존 동작 유지).
         'NAME': os.environ.get('DATABASE_PATH') or BASE_DIR / 'db.sqlite3',
         'OPTIONS': {
@@ -198,7 +198,7 @@ if 'test' not in sys.argv:
 
 # Media files (uploaded photos: player/team images)
 MEDIA_URL = f'/{_URL_PREFIX}media/'
-# 개발/테스트 서버는 MEDIA_ROOT 로 dev_data media 를 가리킬 수 있음(미설정 시 기본 유지).
+# 컨테이너는 MEDIA_ROOT 로 호스트 마운트 media 를 가리킨다(미설정 시 기본 유지).
 MEDIA_ROOT = os.environ.get('MEDIA_ROOT') or BASE_DIR / 'media'
 
 # 인증 (운영진 로그인)

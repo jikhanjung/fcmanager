@@ -70,8 +70,16 @@ crontab -e
 ## 3. 백업 호스트(m710q) daily pull
 
 - **스크립트**: `/home/jikhanjung/scripts/backup-fcmanager.sh`
-- **cron**: `0 4 * * *` (fsis 03:00, ghdb 03:30 과 겹치지 않게 04:00)
+- **cron**: `0 5 * * *` (fsis 03:00, ghdb 03:30 과 겹치지 않게)
 - **방식**: m710q → dolfinid **SSH 키 인증 pull**(scp/rsync). 운영은 SSH 만 받음.
+- **DB 는 라이브 파일이 아니라 운영 hourly 스냅샷을 pull 한다**(0.6.24): 운영은 WAL 이라 가동 중
+  본체·-wal 을 따로 복사하면 그 사이 체크포인트가 끼어 torn 스냅샷이 된다. hourly `backup_db.py` 가
+  online backup API 로 뜨고 integrity 까지 통과시킨 **단일 파일**을 가져온 뒤, 로컬에서 한 번 더
+  `integrity_check` 하고 통과할 때만 채택한다(실패 시 계층화 정리도 건너뛴다 — 새것 없이 과거를
+  지우지 않는다).
+- **신선도 게이트**: 최신 스냅샷이 2시간 넘게 낡았으면 실패 처리 + telegram 알림. 원인은 hourly
+  cron 중단이거나 **무결성 게이트가 손상된 스냅샷의 채택을 막고 있는 것**(= 운영 DB 손상 신호,
+  `ssh dolfinid ls /srv/fcmanager/db/INTEGRITY_FAIL` 확인).
 - **운영 접속 설정**: 스크립트 상단 기본값 `honestjung@34.64.158.160:/srv/fcmanager`.
   환경변수로 override: `FCMANAGER_REMOTE_USER`, `FCMANAGER_REMOTE_HOST`, `FCMANAGER_REMOTE_PATH`.
 
@@ -86,15 +94,18 @@ ssh-copy-id honestjung@34.64.158.160          # 또는 실제 user@host
 /home/jikhanjung/scripts/backup-fcmanager.sh --full-snapshot
 tail -20 /home/jikhanjung/backups/fcmanager/backup.log
 # cron 등록:
-crontab -e   # 0 4 * * * /home/jikhanjung/scripts/backup-fcmanager.sh
+crontab -e   # 0 5 * * * /home/jikhanjung/scripts/backup-fcmanager.sh
 ```
 
 - **DB 계층화**: 30일 이내 매일 / 30일~ 월초만 / 매년 12월 1일 영구.
 - **media link-dest 체인**: 월 1일 `monthly/YYYYMM_full/` + 그 외 `daily/YYYYMMDD/`.
   변경 없는 파일은 inode 공유 → 디스크 거의 안 늘어남. 각 스냅이 완전한 트리라
   복원은 원하는 시점 디렉토리에서 그대로 rsync.
-- **NAS**(`/nas/JikhanJung/fcmanager_backup/`)·**dev_data**(`/home/jikhanjung/dev_data/fcmanager/`)는
-  디렉토리가 있을 때만 동작(없으면 WARN 후 skip).
+- **NAS**(`/nas/JikhanJung/fcmanager_backup/`)는 마운트돼 있을 때만 동작(없으면 WARN 후 skip).
+- **테스트 타깃 갱신**(step 8, 0.6.24 — 종전 dev_data 미러 대체): m710q `/srv/fcmanager/db` 를 그날
+  스냅샷으로 갱신한다. ⚠️ 테스트 컨테이너가 DB 를 WAL 로 쥐고 있으므로 **`docker compose down`(서비스명
+  없이) → 교체 + `-wal`/`-shm` 제거 → `up -d`** 순서로 직렬화하고, **정지에 실패하면 교체하지 않는다**
+  (라이브 교체 = btree 손상. cdGTS devlog 149 에서 실제 발생).
 
 ---
 

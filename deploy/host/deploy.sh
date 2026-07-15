@@ -130,7 +130,10 @@ else
     echo "  ✗ FATAL: container DB = '${DB_NAME:-<empty>}' — 기대 ${EXPECT_DB} 아님."
     echo "    컨테이너가 마운트되지 않은 이미지 내부 DB 를 쓰고 있다 → 사이트가 빈 데이터로 뜬다."
     echo "    실데이터는 ${ROOT}/db/db.sqlite3 에 안전. compose 의 environment DATABASE_PATH 가"
-    echo "    ${EXPECT_DB} 인지(구 compose 로 덮였는지) 확인 후 (cd ${ROOT} && docker compose up -d --force-recreate web)"
+    # 서비스명을 쓰지 않는다 — 안내문을 그대로 따른 사람이 사이드카를 빠뜨리면 그것만 낡은
+    # DATABASE_PATH 로 남는다. 단일-서비스 가정은 실행 코드뿐 아니라 **조언에도** 박히면 버그다
+    # (cdGTS 0.1.68 이 회수한 마지막 잔재 — 계약 §규범 MUST).
+    echo "    ${EXPECT_DB} 인지(구 compose 로 덮였는지) 확인 후 (cd ${ROOT} && docker compose up -d --force-recreate)"
     exit 1
 fi
 

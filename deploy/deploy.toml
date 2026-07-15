@@ -45,6 +45,7 @@ data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pr
 [targets.test]
 host     = "m710q"                         # 빌드 호스트가 곧 테스트 서버(cdGTS test target 과 동형).
 domain   = "0.0.0.0:8005"                  # .env HOST_PORT=8005 (8003 은 m710q 에서 fsis 점유). LAN 접근 가능.
-entry    = "/srv/fcmanager/deploy-dev.sh"  # DEPLOY_SNAPSHOT=0 — DB = dev_data(운영 백업 미러) 복사본, 폐기 가능.
+entry    = "/srv/fcmanager/deploy-dev.sh"  # DEPLOY_SNAPSHOT=0 — DB 는 daily 백업이 매일 05시 운영
+                                           # hourly 스냅샷(integrity 검증본)으로 갱신, 폐기 가능(0.6.24 — dev_data 은퇴).
 snapshot = false
 data_dir = "/srv/fcmanager"                # 테스트 호스트도 동일 레이아웃(스크립트 ROOT·compose 볼륨 하드코딩과 일치).
