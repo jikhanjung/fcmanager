@@ -85,6 +85,9 @@ self-heal → **운영 서버에 repo 불필요**. 최초 1회만 `deploy/sync_t
 
 - `0.6.24`: **hourly 백업 무결성 게이트 + `/healthz` degraded**(cdGTS 0.1.68 포팅, devlog 094).
   마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 추출로 갱신된다.
+  **배포 후기(2026-07-15)**: 7/7 완주·smoke PASS. self-heal 갱신 확인 + 운영 라이브 DB 실행 =
+  integrity ok·tar ok·**스냅샷 journal_mode=delete**·부산물 0. 센티넬 배선도 운영에서 직접 태워
+  확인(degraded 200 → smoke FAIL exit 1 → 자기해제 → ok).
   - **`smoke` 가 실패할 새 사유가 생겼다**: `status=degraded`(HTTP **200**) = hourly 백업이 운영 DB
     손상을 발견해 `db/INTEGRITY_FAIL` 센티넬을 올린 상태. **배포 문제가 아니고, 반사적 롤백은 답이
     아닐 수 있다** — `--db=keep` 은 손상을 그대로 두고, `--db=restore` 는 스냅샷이 성한지 사람이

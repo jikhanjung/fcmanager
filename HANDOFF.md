@@ -5,7 +5,7 @@
 > [docs/operation_manual/](docs/operation_manual/) 참고.
 > **갱신 규칙**: 의미 있는 상태 변화(배포·브랜치·미해결 이슈)가 생기면 이 파일을 갱신.
 
-_최종 갱신: 2026-07-14_
+_최종 갱신: 2026-07-15_
 
 ---
 
@@ -15,7 +15,10 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 외부 검토분(rollback `--db=keep|restore`+keep 가드·`.mig` 사이드카·`contract_version`·추출
 안전망)까지 운영 착지, **m710q 도커 테스트 target** 신설, **DB 디렉터리 마운트**(fsis2026 패턴)
 + **gosu 권한 드롭**(마운트 소유 uid 런타임 감지 — 소유권 함정 근본 해소) 전환.
-**운영(dolfinid) 0.6.18 배포 완료**(2026-07-14, smoke PASS). 상시 배포 =
+**운영(dolfinid) 0.6.24 배포 완료**(2026-07-15, smoke PASS) — 0.6.24 는 **백업 레인**:
+채택 전 integrity 검증·실패 시 prune 금지(로테이션 오염 방지), `/healthz` degraded(200)→smoke,
+daily 미러는 검증된 hourly 스냅샷 pull + 신선도 2h telegram 게이트, dev_data 은퇴(devlog 094).
+상시 배포 =
 `./deploy/build.sh X.Y.Z` + `./deploy/remote-prod.sh X.Y.Z` 두 줄, 테스트 확인은
 `/srv/fcmanager/deploy-dev.sh X.Y.Z`(m710q, :8005).
 
@@ -31,8 +34,8 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 
 | 위치 | 버전 | 상태 |
 |------|------|------|
-| Docker Hub `honestjung/fcmanager` | **0.6.18** + `latest` | push 완료 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.18** | 배포 완료(2026-07-14). DB게이트+쓰기프로브 OK·smoke PASS(`club=1, match=28`), gunicorn 비-root(uid 1000) |
+| Docker Hub `honestjung/fcmanager` | **0.6.24** + `latest` | push 완료 |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.24** | 배포 완료(2026-07-15, 7/7). DB게이트+쓰기프로브 OK·smoke PASS(`club=1, match=28`). 백업 무결성 게이트 운영 실행 검증(스냅샷 delete 모드·부산물 0·센티넬→degraded→smoke FAIL→자기해제 전 구간) |
 | 테스트 m710q `/srv/fcmanager` | **0.6.23** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드 |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
