@@ -48,11 +48,12 @@ restore 분기에 복원 후보 무결성 검사를 넣었다. 핵심 3가지:
   **여전히 up**(down 미실행 확인). 이후 손상 후보 제거.
 - 실제 pre_deploy_0.6.14 스냅샷 → `integrity_check` **ok**(false-positive 없음).
 
-## 5. 반영 경계 (주의)
+## 5. 반영 경계 → 배포 완료
 
-정본은 **repo `deploy/host/rollback.sh`** 다. 운영/테스트 `/srv/fcmanager/rollback.sh` 는 배포 때
-이미지에서 self-heal 추출되므로, **다음 이미지 빌드(`build.sh X.Y.Z`)+배포 전까지는 구 버전**이다.
-지금 당장 운영에서 롤백하면 아직 이 게이트가 없다 — 급하면 정본을 손으로 복사하거나 다음 릴리스에 태운다.
+정본은 **repo `deploy/host/rollback.sh`** 이고, 운영/테스트 `/srv/fcmanager/rollback.sh` 는 배포 때
+이미지에서 self-heal 추출된다. **0.6.26 으로 빌드(`build.sh 0.6.26`, 112 tests OK)+운영 배포
+완료**(2026-07-17): remote-prod.sh → dolfinid 7/7·smoke PASS(`club=1, match=28`), 운영 host
+`rollback.sh` 에 `_snapshot_integrity_ok` 함수 존재 확인. 테스트 서버(:8005)도 0.6.26 라인에 정렬됨.
 
 ## 6. 곁다리 — 테스트 서버 0.6.23 → 0.6.25
 

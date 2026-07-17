@@ -104,6 +104,9 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
   down` 전에 중단**(라이브 DB·서비스 불변). 0.6.24 채택 게이트가 **새** 스냅샷만 지키던 빈틈(restore 는
   로테이션의 **기존** 후보를 고름 → 게이트 이전·수동 후보 무검증)을 막는다.
   ⚠️ **자동으로 다른 스냅샷을 고르지 않는다** — 중단만 하고 다른 후보·수동 복원 절차를 안내(계약: 사람에게 넘김).
+  **배포 후기(2026-07-17)**: 7/7·smoke PASS(`club=1, match=28`). self-heal 로 운영 `rollback.sh` 갱신
+  확인(`_snapshot_integrity_ok` 함수 존재). 검증 = 함수 격리(정상/손상/WAL) + 테스트 서버 end-to-end
+  (손상 스냅샷 주입 → `down` 전 exit 1·컨테이너 불변). pre_deploy 스냅샷 정상 경로 false-positive 없음.
 - `0.6.25`: **반출 위생(세션 토큰) + hourly 보존 12 → 24**(cdGTS 151·0.1.69 반영, devlog 095).
   마이그레이션 없음. 조치 불요 — 배포하면 `scripts/backup_db.py` 가 self-heal 로 갱신된다.
   **배포 후기(2026-07-15)**: 7/7·smoke PASS. 운영 라이브 실행 = `세션 34행 제거`·integrity ok,

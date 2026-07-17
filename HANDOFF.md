@@ -44,7 +44,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 | 위치 | 버전 | 상태 |
 |------|------|------|
 | Docker Hub `honestjung/fcmanager` | **0.6.25** + `latest` | push 완료 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.25** | 배포 완료(2026-07-15, 7/7). DB게이트+쓰기프로브 OK·smoke PASS(`club=1, match=28`). 백업 무결성 게이트 운영 실행 검증(스냅샷 delete 모드·부산물 0·센티넬→degraded→smoke FAIL→자기해제 전 구간, 0.6.24). 반출 위생 운영 실측(새 스냅샷 세션 0행·`freelist_count` 0=VACUUM 실행됨·해시 보존·**라이브 34행 불변**, 0.6.25) |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.26** | 배포 완료(2026-07-17, 7/7·smoke PASS `club=1, match=28`). rollback restore 무결성 게이트 self-heal 반영 확인. 이전: 0.6.25 반출 위생 운영 실측(새 스냅샷 세션 0행·`freelist_count` 0=VACUUM·라이브 34행 불변), 0.6.24 백업 무결성 게이트 전 구간 검증 |
 | 테스트 m710q `/srv/fcmanager` | **0.6.25** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-07-17 0.6.25 배포(smoke PASS `club=1, match=28`) |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
@@ -102,9 +102,8 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 - ~~**`rollback.sh --db=restore` 가 복원할 스냅샷을 검사하지 않는다**~~ **해소**(2026-07-17,
   devlog 097): restore 는 이제 복원 직전 후보 스냅샷(+WAL/SHM)을 임시 사본에 펼쳐 `integrity_check`
   하고, 손상이면 **`docker compose down` 전에 중단**한다(라이브·서비스 불변). 자동으로 다른 스냅샷을
-  고르진 않는다(계약: 사람에게 넘김). 정본 `deploy/host/rollback.sh` — **다음 이미지 빌드·배포 때
-  self-heal 로 운영 rollback.sh 반영**(아직 운영/테스트 `/srv` 는 구 버전). 계약 기록 §롤아웃 추적
-  항목은 devdocs 세션 소관(5-repo 공통).
+  고르진 않는다(계약: 사람에게 넘김). **0.6.26 으로 운영 배포 완료**(2026-07-17) — self-heal 로 운영
+  `/srv/fcmanager/rollback.sh` 반영 확인. 계약 기록 §롤아웃 추적 항목은 devdocs 세션 소관(5-repo 공통).
 - **NAS 가 `drwxrwxrwx`(0777)** — 반출 위생으로 *무엇을 내보내나*는 고쳤지만 *어디에 두나*는 그대로.
   단 **fcmanager 잔여 실질은 얇다**(실측): 사본에 남은 건 admin 해시 1개(pbkdf2 870k, 제3자 0)뿐이고
   선수·경기 데이터는 **fcmanager.app 이 이미 공개**한다(`player_detail` 무권한 뷰). 세션 토큰(즉시
