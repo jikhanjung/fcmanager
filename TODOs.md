@@ -68,13 +68,14 @@
         `integrity_check`(+ nginx tar 는 `tar -tzf`), 실패 시 prune 금지 → 로테이션 오염 방지.
         센티넬 → `/healthz` degraded → smoke. daily 는 라이브 scp(torn) 대신 검증된 hourly 스냅샷
         pull + 신선도 2h 게이트(telegram). dev_data 은퇴 → 테스트 타깃 직접 갱신.
-  - [ ] **`rollback.sh --db=restore` 가 복원할 스냅샷을 검사하지 않는다** — 0.6.24 채택 게이트는
-        **새** 스냅샷만 지킨다. restore 는 로테이션에 **이미 있는** 것을 고르므로 게이트 이전에
-        들어온 것·수동으로 놓인 것은 무검증으로 라이브에 오른다 = 손상을 되살릴 마지막 경로.
-        복원 직전 `integrity_check` 1회 + 실패 시 중단·이전 후보 안내(smoke degraded 분기와 동형).
-        ⚠️ "손상 감지 시 자동 롤백"과 다른 얘기 — 그건 계약이 반려한다(사람에게 넘김).
-        계약 [기록 §롤아웃](../devdocs/wiki/deploy-data-contract-record.md#롤아웃) **추적 항목(0/5)**
-        으로 승격됨(2026-07-15) — 5-repo 공통이라 한 판에 정렬하는 게 낫다.
+  - [x] **`rollback.sh --db=restore` 복원 직전 스냅샷 무결성 검사**(2026-07-17, devlog 097) —
+        후보 스냅샷(+WAL/SHM)을 임시 사본에 펼쳐 `PRAGMA integrity_check`, 손상이면 **`docker compose
+        down` 전에 중단**(라이브 DB·서비스 불변). 0.6.24 채택 게이트가 **새** 스냅샷만 지키던 빈틈
+        (restore 는 로테이션의 **기존** 것을 고름 → 게이트 이전·수동 후보 무검증)을 막는다.
+        ⚠️ "손상 감지 시 자동 롤백"은 아님 — 자동으로 다른 스냅샷 고르지 않고 중단만(계약: 사람에게 넘김).
+        정본 `deploy/host/rollback.sh` — 다음 이미지 빌드·배포 때 self-heal 로 운영 반영.
+        계약 [기록 §롤아웃](../devdocs/wiki/deploy-data-contract-record.md#롤아웃) 추적 항목은
+        devdocs 세션 소관(5-repo 공통, 사용자 조율).
   - [ ] `backup-fcmanager.sh` self-heal 부재 — 실행본 `~/scripts/` vs 정본 repo 가 실제로
         드리프트했다(0.6.24 에서 흡수). m710q 는 이미지 소비 호스트가 아니라 구조가 다름 — 별도 설계.
 - [x] 배포 구조 분리 — 개발 소스 ↔ 운영 런타임 `/srv/fcmanager` (devlog 050, 매뉴얼 `deploy.md`)

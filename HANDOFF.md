@@ -5,7 +5,7 @@
 > [docs/operation_manual/](docs/operation_manual/) 참고.
 > **갱신 규칙**: 의미 있는 상태 변화(배포·브랜치·미해결 이슈)가 생기면 이 파일을 갱신.
 
-_최종 갱신: 2026-07-15_
+_최종 갱신: 2026-07-17_
 
 ---
 
@@ -45,7 +45,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 |------|------|------|
 | Docker Hub `honestjung/fcmanager` | **0.6.25** + `latest` | push 완료 |
 | 운영 dolfinid `/srv/fcmanager` | **0.6.25** | 배포 완료(2026-07-15, 7/7). DB게이트+쓰기프로브 OK·smoke PASS(`club=1, match=28`). 백업 무결성 게이트 운영 실행 검증(스냅샷 delete 모드·부산물 0·센티넬→degraded→smoke FAIL→자기해제 전 구간, 0.6.24). 반출 위생 운영 실측(새 스냅샷 세션 0행·`freelist_count` 0=VACUUM 실행됨·해시 보존·**라이브 34행 불변**, 0.6.25) |
-| 테스트 m710q `/srv/fcmanager` | **0.6.23** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드 |
+| 테스트 m710q `/srv/fcmanager` | **0.6.25** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-07-17 0.6.25 배포(smoke PASS `club=1, match=28`) |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
   `./deploy/remote-prod.sh X.Y.Z` → dolfinid 가 이미지에서 host 파일 추출(self-heal, bash -n
@@ -97,14 +97,14 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
   - **repo 에 db.sqlite3 두지 않는다**(gitignore). 스크래치 DB 가 필요하면 `python manage.py migrate`
     가 빈 repo DB 를 만든다 — 운영 데이터와 무관.
 
-## 미해결 (백업 레인, 2026-07-15 기준)
+## 미해결 (백업 레인, 2026-07-17 기준)
 
-- **`rollback.sh --db=restore` 가 복원할 스냅샷을 검사하지 않는다** — 0.6.24 채택 게이트는 **새**
-  스냅샷만 지키고, restore 는 로테이션에 **이미 있는** 것을 고른다 → 게이트 이전·수동 스냅샷은
-  무검증으로 라이브에 오른다 = **채택 전 검증 MUST 가 복원 경로엔 미적용**. 처방은 복원 직전
-  `integrity_check` 1회 + 실패 시 중단. ⚠️ "손상 감지 시 **자동 롤백**"과는 다른 얘기 — 그건
-  계약이 반려한다(사람에게 넘김). 계약 [기록 §롤아웃](../devdocs/wiki/deploy-data-contract-record.md#롤아웃)
-  **추적 항목(0/5)** — 5-repo 공통이라 한 판에 정렬하는 게 낫다.
+- ~~**`rollback.sh --db=restore` 가 복원할 스냅샷을 검사하지 않는다**~~ **해소**(2026-07-17,
+  devlog 097): restore 는 이제 복원 직전 후보 스냅샷(+WAL/SHM)을 임시 사본에 펼쳐 `integrity_check`
+  하고, 손상이면 **`docker compose down` 전에 중단**한다(라이브·서비스 불변). 자동으로 다른 스냅샷을
+  고르진 않는다(계약: 사람에게 넘김). 정본 `deploy/host/rollback.sh` — **다음 이미지 빌드·배포 때
+  self-heal 로 운영 rollback.sh 반영**(아직 운영/테스트 `/srv` 는 구 버전). 계약 기록 §롤아웃 추적
+  항목은 devdocs 세션 소관(5-repo 공통).
 - **NAS 가 `drwxrwxrwx`(0777)** — 반출 위생으로 *무엇을 내보내나*는 고쳤지만 *어디에 두나*는 그대로.
   단 **fcmanager 잔여 실질은 얇다**(실측): 사본에 남은 건 admin 해시 1개(pbkdf2 870k, 제3자 0)뿐이고
   선수·경기 데이터는 **fcmanager.app 이 이미 공개**한다(`player_detail` 무권한 뷰). 세션 토큰(즉시
