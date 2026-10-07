@@ -5,7 +5,7 @@
 첫 클럽은 FC Sky(`/fcsky/`). 운영 도메인은 `fcmanager.app`.
 
 ## 기술 스택
-- Django 5.1, Python 3.12 / Django Template + Bootstrap 5
+- Django 5.2, Python 3.12 / Django Template + Bootstrap 5
 - 실시간 중계: Django Channels
 - DB: SQLite (개발·운영 — 볼륨 영속화. PostgreSQL 전환은 보류)
 - 배포: Docker(`honestjung/fcmanager`) + Gunicorn + nginx. 절차는 `docs/operation_manual/` 참고.

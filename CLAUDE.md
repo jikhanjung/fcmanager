@@ -9,7 +9,7 @@ FCManager 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·�
   ```bash
   source ~/venv/fcmanager/bin/activate
   ```
-- 의존성: `pip install -r requirements.txt` (Django 5.1, Pillow)
+- 의존성: `pip install -r requirements.txt` (Django 5.2, Pillow)
 - DB: SQLite(개발). `db.sqlite3`는 git 제외.
 - 자주 쓰는 명령:
   ```bash
