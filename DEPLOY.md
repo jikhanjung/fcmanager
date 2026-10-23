@@ -98,6 +98,14 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
 
 > 형식: `버전: 운영에 필요한 것 한두 줄`. 없으면 안 적는다(코드/템플릿 전용).
 
+- `0.6.27`: **베이스 이미지 재빌드(emSign CA 손상 대응, GHSA-6q48-6c7w-9gw2) + Django 5.1.15 → 5.2.18 LTS**.
+  마이그레이션 없음(운영 스냅샷 `migrate --plan` = 없음). 조치 불요.
+  - 0.6.26 이하 이미지는 Debian `ca-certificates 20250419` 라 손상된 **`emSign ECC Root CA - G3`** 를
+    여전히 신뢰(아웃바운드 HTTPS MITM 여지). `python:3.12-slim` 재pull 로 `20250419+deb13u1` — 해당 루트 제거.
+    Dockerfile 변경 없음(해결은 베이스 갱신분). certifi 는 의존성에 없음(requests/httpx 미사용).
+  - ⚠️ `build.sh` 는 `--pull` 을 쓰지 않는다 — 베이스 보안 갱신은 **빌드 전 `docker pull python:3.12-slim`**
+    이 되어 있어야 반영된다(이번엔 사전 `--pull` 빌드로 캐시 갱신).
+  - 확인: `docker exec fcmanager sh -c 'ls /etc/ssl/certs | grep -ci emsign_ecc_root_ca_-_g3'` → `0`.
 - `0.6.26`: **`rollback.sh --db=restore` 복원 직전 무결성 게이트**(devlog 097). 마이그레이션 없음.
   조치 불요 — 배포하면 `rollback.sh` 가 self-heal 추출로 갱신된다. 이후 `--db=restore` 는 복원 후보
   pre_deploy 스냅샷(+WAL/SHM)을 임시 사본에 펼쳐 `integrity_check` 하고, 손상이면 **`docker compose
