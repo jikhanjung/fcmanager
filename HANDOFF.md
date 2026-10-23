@@ -5,7 +5,7 @@
 > [docs/operation_manual/](docs/operation_manual/) 참고.
 > **갱신 규칙**: 의미 있는 상태 변화(배포·브랜치·미해결 이슈)가 생기면 이 파일을 갱신.
 
-_최종 갱신: 2026-07-17_
+_최종 갱신: 2026-10-23_
 
 ---
 
@@ -25,6 +25,10 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
   `SECRET_KEY` 가 달라도 안 막는다. 소급 정리 62벌·1,992행·유효 16 → 0, 라이브 DB 불변.
   + `RETAIN_COUNT` 12→**24**(daily 05시 간격을 hourly 창이 덮게 — 유도값).
 
+**최신: 운영 0.6.27**(2026-10-23, devlog 098) — 베이스 이미지 재빌드로 손상된 **emSign ECC Root CA - G3**
+제거(GHSA-6q48-6c7w-9gw2, `ca-certificates 20250419+deb13u1`) + Django **5.2.18 LTS**. 마이그레이션 없음.
+다음 작업 후보: 모바일 PWA 계획 `devlog/20261018_P07_PWA_발전계획.md`(계획만, 착수 보류).
+
 상시 배포 =
 `./deploy/build.sh X.Y.Z` + `./deploy/remote-prod.sh X.Y.Z` 두 줄, 테스트 확인은
 `/srv/fcmanager/deploy-dev.sh X.Y.Z`(m710q, :8005).
@@ -43,9 +47,9 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 
 | 위치 | 버전 | 상태 |
 |------|------|------|
-| Docker Hub `honestjung/fcmanager` | **0.6.25** + `latest` | push 완료 |
-| 운영 dolfinid `/srv/fcmanager` | **0.6.26** | 배포 완료(2026-07-17, 7/7·smoke PASS `club=1, match=28`). rollback restore 무결성 게이트 self-heal 반영 확인. 이전: 0.6.25 반출 위생 운영 실측(새 스냅샷 세션 0행·`freelist_count` 0=VACUUM·라이브 34행 불변), 0.6.24 백업 무결성 게이트 전 구간 검증 |
-| 테스트 m710q `/srv/fcmanager` | **0.6.25** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-07-17 0.6.25 배포(smoke PASS `club=1, match=28`) |
+| Docker Hub `honestjung/fcmanager` | **0.6.27** + `latest` | push 완료(2026-10-23) |
+| 운영 dolfinid `/srv/fcmanager` | **0.6.27** | 배포 완료(2026-10-23, 7/7·smoke PASS `club=1, match=28`). 컨테이너 내 emSign 루트 0개·Django 5.2.18 확인. 이전: 0.6.26 rollback restore 무결성 게이트, 0.6.25 반출 위생, 0.6.24 백업 무결성 게이트 |
+| 테스트 m710q `/srv/fcmanager` | **0.6.27** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-10-23 0.6.27 배포(smoke PASS, 주요 페이지 200) |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
   `./deploy/remote-prod.sh X.Y.Z` → dolfinid 가 이미지에서 host 파일 추출(self-heal, bash -n

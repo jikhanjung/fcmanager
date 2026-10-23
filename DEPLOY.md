@@ -106,6 +106,8 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
   - ⚠️ `build.sh` 는 `--pull` 을 쓰지 않는다 — 베이스 보안 갱신은 **빌드 전 `docker pull python:3.12-slim`**
     이 되어 있어야 반영된다(이번엔 사전 `--pull` 빌드로 캐시 갱신).
   - 확인: `docker exec fcmanager sh -c 'ls /etc/ssl/certs | grep -ci emsign_ecc_root_ca_-_g3'` → `0`.
+  **배포 후기(2026-10-23)**: 테스트(:8005) → 운영 7/7·smoke PASS(`club=1, match=28`). 운영 컨테이너
+  `ca-certificates 20250419+deb13u1`·emSign **0**·Django 5.2.18, 공개 페이지 200·에러 로그 0.
 - `0.6.26`: **`rollback.sh --db=restore` 복원 직전 무결성 게이트**(devlog 097). 마이그레이션 없음.
   조치 불요 — 배포하면 `rollback.sh` 가 self-heal 추출로 갱신된다. 이후 `--db=restore` 는 복원 후보
   pre_deploy 스냅샷(+WAL/SHM)을 임시 사본에 펼쳐 `integrity_check` 하고, 손상이면 **`docker compose
