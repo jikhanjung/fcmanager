@@ -14,7 +14,10 @@ services:
     ports:
       # 호스트 8000은 portainer가 점유 → 기본 8003. 병렬 운영(레거시 fcsky 와 동시 가동)
       # 시에는 /srv/fcmanager/.env 의 HOST_PORT 로 override(예: 8004).
-      - "${HOST_PORT:-8003}:8000"
+      # 기본은 127.0.0.1 에만 연다 — 운영은 nginx 가 127.0.0.1 로 프록시하므로 외부에 직접 열 이유가 없다
+      # (2026-11-06, dolfinid 에서 0.0.0.0:8004 가 외부 IP 로 열려 있던 것). LAN 접근이 필요한
+      # 테스트 호스트(m710q :8005)는 .env 에 BIND_ADDR=0.0.0.0.
+      - "${BIND_ADDR:-127.0.0.1}:${HOST_PORT:-8003}:8000"
     environment:
       DJANGO_DEBUG: "false"
       # SaaS: 전용 도메인 루트에서 서비스(플랫폼 / + 클럽 /<slug>/). URL_PREFIX 미사용.
