@@ -105,6 +105,8 @@ daily pull·복원·테스트 타깃 갱신이 동작한다. (WAL 로 두면 읽
   - 테스트(m710q :8005)는 LAN 접근용으로 `/srv/fcmanager/.env` 에 `BIND_ADDR=0.0.0.0` (2026-11-06 넣음).
   - ⚠️ 0.6.27 이하로 rollback 하면 그 이미지의 compose 로 다시 `0.0.0.0` 이 된다.
   - 확인: `docker ps --filter name=fcmanager --format '{{.Ports}}'` → 운영 `127.0.0.1:8004->8000/tcp`.
+  **배포 후기(2026-11-06)**: 테스트(:8005, `0.0.0.0` 유지) → 운영 7/7 · smoke PASS(`club=1, match=28`). 운영 compose 가 이미지 판으로
+  덮어써져 `127.0.0.1:8004->8000/tcp`, 외부 IP 에서 :8004 닫힘, https://fcmanager.app/ 200.
 - `0.6.27`: **베이스 이미지 재빌드(emSign CA 손상 대응, GHSA-6q48-6c7w-9gw2) + Django 5.1.15 → 5.2.18 LTS**.
   마이그레이션 없음(운영 스냅샷 `migrate --plan` = 없음). 조치 불요.
   - 0.6.26 이하 이미지는 Debian `ca-certificates 20250419` 라 손상된 **`emSign ECC Root CA - G3`** 를
