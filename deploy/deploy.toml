@@ -44,7 +44,7 @@ data_dir = "/srv/fcmanager"                # DB, media, .env, backup(hourly + pr
 
 [targets.test]
 host     = "m710q"                         # 빌드 호스트가 곧 테스트 서버(cdGTS test target 과 동형).
-domain   = "0.0.0.0:8005"                  # .env HOST_PORT=8005 (8003 은 m710q 에서 fsis 점유) + BIND_ADDR=0.0.0.0 — LAN 접근 가능.
+domain   = "127.0.0.1:8005"                # .env HOST_PORT=8005 (8003 은 m710q 에서 fsis 점유). 접속은 nginx :8090 경유 — BIND_ADDR 기본 127.0.0.1 (2026-11-10).
 entry    = "/srv/fcmanager/deploy-dev.sh"  # DEPLOY_SNAPSHOT=0 — DB 는 daily 백업이 매일 05시 운영
                                            # hourly 스냅샷(integrity 검증본)으로 갱신, 폐기 가능(0.6.24 — dev_data 은퇴).
 snapshot = false

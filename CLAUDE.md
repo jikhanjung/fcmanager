@@ -25,7 +25,7 @@ FCManager 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·�
 
 **m710q 도커 테스트 target 하나로 일원화**(0.6.24 — 종전 `~/dev_data` + `run-testserver.sh` 런처는
 은퇴). 운영과 동일 레이아웃(`/srv/fcmanager`, HOST_PORT=**8005**)으로 돌고, DB 는 **daily 백업이 매일
-05시 운영 스냅샷으로 갱신**한다(`scripts/backup-fcmanager.sh` step 8). 폰 등 LAN 접근도 `:8005` 로.
+05시 운영 스냅샷으로 갱신**한다(`scripts/backup-fcmanager.sh` step 8). 컨테이너는 127.0.0.1:8005 에만 열리고, 폰 등 LAN 접근은 nginx `:8090` 으로(2026-11-10).
 
 ```bash
 /srv/fcmanager/deploy-dev.sh X.Y.Z    # 테스트 배포(스냅샷 없음, DB 폐기 가능). 매니페스트 [targets.test]

@@ -63,7 +63,7 @@ docker compose -f deploy/docker-compose.yml up --build
 | `DJANGO_SECRET_KEY` | (개발용 키) | 운영에선 반드시 지정 |
 | `IMAGE_TAG` | `latest` | deploy.sh/rollback.sh 가 갱신 — 손대지 말 것 |
 | `HOST_PORT` | `8003` | 호스트 노출 포트(8000은 portainer 점유). 병렬 운영 시 override |
-| `BIND_ADDR` | `127.0.0.1` | 호스트 노출 주소. 운영은 nginx 경유라 기본값 그대로. LAN 에서 직접 접근하는 테스트 호스트(m710q)만 `0.0.0.0` |
+| `BIND_ADDR` | `127.0.0.1` | 호스트 노출 주소. 운영과 테스트(m710q, nginx :8090) 모두 nginx 경유라 기본값 그대로. nginx 없이 직접 열 때만 `0.0.0.0` |
 | `DJANGO_DEBUG` | `false` | |
 | `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS` | compose 에 지정 | fcmanager.app |
 | `DJANGO_SUPERUSER_USERNAME` / `_PASSWORD` / `_EMAIL` | (없음) | 지정 시 관리자 계정 보증(없을 때만 생성) |

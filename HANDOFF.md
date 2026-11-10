@@ -31,7 +31,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 
 상시 배포 =
 `./deploy/build.sh X.Y.Z` + `./deploy/remote-prod.sh X.Y.Z` 두 줄, 테스트 확인은
-`/srv/fcmanager/deploy-dev.sh X.Y.Z`(m710q, :8005).
+`/srv/fcmanager/deploy-dev.sh X.Y.Z`(m710q, nginx :8090).
 
 ## 코드 / 브랜치
 
@@ -49,7 +49,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 |------|------|------|
 | Docker Hub `honestjung/fcmanager` | **0.6.27** + `latest` | push 완료(2026-10-23) |
 | 운영 dolfinid `/srv/fcmanager` | **0.6.27** | 배포 완료(2026-10-23, 7/7·smoke PASS `club=1, match=28`). 컨테이너 내 emSign 루트 0개·Django 5.2.18 확인. 이전: 0.6.26 rollback restore 무결성 게이트, 0.6.25 반출 위생, 0.6.24 백업 무결성 게이트 |
-| 테스트 m710q `/srv/fcmanager` | **0.6.27** | 도커 테스트 target(devlog 087) — `:8005`, DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-10-23 0.6.27 배포(smoke PASS, 주요 페이지 200) |
+| 테스트 m710q `/srv/fcmanager` | **0.6.27** | 도커 테스트 target(devlog 087) — nginx `:8090`(컨테이너 127.0.0.1:8005), DB=운영 스냅샷 미러(daily 05시 갱신), 랜딩(:80) 카드. 2026-10-23 0.6.27 배포(smoke PASS, 주요 페이지 200) |
 
 - **배포 방식 = git-free 원격 원터치**(계약 정렬, devlog 082·085): m710q 에서
   `./deploy/remote-prod.sh X.Y.Z` → dolfinid 가 이미지에서 host 파일 추출(self-heal, bash -n
@@ -91,7 +91,7 @@ Phase 1~4 + SaaS + **배포·데이터 계약 완전 정렬**(devlog 082~089): g
 - venv: **`~/venv/fcmanager`** (디렉터리 재생성 완료, 구 `~/venv/FcSky` 제거됨).
 - **테스트는 도커 테스트 target 하나로 일원화**(0.6.24 — `~/dev_data` + `scripts/run-testserver.sh`
   런처는 은퇴. 미러가 둘이면 드리프트만 늘고, 실제로 드리프트했다):
-  `/srv/fcmanager/deploy-dev.sh X.Y.Z` — 운영 동일 레이아웃, `:8005`, m710q 랜딩(:80) 카드로 접근.
+  `/srv/fcmanager/deploy-dev.sh X.Y.Z` — 운영 동일 레이아웃, nginx `:8090`, m710q 랜딩(:80) 카드로 접근.
   - DB 는 **daily 백업이 매일 05시 운영 스냅샷으로 자동 갱신**(`backup-fcmanager.sh` step 8 —
     integrity 검증된 hourly 스냅샷 → 컨테이너 정지 → 교체 → 재기동). "운영 데이터로 확인"과
     "배포 파이프라인 시험"이 같은 곳에서 된다.
