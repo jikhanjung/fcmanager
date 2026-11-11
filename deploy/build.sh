@@ -37,7 +37,7 @@ fi
 
 echo ""
 echo "=== [3/4] Building image $IMAGE:$VERSION ==="
-docker build -f deploy/Dockerfile --build-arg APP_VERSION="$VERSION" \
+docker build --pull -f deploy/Dockerfile --build-arg APP_VERSION="$VERSION" \
     -t "$IMAGE:$VERSION" -t "$IMAGE:latest" .
 
 echo ""
