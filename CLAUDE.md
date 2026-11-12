@@ -3,6 +3,10 @@
 FCManager 웹사이트. Django + Bootstrap. 선수단·대회·일정·결과·입상 내역을
 관리/공개하고, 장기적으로 실시간 중계까지 확장하는 것이 목표.
 
+## Shared guides (`.guides`)
+Web deployment, data-safety and operations conventions: `.guides/web/README.md`; branding: `.guides/branding.md`. `.guides` is a local relative symlink to `../devdocs/guides` (gitignored).
+If it is missing or broken, the sibling devdocs checkout is absent — devdocs is private and this repo is public, so **never commit the guides here.**
+
 ## 환경 / 실행
 
 - **가상환경은 반드시 `~/venv/fcmanager` 사용** (프로젝트 로컬 `.venv` 만들지 말 것).

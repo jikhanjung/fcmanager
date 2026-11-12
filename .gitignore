@@ -21,3 +21,6 @@ db.sqlite3.*
 .DS_Store
 .idea/
 .vscode/
+
+# shared guides: local symlink to ../devdocs/guides (devdocs is private)
+.guides
